@@ -1,0 +1,288 @@
+{% extends "admin/base.html" %}
+
+{% block title %}API Usage Monitor{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <div class="page-header-row">
+        <div>
+            <h1 class="page-title">🔑 API Usage Monitor</h1>
+            <p class="page-subtitle">Real-time API budget and health monitoring</p>
+        </div>
+        <span class="page-timestamp" aria-label="Last updated">Updated: {{ now_str }}</span>
+    </div>
+</div>
+
+{# ============================================================
+   SECTION 1: Source Quota Cards
+   ============================================================ #}
+<section aria-label="API quota overview">
+    <div class="source-cards">
+        {% for source in sources %}
+        <article class="source-card" aria-label="{{ source.display_name }} API usage">
+            <div class="source-card-header">
+                <div class="source-name">
+                    <span class="source-logo source-logo--{{ source.source_key }}" aria-hidden="true">{{ source.display_name[0] }}</span>
+                    {{ source.display_name }}
+                </div>
+                {% if source.last_10_calls %}
+                <span class="source-status-badge source-status-badge--{{ source.last_call_status }}"
+                      role="status"
+                      aria-label="Last API call {{ 'successful' if source.last_call_status == 'ok' else 'failed' }}">
+                    {% if source.last_call_status == 'ok' %}
+                    ✓ Last call OK
+                    {% else %}
+                    ✗ Last call failed
+                    {% endif %}
+                </span>
+                {% endif %}
+            </div>
+
+            {# --- Donut Chart --- #}
+            {% set donut_angle = (source.budget_pct / 100 * 360)|round(1) %}
+            {% set donut_color = '#006aff' if source.source_key == 'zillow' else '#d92228' %}
+            <div class="donut-container">
+                <div class="donut" role="img" aria-label="{{ source.display_name }} quota: {{ source.api_calls }} of {{ source.api_budget }} calls used, {{ source.budget_pct|round|int }} percent">
+                    <div class="donut-ring" style="background: conic-gradient({{ donut_color }} 0deg {{ donut_angle }}deg, #e5e7eb {{ donut_angle }}deg 360deg);"></div>
+                    <div class="donut-center">
+                        <span class="donut-pct">{{ source.budget_pct|round|int }}%</span>
+                        <span class="donut-label">Used</span>
+                    </div>
+                </div>
+                <div class="donut-stats">
+                    <div class="donut-stat-label">Monthly Budget</div>
+                    <div class="donut-stat-row">
+                        <span class="donut-stat-value">{{ source.api_calls }}</span>
+                        <span class="donut-stat-of">/ {{ "{:,}".format(source.api_budget) }} calls</span>
+                    </div>
+                    {% if source.remaining > (source.api_budget * 0.4) %}
+                    <div class="donut-remaining donut-remaining--ok">
+                        <span class="donut-remaining-icon" aria-hidden="true">✓</span>
+                        {{ "{:,}".format(source.remaining) }} remaining
+                    </div>
+                    {% elif source.remaining > (source.api_budget * 0.2) %}
+                    <div class="donut-remaining donut-remaining--warn">
+                        <span class="donut-remaining-icon" aria-hidden="true">⚠</span>
+                        {{ "{:,}".format(source.remaining) }} remaining
+                    </div>
+                    {% else %}
+                    <div class="donut-remaining donut-remaining--danger">
+                        <span class="donut-remaining-icon" aria-hidden="true">⚠</span>
+                        {{ "{:,}".format(source.remaining) }} remaining
+                    </div>
+                    {% endif %}
+                    <div class="donut-meta">Daily avg: {{ source.daily_avg }} calls &middot; Projected: {{ "{:,}".format(source.projected) }} this month</div>
+                </div>
+            </div>
+
+            {# --- Last 10 API Calls (Operational Status Dots) --- #}
+            <div class="ops-section">
+                <div class="ops-label" id="{{ source.source_key }}-ops-label">Last 10 API Calls</div>
+                {% if source.last_10_calls %}
+                <div class="call-dots" role="list" aria-labelledby="{{ source.source_key }}-ops-label">
+                    {% for call in source.last_10_calls %}
+                    {% set sc = call.status_code %}
+                    {% set is_ok = sc == 200 %}
+                    {# Build status text for tooltip #}
+                    {% if sc == 200 %}{% set sc_text = "200 OK" %}
+                    {% elif sc == 429 %}{% set sc_text = "429 Rate Limited" %}
+                    {% elif sc == 403 %}{% set sc_text = "403 Forbidden" %}
+                    {% elif sc == 500 %}{% set sc_text = "500 Server Error" %}
+                    {% elif sc == 502 %}{% set sc_text = "502 Bad Gateway" %}
+                    {% elif sc == 503 %}{% set sc_text = "503 Service Unavailable" %}
+                    {% elif sc == 400 %}{% set sc_text = "400 Bad Request" %}
+                    {% elif sc == 401 %}{% set sc_text = "401 Unauthorized" %}
+                    {% elif sc == 404 %}{% set sc_text = "404 Not Found" %}
+                    {% elif sc is not none %}{% set sc_text = sc|string ~ " Error" %}
+                    {% else %}{% set sc_text = "Unknown" %}
+                    {% endif %}
+                    {# Format date for tooltip #}
+                    {% if call.called_at %}
+                    {% set call_date = call.called_at.strftime('%b') ~ ' ' ~ call.called_at.day %}
+                    {% else %}
+                    {% set call_date = "Unknown" %}
+                    {% endif %}
+                    <div class="call-dot call-dot--{{ 'ok' if is_ok else ('unknown' if sc is none else 'fail') }}"
+                         role="listitem"
+                         data-tooltip="{{ call_date }} — {{ sc_text }}"
+                         aria-label="{{ call_date }}: {{ 'Success' if is_ok else 'Failed' }}, status {{ sc_text }}">
+                        {{ '✓' if is_ok else '✗' }}
+                    </div>
+                    {% endfor %}
+                </div>
+                <div class="call-dot-legend" aria-hidden="true">
+                    <span><span class="legend-swatch legend-swatch--ok"></span> Success (200)</span>
+                    <span><span class="legend-swatch legend-swatch--fail"></span> Error (4xx/5xx)</span>
+                </div>
+                {% else %}
+                <div class="empty-state" style="padding: 16px 0;">
+                    <p>No API call records found.</p>
+                </div>
+                {% endif %}
+            </div>
+        </article>
+        {% endfor %}
+    </div>
+</section>
+
+{# ============================================================
+   SECTION 2: Additional Charts (two-column)
+   ============================================================ #}
+<section aria-label="API health charts">
+    <div class="two-col">
+
+        {# --- CHART 1: 7-Day Success Rate --- #}
+        <div class="section">
+            <h2 class="section-title">
+                <span class="section-title-icon" aria-hidden="true">📊</span>
+                7-Day Success Rate
+            </h2>
+            <p class="section-description">
+                Percentage of successful API calls (status 200) per day, all sources combined
+            </p>
+            {% if success_rate_7d %}
+            <div class="trend-chart" role="img" aria-label="Success rate trend over {{ success_rate_7d|length }} days">
+                {% for day in success_rate_7d %}
+                <div class="trend-bar-group">
+                    <div class="trend-bar-wrapper">
+                        <span class="trend-bar-pct">{{ day.rate|round|int }}%</span>
+                        <div class="trend-bar trend-bar--{{ 'success' if day.rate == 100 else ('fail' if day.rate < 50 else 'mixed') }}" style="height: {{ [day.rate, 4]|max }}%;"></div>
+                    </div>
+                    {# Format date label #}
+                    {% if day.date is string %}
+                    <span class="trend-bar-date">{{ day.date[5:] }}</span>
+                    {% else %}
+                    <span class="trend-bar-date">{{ day.date }}</span>
+                    {% endif %}
+                </div>
+                {% endfor %}
+            </div>
+            <div class="trend-legend" aria-hidden="true">
+                <span class="trend-legend-item">
+                    <span class="trend-legend-swatch trend-legend-swatch--success"></span>
+                    100% success
+                </span>
+                <span class="trend-legend-item">
+                    <span class="trend-legend-swatch trend-legend-swatch--mixed"></span>
+                    &lt; 100% (some failures)
+                </span>
+            </div>
+            {% else %}
+            <div class="empty-state">
+                <div class="empty-state-icon">📊</div>
+                <p>No API call data available for the last 7 days.</p>
+            </div>
+            {% endif %}
+        </div>
+
+        {# --- CHART 2: Monthly Comparison --- #}
+        <div class="section">
+            <h2 class="section-title">
+                <span class="section-title-icon" aria-hidden="true">📈</span>
+                Monthly Comparison
+            </h2>
+            <p class="section-description">
+                API calls this month vs. last month (as of day {{ current_day_of_month }})
+            </p>
+            {# Compute max value for bar width scaling across all sources #}
+            {% set ns = namespace(max_val=1) %}
+            {% for source in sources %}
+            {% if source.api_calls > ns.max_val %}{% set ns.max_val = source.api_calls %}{% endif %}
+            {% if source.prev_month_calls > ns.max_val %}{% set ns.max_val = source.prev_month_calls %}{% endif %}
+            {% endfor %}
+            <div class="comparison-grid" role="table" aria-label="Monthly usage comparison">
+                {% for source in sources %}
+                <div class="comparison-source" role="rowgroup">
+                    <div class="comparison-source-name">
+                        <span class="source-logo source-logo--{{ source.source_key }}" style="width: 18px; height: 18px; font-size: 10px; border-radius: 4px;" aria-hidden="true">{{ source.display_name[0] }}</span>
+                        {{ source.display_name }}
+                    </div>
+                    <div class="comparison-bars">
+                        <div class="comparison-row" role="row">
+                            <span class="comparison-label" role="cell">{{ current_month_label }}</span>
+                            <div class="comparison-track" role="cell">
+                                <div class="comparison-fill comparison-fill--current"
+                                     style="width: {{ (source.api_calls / ns.max_val * 100)|round|int }}%;"
+                                     aria-label="{{ source.api_calls }} calls this month"></div>
+                            </div>
+                            <span class="comparison-value" role="cell">{{ source.api_calls }}</span>
+                        </div>
+                        <div class="comparison-row" role="row">
+                            <span class="comparison-label" role="cell">{{ prev_month_label }}</span>
+                            <div class="comparison-track" role="cell">
+                                <div class="comparison-fill comparison-fill--previous"
+                                     style="width: {{ (source.prev_month_calls / ns.max_val * 100)|round|int }}%;"
+                                     aria-label="{{ source.prev_month_calls }} calls last month at same point"></div>
+                            </div>
+                            <span class="comparison-value" role="cell">{{ source.prev_month_calls }}</span>
+                        </div>
+                    </div>
+                    {# Delta calculation #}
+                    {% if source.prev_month_calls > 0 %}
+                    {% set src_delta = ((source.api_calls - source.prev_month_calls) / source.prev_month_calls * 100)|round(1) %}
+                    <div style="text-align: right;">
+                        {% if src_delta > 0 %}
+                        <span class="comparison-delta comparison-delta--up" aria-label="{{ src_delta }} percent increase">&uarr; {{ src_delta }}%</span>
+                        {% elif src_delta < 0 %}
+                        <span class="comparison-delta comparison-delta--down" aria-label="{{ src_delta|abs }} percent decrease">&darr; {{ src_delta|abs }}%</span>
+                        {% else %}
+                        <span class="comparison-delta comparison-delta--same" aria-label="No change">&mdash; 0%</span>
+                        {% endif %}
+                    </div>
+                    {% elif source.api_calls > 0 %}
+                    <div style="text-align: right;">
+                        <span class="comparison-delta comparison-delta--up" aria-label="New this month">New</span>
+                    </div>
+                    {% endif %}
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+
+    </div>
+</section>
+
+{# ============================================================
+   SECTION 3: Daily Call Volume Sparklines
+   ============================================================ #}
+<section aria-label="Daily API call volume">
+    <div class="section">
+        <h2 class="section-title">
+            <span class="section-title-icon" aria-hidden="true">📉</span>
+            Daily Call Volume &mdash; {{ current_month_label }}
+        </h2>
+        <p class="section-description">
+            Total API calls per day by source. Hover bars for exact counts.
+        </p>
+
+        {% for source in sources %}
+        <div class="sparkline-source-block{% if not loop.last %} sparkline-source-block--spaced{% endif %}">
+            <div class="sparkline-source-label">
+                <span class="sparkline-source-swatch sparkline-source-swatch--{{ source.source_key }}"></span>
+                {{ source.display_name }}
+            </div>
+            {% if source.daily_calls %}
+            {% set max_daily = source.daily_calls|map(attribute='count')|max %}
+            <div class="sparkline-chart" role="img" aria-label="{{ source.display_name }} daily calls: {{ source.daily_calls|map(attribute='count')|list|join(', ') }} calls">
+                {% for day in source.daily_calls %}
+                <div class="spark-bar spark-bar--{{ source.source_key }}"
+                     style="height: {{ (day.count / max_daily * 100)|round if max_daily else 0 }}%;"
+                     data-tooltip="{{ day.date }}: {{ day.count }} calls"></div>
+                {% endfor %}
+            </div>
+            {% if source.daily_calls|length > 1 %}
+            <div class="sparkline-labels">
+                <span>{{ source.daily_calls[0].date }}</span>
+                <span>{{ source.daily_calls[-1].date }}</span>
+            </div>
+            {% endif %}
+            {% else %}
+            <div class="empty-state" style="padding: 16px 0;">
+                <p>No API call data for this month.</p>
+            </div>
+            {% endif %}
+        </div>
+        {% endfor %}
+    </div>
+</section>
+{% endblock %}

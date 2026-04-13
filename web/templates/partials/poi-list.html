@@ -1,0 +1,18 @@
+{% if pois %}
+    {% for poi in pois %}
+    <div class="poi-item">
+        <span class="poi-item-icon">{{ category_icons.get(poi.category, '📍') }}</span>
+        <span class="poi-item-name">{{ poi.name }}</span>
+        <span class="poi-item-address" title="{{ poi.address }}">{{ poi.address }}</span>
+        <button class="poi-delete-btn"
+                hx-delete="/api/poi/{{ poi.id }}"
+                hx-target="#poi-list"
+                hx-swap="innerHTML"
+                hx-confirm="Delete '{{ poi.name }}'?"
+                aria-label="Delete {{ poi.name }}"
+                title="Delete">✕</button>
+    </div>
+    {% endfor %}
+{% else %}
+    <p class="poi-empty">No interest points yet. Add your workplace, schools, or parks above.</p>
+{% endif %}

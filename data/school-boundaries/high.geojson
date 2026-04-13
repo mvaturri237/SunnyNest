@@ -1,0 +1,90 @@
+{
+  "type": "FeatureCollection",
+  "features": [
+    {
+      "type": "Feature",
+      "properties": {
+        "school_name": "Fremont High School",
+        "district": "Fremont Union High School District"
+      },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [[
+          [-122.045, 37.375],
+          [-122.015, 37.375],
+          [-122.015, 37.420],
+          [-122.045, 37.420],
+          [-122.045, 37.375]
+        ]]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "school_name": "Homestead High School",
+        "district": "Fremont Union High School District"
+      },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [[
+          [-122.065, 37.340],
+          [-122.045, 37.340],
+          [-122.045, 37.375],
+          [-122.065, 37.375],
+          [-122.065, 37.340]
+        ]]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "school_name": "Cupertino High School",
+        "district": "Fremont Union High School District"
+      },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [[
+          [-122.045, 37.340],
+          [-122.015, 37.340],
+          [-122.015, 37.375],
+          [-122.045, 37.375],
+          [-122.045, 37.340]
+        ]]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "school_name": "Lynbrook High School",
+        "district": "Fremont Union High School District"
+      },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [[
+          [-122.015, 37.340],
+          [-121.982, 37.340],
+          [-121.982, 37.388],
+          [-122.015, 37.388],
+          [-122.015, 37.340]
+        ]]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "school_name": "Monta Vista High School",
+        "district": "Fremont Union High School District"
+      },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [[
+          [-122.015, 37.388],
+          [-121.982, 37.388],
+          [-121.982, 37.464],
+          [-122.015, 37.464],
+          [-122.015, 37.388]
+        ]]
+      }
+    }
+  ]
+}

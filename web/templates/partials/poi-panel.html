@@ -1,0 +1,27 @@
+<details class="poi-panel" open>
+    <summary>📍 My Interest Points</summary>
+
+    <form class="poi-form-row"
+          hx-post="/api/poi"
+          hx-target="#poi-list"
+          hx-swap="innerHTML"
+          hx-on::after-request="if(event.detail.successful) this.reset()">
+        <select name="category" class="poi-input" required aria-label="Category">
+            <option value="work">🏢 Work</option>
+            <option value="school">🏫 School</option>
+            <option value="park">🌳 Park</option>
+            <option value="transit">🚉 Transit</option>
+            <option value="shopping">🛒 Shopping</option>
+            <option value="custom">📍 Custom</option>
+        </select>
+        <input type="text" name="name" class="poi-input" placeholder="Name" required
+               aria-label="Point of interest name">
+        <input type="text" name="address" class="poi-input" placeholder="Address" required
+               aria-label="Address">
+        <button type="submit" class="poi-add-btn">+ Add</button>
+    </form>
+
+    <div id="poi-list" aria-live="polite">
+        {% include "partials/poi-list.html" %}
+    </div>
+</details>

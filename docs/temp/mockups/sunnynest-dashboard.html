@@ -1,0 +1,1323 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>SunnyNest — Rental Dashboard Mockup</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <style>
+    /* ============================================
+       DESIGN TOKENS — Dark Theme (matching Streamlit app)
+       ============================================ */
+    :root {
+      --color-bg: #0e1117;
+      --color-surface: rgba(255, 255, 255, 0.025);
+      --color-surface-hover: rgba(255, 255, 255, 0.04);
+      --color-border: rgba(255, 255, 255, 0.10);
+      --color-border-hover: rgba(187, 134, 252, 0.30);
+      --color-accent: #bb86fc;
+      --color-accent-dim: rgba(187, 134, 252, 0.08);
+      --color-accent-border: rgba(187, 134, 252, 0.4);
+      --color-text-primary: #ffffff;
+      --color-text-secondary: #cccccc;
+      --color-text-muted: #888888;
+      --color-text-dim: #777777;
+      --color-success: #43a047;
+      --color-warning: #FF9800;
+      --color-danger: #e53935;
+      --color-info: #64b5f6;
+      --color-card-shadow: rgba(0, 0, 0, 0.25);
+      --color-card-shadow-hover: rgba(123, 31, 162, 0.18);
+      --color-map-marker: #7B1FA2;
+
+      --font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      --radius-card: 10px;
+      --radius-badge: 999px;
+      --radius-button: 8px;
+      --radius-filter: 6px;
+
+      --shadow-card: 0 2px 8px var(--color-card-shadow);
+      --shadow-card-hover: 0 4px 16px var(--color-card-shadow-hover);
+
+      --transition-base: 0.2s ease;
+      --filter-bar-height: 48px;
+      --panel-divider: 1px solid rgba(250, 250, 250, 0.1);
+    }
+
+    /* ============================================
+       RESET & BASE
+       ============================================ */
+    *, *::before, *::after {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    html {
+      font-size: 16px;
+      -webkit-font-smoothing: antialiased;
+      -moz-osx-font-smoothing: grayscale;
+    }
+
+    body {
+      font-family: var(--font-family);
+      background: var(--color-bg);
+      color: var(--color-text-primary);
+      line-height: 1.5;
+      min-height: 100vh;
+      overflow: hidden;
+    }
+
+    a {
+      color: inherit;
+      text-decoration: none;
+    }
+
+    button {
+      font-family: inherit;
+      cursor: pointer;
+      border: none;
+      background: none;
+    }
+
+    /* Focus visible for keyboard navigation */
+    :focus-visible {
+      outline: 2px solid var(--color-accent);
+      outline-offset: 2px;
+      border-radius: 4px;
+    }
+
+    /* Respect reduced motion */
+    @media (prefers-reduced-motion: reduce) {
+      *, *::before, *::after {
+        animation-duration: 0.01ms !important;
+        transition-duration: 0.01ms !important;
+      }
+    }
+
+    /* ============================================
+       FILTER BAR
+       ============================================ */
+    .filter-bar {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      padding: 8px 16px;
+      background: var(--color-bg);
+      border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+      height: var(--filter-bar-height);
+      flex-shrink: 0;
+    }
+
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin-right: 8px;
+      flex-shrink: 0;
+    }
+
+    .brand-icon {
+      font-size: 1.5rem;
+    }
+
+    .brand-name {
+      font-size: 1.4rem;
+      font-weight: 800;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+      letter-spacing: -0.5px;
+    }
+
+    .filter-select {
+      background: rgba(255, 255, 255, 0.05);
+      border: 1px solid rgba(255, 255, 255, 0.12);
+      border-radius: var(--radius-filter);
+      color: var(--color-text-primary);
+      font-size: 0.85rem;
+      padding: 6px 28px 6px 10px;
+      min-height: 2.2rem;
+      appearance: none;
+      -webkit-appearance: none;
+      background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%23999' d='M3 5l3 3 3-3z'/%3E%3C/svg%3E");
+      background-repeat: no-repeat;
+      background-position: right 8px center;
+      cursor: pointer;
+      transition: border-color var(--transition-base);
+      flex-shrink: 0;
+    }
+
+    .filter-select:hover,
+    .filter-select:focus {
+      border-color: var(--color-accent-border);
+    }
+
+    .filter-select option {
+      background: #1a1d26;
+      color: var(--color-text-primary);
+    }
+
+    .reset-btn {
+      background: rgba(255, 255, 255, 0.05);
+      border: 1px solid rgba(255, 255, 255, 0.12);
+      border-radius: var(--radius-filter);
+      color: var(--color-text-primary);
+      font-size: 1.1rem;
+      min-height: 2.2rem;
+      width: 2.2rem;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: all var(--transition-base);
+      flex-shrink: 0;
+    }
+
+    .reset-btn:hover {
+      background: rgba(255, 255, 255, 0.1);
+      border-color: rgba(255, 255, 255, 0.25);
+    }
+
+    /* ============================================
+       SPLIT PANEL LAYOUT
+       ============================================ */
+    .split-panel {
+      display: flex;
+      height: calc(100vh - var(--filter-bar-height));
+      overflow: hidden;
+    }
+
+    .panel-left {
+      width: 42%;
+      min-width: 380px;
+      max-width: 520px;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+    }
+
+    .panel-right {
+      flex: 1;
+      border-left: var(--panel-divider);
+      padding-left: 0;
+      position: relative;
+      overflow: hidden;
+    }
+
+    /* ============================================
+       LISTINGS SCROLL AREA
+       ============================================ */
+    .listings-scroll {
+      flex: 1;
+      overflow-y: auto;
+      overflow-x: hidden;
+      padding: 8px 12px;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+
+    /* Custom scrollbar — thin, subtle */
+    .listings-scroll::-webkit-scrollbar {
+      width: 6px;
+    }
+
+    .listings-scroll::-webkit-scrollbar-track {
+      background: transparent;
+    }
+
+    .listings-scroll::-webkit-scrollbar-thumb {
+      background: rgba(255, 255, 255, 0.15);
+      border-radius: 3px;
+    }
+
+    .listings-scroll::-webkit-scrollbar-thumb:hover {
+      background: rgba(255, 255, 255, 0.25);
+    }
+
+    /* ============================================
+       LISTING CARD
+       ============================================ */
+    .listing-card {
+      display: flex;
+      gap: 10px;
+      padding: 8px;
+      background: var(--color-surface);
+      border: 1px solid var(--color-border);
+      border-radius: var(--radius-card);
+      box-shadow: var(--shadow-card);
+      transition: border-color var(--transition-base),
+                  box-shadow var(--transition-base),
+                  background var(--transition-base);
+      cursor: pointer;
+    }
+
+    .listing-card:hover {
+      border-color: var(--color-border-hover);
+      box-shadow: var(--shadow-card-hover);
+      background: var(--color-surface-hover);
+    }
+
+    .listing-card:focus-within {
+      outline: 2px solid var(--color-accent);
+      outline-offset: 2px;
+    }
+
+    /* --- Card: Thumbnail --- */
+    .card-thumbnail {
+      position: relative;
+      width: 160px;
+      min-width: 160px;
+      height: 160px;
+      flex-shrink: 0;
+    }
+
+    .card-thumbnail img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      border-radius: 6px;
+      display: block;
+    }
+
+    .card-thumbnail .placeholder-img {
+      background: linear-gradient(135deg, #667eea, #764ba2);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 1.5rem;
+      border-radius: 6px;
+      height: 100%;
+      width: 100%;
+    }
+
+    /* Overlay action icons on image */
+    .img-overlay-actions {
+      position: absolute;
+      top: 6px;
+      right: 6px;
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+      z-index: 10;
+    }
+
+    .overlay-btn {
+      background: rgba(0, 0, 0, 0.45);
+      color: white;
+      border: none;
+      border-radius: 50%;
+      width: 30px;
+      height: 30px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 15px;
+      cursor: pointer;
+      opacity: 0.7;
+      transition: opacity var(--transition-base), background var(--transition-base);
+    }
+
+    .overlay-btn:hover {
+      opacity: 1;
+      background: rgba(0, 0, 0, 0.7);
+    }
+
+    .overlay-btn.active {
+      opacity: 1;
+      background: rgba(0, 0, 0, 0.6);
+    }
+
+    /* --- Card: Details --- */
+    .card-details {
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      gap: 4px;
+      flex: 1;
+      min-width: 0;
+      height: 160px;
+      padding: 2px 0;
+    }
+
+    .card-price-row {
+      display: flex;
+      align-items: baseline;
+      gap: 6px;
+    }
+
+    .card-price {
+      font-size: 1.1rem;
+      font-weight: 700;
+      color: var(--color-accent);
+      letter-spacing: -0.3px;
+      line-height: 1.2;
+      flex-shrink: 0;
+    }
+
+    .card-title {
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      max-width: 100%;
+      font-weight: 600;
+      font-size: 0.82rem;
+      color: white;
+      line-height: 1.2;
+      flex: 1;
+      min-width: 0;
+    }
+
+    .card-specs {
+      font-size: 0.82rem;
+      font-weight: 500;
+      color: var(--color-text-secondary);
+      line-height: 1.2;
+    }
+
+    /* --- Tag badges --- */
+    .card-tag-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 4px;
+      align-items: center;
+    }
+
+    .card-tag {
+      display: inline-block;
+      padding: 2px 10px;
+      border-radius: var(--radius-badge);
+      font-size: 0.75rem;
+      font-weight: 500;
+      line-height: 1.4;
+      white-space: nowrap;
+      vertical-align: middle;
+    }
+
+    /* Actionable badges — solid */
+    .tag-new { background: var(--color-success); color: white; }
+    .tag-price-drop { background: var(--color-warning); color: white; }
+    .tag-price-up { background: var(--color-danger); color: white; }
+
+    /* Informational badges — outlined */
+    .tag-pet { background: transparent; border: 1px solid rgba(25, 118, 210, 0.4); color: #64b5f6; }
+    .tag-ac { background: transparent; border: 1px solid rgba(2, 136, 209, 0.4); color: #4fc3f7; }
+    .tag-days { background: transparent; border: 1px solid rgba(255, 255, 255, 0.15); color: #999; }
+    .tag-available-now { background: #2e7d32; color: white; }
+    .tag-available-future { background: transparent; border: 1px solid rgba(21, 101, 192, 0.4); color: #64b5f6; }
+
+    /* Freshness badges — outlined */
+    .tag-fresh { background: transparent; border: 1px solid rgba(67, 160, 71, 0.4); color: #81c784; }
+    .tag-aging { background: transparent; border: 1px solid rgba(249, 168, 37, 0.4); color: #ffd54f; }
+    .tag-stale { background: transparent; border: 1px solid rgba(198, 40, 40, 0.4); color: #ef9a9a; }
+
+    /* Zillow/source pill link */
+    .source-pill-link {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      padding: 2px 10px;
+      border: 1px solid var(--color-accent-border);
+      border-radius: 20px;
+      text-decoration: none !important;
+      font-size: 0.72rem;
+      font-weight: 500;
+      color: var(--color-accent) !important;
+      background: var(--color-accent-dim);
+      transition: all var(--transition-base);
+      cursor: pointer;
+      width: fit-content;
+      margin-left: auto;
+    }
+
+    .source-pill-link:hover {
+      background: rgba(187, 134, 252, 0.18);
+      border-color: rgba(187, 134, 252, 0.6);
+      color: #ce9ffc !important;
+    }
+
+    .source-pill-link img {
+      width: 14px;
+      height: 14px;
+      border-radius: 2px;
+    }
+
+    /* Location line */
+    .card-location {
+      font-size: 0.72rem;
+      color: var(--color-text-dim);
+      line-height: 1.2;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    /* ============================================
+       PAGINATION
+       ============================================ */
+    .pagination {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 12px;
+      padding: 10px 12px;
+      border-top: 1px solid rgba(255, 255, 255, 0.05);
+      flex-shrink: 0;
+    }
+
+    .pagination-btn {
+      display: flex;
+      align-items: center;
+      gap: 4px;
+      padding: 6px 14px;
+      background: rgba(255, 255, 255, 0.05);
+      border: 1px solid rgba(255, 255, 255, 0.12);
+      border-radius: var(--radius-button);
+      color: var(--color-text-primary);
+      font-size: 0.85rem;
+      font-weight: 500;
+      transition: all var(--transition-base);
+      min-height: 36px;
+    }
+
+    .pagination-btn:hover:not(:disabled) {
+      background: rgba(255, 255, 255, 0.1);
+      border-color: var(--color-accent-border);
+    }
+
+    .pagination-btn:disabled {
+      opacity: 0.35;
+      cursor: not-allowed;
+    }
+
+    .pagination-info {
+      text-align: center;
+      font-size: 0.9rem;
+      color: var(--color-text-secondary);
+    }
+
+    .pagination-hint {
+      font-size: 0.7rem;
+      color: #666;
+      display: block;
+      margin-top: 2px;
+    }
+
+    /* ============================================
+       MAP PANEL
+       ============================================ */
+    .map-container {
+      width: 100%;
+      height: 100%;
+      position: relative;
+      background: #e8e8e8;
+      overflow: hidden;
+    }
+
+    .map-container iframe {
+      width: 100%;
+      height: 100%;
+      border: none;
+    }
+
+    /* Map placeholder (static image fallback) */
+    .map-placeholder {
+      width: 100%;
+      height: 100%;
+      background: #e5e3df;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .map-placeholder img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+    }
+
+    /* Map zoom controls */
+    .map-controls {
+      position: absolute;
+      top: 12px;
+      left: 12px;
+      display: flex;
+      flex-direction: column;
+      gap: 1px;
+      z-index: 20;
+    }
+
+    .map-zoom-btn {
+      width: 32px;
+      height: 32px;
+      background: white;
+      border: 1px solid rgba(0, 0, 0, 0.2);
+      color: #333;
+      font-size: 18px;
+      font-weight: 700;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      transition: background var(--transition-base);
+    }
+
+    .map-zoom-btn:first-child {
+      border-radius: 4px 4px 0 0;
+    }
+
+    .map-zoom-btn:last-child {
+      border-radius: 0 0 4px 4px;
+      border-top: none;
+    }
+
+    .map-zoom-btn:hover {
+      background: #f0f0f0;
+    }
+
+    /* Map price markers */
+    .map-marker {
+      position: absolute;
+      background-color: var(--color-map-marker);
+      color: white;
+      font-size: 11px;
+      font-weight: 700;
+      padding: 4px 8px;
+      border-radius: 12px;
+      white-space: nowrap;
+      cursor: pointer;
+      box-shadow: 0 2px 6px rgba(0, 0, 0, 0.3);
+      transition: transform var(--transition-base);
+      z-index: 10;
+    }
+
+    .map-marker:hover {
+      transform: scale(1.1);
+      z-index: 15;
+    }
+
+    /* Map city label */
+    .map-city-label {
+      position: absolute;
+      font-size: 13px;
+      font-weight: 600;
+      color: #666;
+      letter-spacing: 2px;
+      text-transform: uppercase;
+      pointer-events: none;
+      z-index: 5;
+    }
+
+    /* Map boundary overlay */
+    .map-boundary {
+      position: absolute;
+      border: 2px solid #1a73e8;
+      background: rgba(66, 133, 244, 0.08);
+      border-radius: 0;
+      pointer-events: none;
+      z-index: 3;
+    }
+
+    /* Leaflet attribution */
+    .map-attribution {
+      position: absolute;
+      bottom: 4px;
+      right: 4px;
+      font-size: 11px;
+      color: #666;
+      background: rgba(255, 255, 255, 0.8);
+      padding: 2px 6px;
+      border-radius: 3px;
+      z-index: 20;
+    }
+
+    .map-attribution a {
+      color: #0078A8;
+      text-decoration: none;
+    }
+
+    .map-attribution a:hover {
+      text-decoration: underline;
+    }
+
+    /* ============================================
+       STATES — Loading skeleton
+       ============================================ */
+    .skeleton-card {
+      display: flex;
+      gap: 10px;
+      padding: 8px;
+      background: var(--color-surface);
+      border: 1px solid var(--color-border);
+      border-radius: var(--radius-card);
+    }
+
+    .skeleton-thumb {
+      width: 160px;
+      height: 160px;
+      border-radius: 6px;
+      background: linear-gradient(90deg, rgba(255,255,255,0.04) 25%, rgba(255,255,255,0.08) 50%, rgba(255,255,255,0.04) 75%);
+      background-size: 200% 100%;
+      animation: shimmer 1.5s infinite;
+    }
+
+    .skeleton-details {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      padding: 8px 0;
+    }
+
+    .skeleton-line {
+      height: 14px;
+      border-radius: 4px;
+      background: linear-gradient(90deg, rgba(255,255,255,0.04) 25%, rgba(255,255,255,0.08) 50%, rgba(255,255,255,0.04) 75%);
+      background-size: 200% 100%;
+      animation: shimmer 1.5s infinite;
+    }
+
+    .skeleton-line.w60 { width: 60%; }
+    .skeleton-line.w80 { width: 80%; }
+    .skeleton-line.w40 { width: 40%; }
+    .skeleton-line.w50 { width: 50%; }
+
+    @keyframes shimmer {
+      0% { background-position: 200% 0; }
+      100% { background-position: -200% 0; }
+    }
+
+    /* ============================================
+       STATES — Empty state
+       ============================================ */
+    .empty-state {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 48px 24px;
+      text-align: center;
+      gap: 16px;
+      flex: 1;
+    }
+
+    .empty-state-icon {
+      font-size: 3rem;
+      opacity: 0.5;
+    }
+
+    .empty-state-title {
+      font-size: 1.1rem;
+      font-weight: 600;
+      color: var(--color-text-primary);
+    }
+
+    .empty-state-text {
+      font-size: 0.9rem;
+      color: var(--color-text-muted);
+      max-width: 280px;
+    }
+
+    .empty-state-btn {
+      padding: 8px 20px;
+      background: var(--color-accent);
+      color: white;
+      border-radius: var(--radius-button);
+      font-size: 0.85rem;
+      font-weight: 600;
+      transition: background var(--transition-base);
+    }
+
+    .empty-state-btn:hover {
+      background: #a370e0;
+    }
+
+    /* ============================================
+       STATES — Error state
+       ============================================ */
+    .error-state {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 48px 24px;
+      text-align: center;
+      gap: 12px;
+      flex: 1;
+    }
+
+    .error-state-icon {
+      font-size: 2.5rem;
+    }
+
+    .error-state-title {
+      font-size: 1rem;
+      font-weight: 600;
+      color: var(--color-danger);
+    }
+
+    .error-state-text {
+      font-size: 0.85rem;
+      color: var(--color-text-muted);
+      max-width: 280px;
+    }
+
+    .error-state-btn {
+      padding: 8px 20px;
+      background: transparent;
+      border: 1px solid var(--color-danger);
+      color: var(--color-danger);
+      border-radius: var(--radius-button);
+      font-size: 0.85rem;
+      font-weight: 600;
+      transition: all var(--transition-base);
+    }
+
+    .error-state-btn:hover {
+      background: rgba(229, 57, 53, 0.1);
+    }
+
+    /* ============================================
+       STATE TABS (for demo switching)
+       ============================================ */
+    .state-tabs {
+      position: fixed;
+      bottom: 16px;
+      left: 50%;
+      transform: translateX(-50%);
+      display: flex;
+      gap: 4px;
+      background: rgba(0, 0, 0, 0.85);
+      padding: 4px;
+      border-radius: 12px;
+      z-index: 1000;
+      box-shadow: 0 4px 20px rgba(0, 0, 0, 0.5);
+    }
+
+    .state-tab {
+      padding: 6px 14px;
+      border-radius: 8px;
+      font-size: 0.75rem;
+      font-weight: 600;
+      color: #999;
+      transition: all var(--transition-base);
+      white-space: nowrap;
+    }
+
+    .state-tab:hover {
+      color: white;
+      background: rgba(255, 255, 255, 0.1);
+    }
+
+    .state-tab.active {
+      color: white;
+      background: var(--color-accent);
+    }
+
+    /* State visibility */
+    .state-panel { display: none; }
+    .state-panel.active { display: flex; flex-direction: column; flex: 1; overflow: hidden; }
+
+    /* ============================================
+       RESPONSIVE
+       ============================================ */
+    @media (max-width: 1024px) {
+      .panel-left {
+        min-width: 340px;
+        width: 38%;
+      }
+    }
+
+    @media (max-width: 768px) {
+      .split-panel {
+        flex-direction: column;
+      }
+
+      .panel-left {
+        width: 100%;
+        max-width: none;
+        min-width: auto;
+        height: 55vh;
+      }
+
+      .panel-right {
+        border-left: none;
+        border-top: var(--panel-divider);
+        height: 45vh;
+      }
+
+      .filter-bar {
+        overflow-x: auto;
+        gap: 4px;
+        padding: 6px 8px;
+      }
+    }
+  </style>
+</head>
+<body>
+
+  <!-- ============================================
+       FILTER BAR
+       ============================================ -->
+  <header class="filter-bar" role="banner">
+    <div class="brand">
+      <span class="brand-icon" aria-hidden="true">🏠</span>
+      <span class="brand-name">SunnyNest</span>
+    </div>
+
+    <select class="filter-select" aria-label="Price range">
+      <option>💰 $5K-$6.5K</option>
+      <option>💰 Any Price</option>
+      <option>💰 $3K-$4K</option>
+      <option>💰 $4K-$5K</option>
+      <option>💰 $5K-$6K</option>
+      <option>💰 $5K-$7K</option>
+      <option>💰 $6K-$7K</option>
+      <option>💰 $6K-$8K</option>
+      <option>💰 $7K-$10K</option>
+    </select>
+
+    <select class="filter-select" aria-label="Bedrooms">
+      <option>🛏 3-4</option>
+      <option>🛏 Any</option>
+      <option>🛏 1+</option>
+      <option>🛏 2+</option>
+      <option>🛏 3+</option>
+      <option>🛏 4+</option>
+    </select>
+
+    <select class="filter-select" aria-label="Bathrooms">
+      <option>🚿 Any</option>
+      <option>🚿 1+</option>
+      <option>🚿 2+</option>
+      <option>🚿 3+</option>
+    </select>
+
+    <select class="filter-select" aria-label="Property type">
+      <option>🏠 Any Type</option>
+      <option>🏠 House</option>
+      <option>🏠 Apartment</option>
+      <option>🏠 Condo</option>
+      <option>🏠 Townhouse</option>
+    </select>
+
+    <select class="filter-select" aria-label="Source">
+      <option>📡 All</option>
+      <option>📡 Zillow</option>
+      <option>📡 Craigslist</option>
+    </select>
+
+    <select class="filter-select" aria-label="View mode">
+      <option>👁️ Def…</option>
+      <option>⭐ Favorites</option>
+      <option>📋 All</option>
+    </select>
+
+    <select class="filter-select" aria-label="Sort order">
+      <option>📊 Newest F…</option>
+      <option>📊 Price: Low → High</option>
+      <option>📊 Price: High → Low</option>
+      <option>📊 Largest (sqft)</option>
+      <option>📊 Most Bedrooms</option>
+    </select>
+
+    <button class="reset-btn" aria-label="Reset all filters" title="Reset all filters">✕</button>
+  </header>
+
+  <!-- ============================================
+       SPLIT PANEL
+       ============================================ -->
+  <main class="split-panel" role="main">
+
+    <!-- LEFT PANEL: Listings -->
+    <section class="panel-left" aria-label="Listing results">
+
+      <!-- === DEFAULT STATE === -->
+      <div class="state-panel active" id="state-default">
+        <div class="listings-scroll" role="list" aria-label="Rental listings" tabindex="0">
+
+          <!-- CARD 1 — 1410 Kelowna Ct (with real image placeholder) -->
+          <article class="listing-card" role="listitem" tabindex="0" aria-label="$5,500 per month, 1410 Kelowna Ct">
+            <div class="card-thumbnail">
+              <img src="https://photos.zillowstatic.com/fp/e0b8e24b0900e3bad0e2a8a2e76e4f6a-p_e.jpg" alt="Photo of 1410 Kelowna Ct, Sunnyvale" loading="lazy">
+              <div class="img-overlay-actions">
+                <button class="overlay-btn" aria-label="Save to favorites" aria-pressed="false">☆</button>
+                <button class="overlay-btn" aria-label="Dislike listing" aria-pressed="false">👎🏻</button>
+              </div>
+            </div>
+            <div class="card-details">
+              <div class="card-price-row">
+                <span class="card-price">$5,500/mo</span>
+                <span class="card-title">1410 Kelowna Ct, Sunnyvale, CA 94087</span>
+              </div>
+              <div class="card-specs">4 bed · 2 bath · 1,683 sqft (156 m²)</div>
+              <div class="card-tag-row">
+                <span class="card-tag tag-new">New</span>
+                <span class="card-tag tag-fresh">1d ago</span>
+                <a href="https://www.zillow.com" target="_blank" rel="noopener" class="source-pill-link">
+                  <img src="https://www.google.com/s2/favicons?domain=zillow.com&sz=64" alt="Zillow icon"> Zillow
+                </a>
+              </div>
+              <div class="card-location">Cupertino Union School District / Fremont Union High School Di…</div>
+            </div>
+          </article>
+
+          <!-- CARD 2 — 749 Lois Ave -->
+          <article class="listing-card" role="listitem" tabindex="0" aria-label="$6,000 per month, 749 Lois Ave">
+            <div class="card-thumbnail">
+              <img src="https://photos.zillowstatic.com/fp/d3aa0e8e8e8e8e8e8e8e8e8e8e8e8e8e-p_e.jpg" alt="Photo of 749 Lois Ave, Sunnyvale" loading="lazy"
+                   onerror="this.parentElement.innerHTML='<div class=\'placeholder-img\'>🏠</div><div class=\'img-overlay-actions\'><button class=\'overlay-btn\' aria-label=\'Save to favorites\'>☆</button><button class=\'overlay-btn\' aria-label=\'Dislike listing\'>👎🏻</button></div>'">
+              <div class="img-overlay-actions">
+                <button class="overlay-btn" aria-label="Save to favorites" aria-pressed="false">☆</button>
+                <button class="overlay-btn" aria-label="Dislike listing" aria-pressed="false">👎🏻</button>
+              </div>
+            </div>
+            <div class="card-details">
+              <div class="card-price-row">
+                <span class="card-price">$6,000/mo</span>
+                <span class="card-title">749 Lois Ave, Sunnyvale, CA 94087</span>
+              </div>
+              <div class="card-specs">4 bed · 2 bath · 1,348 sqft (125 m²)</div>
+              <div class="card-tag-row">
+                <span class="card-tag tag-new">New</span>
+                <span class="card-tag tag-fresh">1d ago</span>
+                <a href="https://www.zillow.com" target="_blank" rel="noopener" class="source-pill-link">
+                  <img src="https://www.google.com/s2/favicons?domain=zillow.com&sz=64" alt="Zillow icon"> Zillow
+                </a>
+              </div>
+              <div class="card-location">Cupertino Union School District / Fremont Union High School Di…</div>
+            </div>
+          </article>
+
+          <!-- CARD 3 — 1347 Zurich Tr -->
+          <article class="listing-card" role="listitem" tabindex="0" aria-label="$5,900 per month, 1347 Zurich Tr">
+            <div class="card-thumbnail">
+              <div class="placeholder-img">🏠</div>
+              <div class="img-overlay-actions">
+                <button class="overlay-btn" aria-label="Save to favorites" aria-pressed="false">☆</button>
+                <button class="overlay-btn" aria-label="Dislike listing" aria-pressed="false">👎🏻</button>
+              </div>
+            </div>
+            <div class="card-details">
+              <div class="card-price-row">
+                <span class="card-price">$5,900/mo</span>
+                <span class="card-title">1347 Zurich Tr, Sunnyvale, CA 94087</span>
+              </div>
+              <div class="card-specs">4 bed · 3 bath · 1,871 sqft (174 m²)</div>
+              <div class="card-tag-row">
+                <span class="card-tag tag-aging">4d ago</span>
+                <a href="https://www.zillow.com" target="_blank" rel="noopener" class="source-pill-link">
+                  <img src="https://www.google.com/s2/favicons?domain=zillow.com&sz=64" alt="Zillow icon"> Zillow
+                </a>
+              </div>
+              <div class="card-location">Cupertino Union School District / Fremont Union High School Di…</div>
+            </div>
+          </article>
+
+          <!-- CARD 4 — 1055 Ticonderoga Dr (with price drop) -->
+          <article class="listing-card" role="listitem" tabindex="0" aria-label="$5,800 per month, 1055 Ticonderoga Dr">
+            <div class="card-thumbnail">
+              <div class="placeholder-img">🏠</div>
+              <div class="img-overlay-actions">
+                <button class="overlay-btn active" aria-label="Remove from favorites" aria-pressed="true">★</button>
+                <button class="overlay-btn" aria-label="Dislike listing" aria-pressed="false">👎🏻</button>
+              </div>
+            </div>
+            <div class="card-details">
+              <div class="card-price-row">
+                <span class="card-price">$5,800/mo</span>
+                <span class="card-title">1055 Ticonderoga Dr, Sunnyvale, CA 94087</span>
+              </div>
+              <div class="card-specs">4 bed · 2 bath · 1,520 sqft (141 m²)</div>
+              <div class="card-tag-row">
+                <span class="card-tag tag-price-drop">🔻 -$200</span>
+                <span class="card-tag tag-fresh">2d ago</span>
+                <a href="https://www.zillow.com" target="_blank" rel="noopener" class="source-pill-link">
+                  <img src="https://www.google.com/s2/favicons?domain=zillow.com&sz=64" alt="Zillow icon"> Zillow
+                </a>
+              </div>
+              <div class="card-location">Sunnyvale School District / Fremont Union High School Di…</div>
+            </div>
+          </article>
+
+          <!-- CARD 5 — 890 Dunholme Way (pet friendly) -->
+          <article class="listing-card" role="listitem" tabindex="0" aria-label="$5,200 per month, 890 Dunholme Way">
+            <div class="card-thumbnail">
+              <div class="placeholder-img">🏠</div>
+              <div class="img-overlay-actions">
+                <button class="overlay-btn" aria-label="Save to favorites" aria-pressed="false">☆</button>
+                <button class="overlay-btn" aria-label="Dislike listing" aria-pressed="false">👎🏻</button>
+              </div>
+            </div>
+            <div class="card-details">
+              <div class="card-price-row">
+                <span class="card-price">$5,200/mo</span>
+                <span class="card-title">890 Dunholme Way, Sunnyvale, CA 94087</span>
+              </div>
+              <div class="card-specs">3 bed · 2 bath · 1,280 sqft (119 m²)</div>
+              <div class="card-tag-row">
+                <span class="card-tag tag-new">New</span>
+                <span class="card-tag tag-pet">🐕 Dog Friendly</span>
+                <span class="card-tag tag-fresh">1d ago</span>
+              </div>
+              <div class="card-location">Cupertino Union School District / Homestead High School</div>
+            </div>
+          </article>
+
+          <!-- CARD 6 — 445 S Mary Ave (price increase, stale) -->
+          <article class="listing-card" role="listitem" tabindex="0" aria-label="$6,500 per month, 445 S Mary Ave">
+            <div class="card-thumbnail">
+              <div class="placeholder-img">🏠</div>
+              <div class="img-overlay-actions">
+                <button class="overlay-btn" aria-label="Save to favorites" aria-pressed="false">☆</button>
+                <button class="overlay-btn" aria-label="Dislike listing" aria-pressed="false">👎🏻</button>
+              </div>
+            </div>
+            <div class="card-details">
+              <div class="card-price-row">
+                <span class="card-price">$6,500/mo</span>
+                <span class="card-title">445 S Mary Ave, Sunnyvale, CA 94086</span>
+              </div>
+              <div class="card-specs">4 bed · 3 bath · 2,100 sqft (195 m²)</div>
+              <div class="card-tag-row">
+                <span class="card-tag tag-price-up">🔺 +$300</span>
+                <span class="card-tag tag-stale">3w ago</span>
+                <a href="https://www.zillow.com" target="_blank" rel="noopener" class="source-pill-link">
+                  <img src="https://www.google.com/s2/favicons?domain=zillow.com&sz=64" alt="Zillow icon"> Zillow
+                </a>
+              </div>
+              <div class="card-location">Sunnyvale School District / Fremont Union High School Di…</div>
+            </div>
+          </article>
+
+        </div>
+
+        <!-- Pagination -->
+        <nav class="pagination" aria-label="Listing pages">
+          <button class="pagination-btn" disabled aria-label="Previous page">⬅ Previous</button>
+          <div class="pagination-info" aria-live="polite">
+            Page 1 of 2 · 11 listings
+            <span class="pagination-hint">← → to navigate pages</span>
+          </div>
+          <button class="pagination-btn" aria-label="Next page">Next ➡</button>
+        </nav>
+      </div>
+
+      <!-- === LOADING STATE === -->
+      <div class="state-panel" id="state-loading">
+        <div class="listings-scroll">
+          <!-- Skeleton card 1 -->
+          <div class="skeleton-card">
+            <div class="skeleton-thumb"></div>
+            <div class="skeleton-details">
+              <div class="skeleton-line w60"></div>
+              <div class="skeleton-line w80"></div>
+              <div class="skeleton-line w40"></div>
+              <div class="skeleton-line w50"></div>
+            </div>
+          </div>
+          <!-- Skeleton card 2 -->
+          <div class="skeleton-card" style="margin-top: 8px;">
+            <div class="skeleton-thumb"></div>
+            <div class="skeleton-details">
+              <div class="skeleton-line w60"></div>
+              <div class="skeleton-line w80"></div>
+              <div class="skeleton-line w40"></div>
+              <div class="skeleton-line w50"></div>
+            </div>
+          </div>
+          <!-- Skeleton card 3 -->
+          <div class="skeleton-card" style="margin-top: 8px;">
+            <div class="skeleton-thumb"></div>
+            <div class="skeleton-details">
+              <div class="skeleton-line w60"></div>
+              <div class="skeleton-line w80"></div>
+              <div class="skeleton-line w40"></div>
+              <div class="skeleton-line w50"></div>
+            </div>
+          </div>
+          <!-- Skeleton card 4 -->
+          <div class="skeleton-card" style="margin-top: 8px;">
+            <div class="skeleton-thumb"></div>
+            <div class="skeleton-details">
+              <div class="skeleton-line w60"></div>
+              <div class="skeleton-line w80"></div>
+              <div class="skeleton-line w40"></div>
+              <div class="skeleton-line w50"></div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- === EMPTY STATE === -->
+      <div class="state-panel" id="state-empty">
+        <div class="empty-state">
+          <div class="empty-state-icon">📭</div>
+          <div class="empty-state-title">No rentals match your filters</div>
+          <div class="empty-state-text">Try adjusting your price range, bedrooms, or other filters to see more results.</div>
+          <button class="empty-state-btn" aria-label="Reset all filters">Reset Filters</button>
+        </div>
+      </div>
+
+      <!-- === ERROR STATE === -->
+      <div class="state-panel" id="state-error">
+        <div class="error-state">
+          <div class="error-state-icon">⚠️</div>
+          <div class="error-state-title">Failed to load listings</div>
+          <div class="error-state-text">We couldn't fetch the latest listings. Cached results may be shown. Please try again.</div>
+          <button class="error-state-btn" aria-label="Retry loading listings">🔄 Retry</button>
+        </div>
+      </div>
+
+    </section>
+
+    <!-- RIGHT PANEL: Map -->
+    <section class="panel-right" aria-label="Map view">
+      <div class="map-placeholder">
+        <!-- Static map background using OpenStreetMap tile -->
+        <div style="width:100%; height:100%; background: #e5e3df; position: relative;">
+          <!-- Simulated map with CSS -->
+          <svg width="100%" height="100%" viewBox="0 0 800 700" xmlns="http://www.w3.org/2000/svg" style="position:absolute; top:0; left:0;">
+            <!-- Background -->
+            <rect width="800" height="700" fill="#e5e3df"/>
+
+            <!-- Grid lines (roads) -->
+            <g stroke="#d4d2ce" stroke-width="1" fill="none">
+              <!-- Horizontal roads -->
+              <line x1="0" y1="80" x2="800" y2="80"/>
+              <line x1="0" y1="160" x2="800" y2="160"/>
+              <line x1="0" y1="240" x2="800" y2="240"/>
+              <line x1="0" y1="320" x2="800" y2="320"/>
+              <line x1="0" y1="400" x2="800" y2="400"/>
+              <line x1="0" y1="480" x2="800" y2="480"/>
+              <line x1="0" y1="560" x2="800" y2="560"/>
+              <line x1="0" y1="640" x2="800" y2="640"/>
+              <!-- Vertical roads -->
+              <line x1="100" y1="0" x2="100" y2="700"/>
+              <line x1="200" y1="0" x2="200" y2="700"/>
+              <line x1="300" y1="0" x2="300" y2="700"/>
+              <line x1="400" y1="0" x2="400" y2="700"/>
+              <line x1="500" y1="0" x2="500" y2="700"/>
+              <line x1="600" y1="0" x2="600" y2="700"/>
+              <line x1="700" y1="0" x2="700" y2="700"/>
+            </g>
+
+            <!-- Major roads (thicker) -->
+            <g stroke="#ccc9c4" stroke-width="3" fill="none">
+              <line x1="0" y1="320" x2="800" y2="320"/>
+              <line x1="400" y1="0" x2="400" y2="700"/>
+              <line x1="0" y1="160" x2="800" y2="160"/>
+              <!-- Diagonal expressway -->
+              <line x1="550" y1="0" x2="800" y2="500"/>
+            </g>
+
+            <!-- City boundary (blue polygon) -->
+            <polygon points="80,60 720,60 750,120 760,300 740,450 700,550 650,620 500,660 300,640 150,580 80,450 60,300 70,150"
+                     fill="rgba(66,133,244,0.08)" stroke="#1a73e8" stroke-width="2" stroke-dasharray="none"/>
+
+            <!-- City labels -->
+            <text x="120" y="200" font-family="Inter, sans-serif" font-size="13" font-weight="600" fill="#888" letter-spacing="2">MOUNTAIN VIEW</text>
+            <text x="380" y="340" font-family="Inter, sans-serif" font-size="14" font-weight="700" fill="#666" letter-spacing="3">SUNNYVALE</text>
+          </svg>
+
+          <!-- Map zoom controls -->
+          <div class="map-controls">
+            <button class="map-zoom-btn" aria-label="Zoom in">+</button>
+            <button class="map-zoom-btn" aria-label="Zoom out">−</button>
+          </div>
+
+          <!-- Price markers -->
+          <div class="map-marker" style="top: 15%; right: 28%;">5K</div>
+          <div class="map-marker" style="top: 18%; right: 22%;">5.1K</div>
+          <div class="map-marker" style="top: 35%; left: 18%;">6K</div>
+          <div class="map-marker" style="top: 33%; left: 32%;">5.9K</div>
+          <div class="map-marker" style="top: 33%; right: 18%;">5.9K</div>
+          <div class="map-marker" style="top: 48%; left: 30%;">6K</div>
+          <div class="map-marker" style="top: 52%; right: 25%;">5.6K</div>
+          <div class="map-marker" style="top: 68%; left: 22%;">5.5K</div>
+          <div class="map-marker" style="top: 72%; right: 15%;">5.7K</div>
+
+          <!-- Attribution -->
+          <div class="map-attribution">
+            🍋 <a href="https://leafletjs.com" target="_blank" rel="noopener">Leaflet</a> |
+            © <a href="https://www.openstreetmap.org" target="_blank" rel="noopener">OpenStreetMap</a> contributors
+            © <a href="https://carto.com" target="_blank" rel="noopener">CARTO</a>
+          </div>
+        </div>
+      </div>
+    </section>
+
+  </main>
+
+  <!-- ============================================
+       STATE SWITCHER (Demo Controls)
+       ============================================ -->
+  <div class="state-tabs" role="tablist" aria-label="View different states">
+    <button class="state-tab active" role="tab" aria-selected="true" data-state="state-default">Default</button>
+    <button class="state-tab" role="tab" aria-selected="false" data-state="state-loading">Loading</button>
+    <button class="state-tab" role="tab" aria-selected="false" data-state="state-empty">Empty</button>
+    <button class="state-tab" role="tab" aria-selected="false" data-state="state-error">Error</button>
+  </div>
+
+  <!-- ============================================
+       INTERACTIVE JS (State switching + hover demos)
+       ============================================ -->
+  <script>
+    // State tab switching
+    document.querySelectorAll('.state-tab').forEach(tab => {
+      tab.addEventListener('click', () => {
+        // Update tab active state
+        document.querySelectorAll('.state-tab').forEach(t => {
+          t.classList.remove('active');
+          t.setAttribute('aria-selected', 'false');
+        });
+        tab.classList.add('active');
+        tab.setAttribute('aria-selected', 'true');
+
+        // Show corresponding panel
+        const targetId = tab.dataset.state;
+        document.querySelectorAll('.state-panel').forEach(panel => {
+          panel.classList.remove('active');
+        });
+        document.getElementById(targetId).classList.add('active');
+      });
+    });
+
+    // Favorite toggle on overlay buttons
+    document.querySelectorAll('.overlay-btn[aria-label*="favorite"]').forEach(btn => {
+      btn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        const isFav = btn.getAttribute('aria-pressed') === 'true';
+        btn.setAttribute('aria-pressed', isFav ? 'false' : 'true');
+        btn.textContent = isFav ? '☆' : '★';
+        btn.classList.toggle('active', !isFav);
+        btn.setAttribute('aria-label', isFav ? 'Save to favorites' : 'Remove from favorites');
+      });
+    });
+
+    // Keyboard navigation for pagination
+    document.addEventListener('keydown', (e) => {
+      const tag = (e.target.tagName || '').toLowerCase();
+      if (tag === 'input' || tag === 'textarea' || tag === 'select') return;
+      if (e.target.isContentEditable) return;
+
+      if (e.key === 'ArrowLeft') {
+        const prevBtn = document.querySelector('.pagination-btn:first-child');
+        if (prevBtn && !prevBtn.disabled) {
+          prevBtn.click();
+          e.preventDefault();
+        }
+      } else if (e.key === 'ArrowRight') {
+        const nextBtn = document.querySelector('.pagination-btn:last-child');
+        if (nextBtn && !nextBtn.disabled) {
+          nextBtn.click();
+          e.preventDefault();
+        }
+      }
+    });
+  </script>
+
+</body>
+</html>

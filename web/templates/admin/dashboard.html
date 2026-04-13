@@ -1,0 +1,160 @@
+{% extends "admin/base.html" %}
+
+{% block title %}Dashboard{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <div class="page-header__row">
+        <div class="page-header__left">
+            <h1 class="page-title">📊 Dashboard</h1>
+            <p class="page-subtitle">Operational overview of the SunnyNest rental aggregator</p>
+        </div>
+        <div class="page-header__right">
+            <button class="sync-btn"
+                    hx-post="/admin/sync"
+                    hx-target="#sync-result-container"
+                    hx-indicator="#sync-indicator"
+                    hx-disabled-elt="this">
+                <span class="sync-btn__label">🔄 Sync Now</span>
+                <span id="sync-indicator" class="sync-btn__spinner htmx-indicator">Syncing…</span>
+            </button>
+        </div>
+    </div>
+    <div id="sync-result-container" aria-live="polite" role="status"></div>
+</div>
+
+<!-- System Health -->
+<div class="section health-section">
+    <h2 class="section-title">🩺 System Health</h2>
+    <div class="health-grid">
+        {% for var_name, info in env_status.items() %}
+        <div class="health-item">
+            <div class="health-indicator">
+                {% if info.status == "configured" %}
+                <span class="health-dot health-dot--ok"></span>
+                {% else %}
+                <span class="health-dot health-dot--warn"></span>
+                {% endif %}
+            </div>
+            <div class="health-body">
+                <span class="health-var">{{ var_name }}</span>
+                <span class="health-detail">{{ info.detail }}</span>
+            </div>
+            <div class="health-badge">
+                {% if info.status == "configured" %}
+                <span class="status-badge status-green">✓ Configured</span>
+                {% else %}
+                <span class="status-badge status-red">✗ Missing</span>
+                {% endif %}
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+</div>
+
+<!-- KPI Cards -->
+<div class="kpi-grid">
+    <div class="kpi-card kpi-blue">
+        <div class="kpi-label">Active Listings</div>
+        <div class="kpi-value">{{ stats.total }}</div>
+    </div>
+    <div class="kpi-card kpi-purple">
+        <div class="kpi-label">Avg Rent</div>
+        <div class="kpi-value">${{ "%.0f"|format(stats.avg_price) if stats.avg_price else "0" }}</div>
+    </div>
+    <div class="kpi-card kpi-green">
+        <div class="kpi-label">New Today</div>
+        <div class="kpi-value">{{ stats.new_today }}</div>
+    </div>
+    <div class="kpi-card kpi-{{ budget_status }}">
+        <div class="kpi-label">API Budget{% if budget_worst_source %} ({{ budget_worst_source }}){% endif %}</div>
+        <div class="kpi-value">{{ budget_pct }}%</div>
+        <div class="kpi-progress">
+            <div class="kpi-progress-bar kpi-progress-{{ budget_status }}" style="width: {{ [budget_pct, 100]|min }}%"></div>
+        </div>
+        <div class="kpi-footnote">{{ api_calls }} / {{ api_budget }} total calls</div>
+    </div>
+    <div class="kpi-card kpi-teal">
+        <div class="kpi-label">Notifications Today</div>
+        <div class="kpi-value">{{ notif_count }}</div>
+    </div>
+    <div class="kpi-card kpi-gray">
+        <div class="kpi-label">Data Freshness</div>
+        <div class="kpi-value">{{ freshness }}</div>
+    </div>
+</div>
+
+<!-- Scrape Activity Heatmap -->
+<div class="section">
+    <h2 class="section-title">📡 Scrape Activity — Last 30 Days</h2>
+    <div class="activity-legend">
+        <span class="legend-item"><span class="activity-dot activity--ok"></span> All sources</span>
+        <span class="legend-item"><span class="activity-dot activity--partial"></span> Partial</span>
+        <span class="legend-item"><span class="activity-dot activity--gap"></span> No activity</span>
+    </div>
+    <div class="activity-grid">
+        {% for day in scrape_activity %}
+        <div class="activity-cell activity--{{ day.status }}"
+             title="{{ day.date }}&#10;{% for src, data in day.sources.items() %}{{ src }}: {{ data.calls }} calls ({{ data.success }} ok, {{ data.errors }} err){% if not loop.last %}&#10;{% endif %}{% endfor %}">
+            <span class="activity-date">{{ day.date[5:] }}</span>
+        </div>
+        {% endfor %}
+    </div>
+</div>
+
+<!-- Source Breakdown -->
+<div class="section">
+    <h2 class="section-title">Listings by Source</h2>
+    {% if source_counts %}
+    <div class="source-grid">
+        {% for source, count in source_counts.items() %}
+        <div class="source-card">
+            <div class="source-name">{{ source|capitalize }}</div>
+            <div class="source-count">{{ count }}</div>
+        </div>
+        {% endfor %}
+    </div>
+    {% else %}
+    <div class="empty-state">
+        <p>No listing data available.</p>
+    </div>
+    {% endif %}
+</div>
+
+<!-- Recent Listings Table -->
+<div class="section">
+    <h2 class="section-title">Recent Listings</h2>
+    {% if recent_listings %}
+    <div class="table-container">
+        <table class="admin-table">
+            <thead>
+                <tr>
+                    <th>Address</th>
+                    <th>Price</th>
+                    <th>Beds</th>
+                    <th>Baths</th>
+                    <th>Sqft</th>
+                    <th>Source</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for listing in recent_listings %}
+                <tr>
+                    <td>{{ listing.address or "—" }}</td>
+                    <td class="price-cell">${{ "%.0f"|format(listing.price) if listing.price else "—" }}</td>
+                    <td>{{ listing.bedrooms or "—" }}</td>
+                    <td>{{ listing.bathrooms or "—" }}</td>
+                    <td>{{ "%d"|format(listing.sqft) if listing.sqft else "—" }}</td>
+                    <td><span class="source-badge">{{ listing.source or "—" }}</span></td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    {% else %}
+    <div class="empty-state">
+        <p>No recent listings found.</p>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}

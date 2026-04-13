@@ -1,0 +1,1679 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SunnyNest — Redesigned Rental Finder v2</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+/* ============================================================
+   DESIGN TOKENS
+   ============================================================ */
+:root {
+  /* Colors — Neutral + Accent (Professional SaaS palette) */
+  --color-bg:          #f5f6f8;
+  --color-surface:     #ffffff;
+  --color-surface-alt: #f0f1f4;
+  --color-border:      #e2e4e9;
+  --color-border-hover:#c5c8d0;
+
+  /* Text */
+  --color-text-primary:   #1a1d26;
+  --color-text-secondary: #5a5f72;
+  --color-text-muted:     #8b90a0;
+  --color-text-inverse:   #ffffff;
+
+  /* Brand */
+  --color-brand:       #2563eb;
+  --color-brand-hover: #1d4ed8;
+  --color-brand-light: #eff6ff;
+  --color-brand-muted: #93b4f5;
+
+  /* Semantic */
+  --color-success:     #16a34a;
+  --color-success-bg:  #dcfce7;
+  --color-warning:     #d97706;
+  --color-warning-bg:  #fef3c7;
+  --color-danger:      #dc2626;
+  --color-danger-bg:   #fee2e2;
+  --color-info:        #0891b2;
+  --color-info-bg:     #e0f7fa;
+
+  /* Shadows */
+  --shadow-sm:   0 1px 2px rgba(0,0,0,0.05);
+  --shadow-md:   0 2px 8px rgba(0,0,0,0.08);
+  --shadow-lg:   0 4px 16px rgba(0,0,0,0.10);
+  --shadow-card: 0 1px 3px rgba(0,0,0,0.06), 0 1px 2px rgba(0,0,0,0.04);
+  --shadow-card-hover: 0 8px 24px rgba(0,0,0,0.12);
+
+  /* Spacing (8px base) */
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 20px;
+  --space-6: 24px;
+  --space-8: 32px;
+  --space-10: 40px;
+
+  /* Radius */
+  --radius-sm: 6px;
+  --radius-md: 8px;
+  --radius-lg: 12px;
+  --radius-xl: 16px;
+  --radius-pill: 999px;
+
+  /* Typography */
+  --font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  --font-xs:   0.75rem;   /* 12px */
+  --font-sm:   0.8125rem; /* 13px */
+  --font-base: 0.875rem;  /* 14px */
+  --font-md:   1rem;      /* 16px */
+  --font-lg:   1.125rem;  /* 18px */
+  --font-xl:   1.25rem;   /* 20px */
+  --font-2xl:  1.5rem;    /* 24px */
+  --font-3xl:  1.875rem;  /* 30px */
+
+  /* Transitions */
+  --transition-fast: 150ms ease-out;
+  --transition-base: 200ms ease-out;
+}
+
+/* ============================================================
+   RESET & BASE
+   ============================================================ */
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+body {
+  font-family: var(--font-family);
+  font-size: var(--font-base);
+  color: var(--color-text-primary);
+  background: var(--color-bg);
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+  overflow: hidden;
+  height: 100vh;
+}
+
+a { color: var(--color-brand); text-decoration: none; }
+a:hover { text-decoration: underline; }
+a:focus-visible { outline: 2px solid var(--color-brand); outline-offset: 2px; border-radius: 2px; }
+
+button:focus-visible { outline: 2px solid var(--color-brand); outline-offset: 2px; border-radius: var(--radius-sm); }
+
+img { display: block; max-width: 100%; }
+
+/* Reduced motion */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+
+/* ============================================================
+   V2 CHANGES BANNER
+   ============================================================ */
+.v2-banner {
+  background: linear-gradient(135deg, #1e40af 0%, #2563eb 50%, #3b82f6 100%);
+  color: var(--color-text-inverse);
+  padding: var(--space-2) var(--space-6);
+  font-size: var(--font-xs);
+  display: flex;
+  align-items: center;
+  gap: var(--space-4);
+  overflow-x: auto;
+  white-space: nowrap;
+}
+
+.v2-banner strong {
+  font-weight: 700;
+  flex-shrink: 0;
+}
+
+.v2-banner-items {
+  display: flex;
+  gap: var(--space-3);
+  align-items: center;
+}
+
+.v2-banner-item {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  padding: 2px 10px;
+  background: rgba(255,255,255,0.15);
+  border-radius: var(--radius-pill);
+  font-size: var(--font-xs);
+  font-weight: 500;
+}
+
+.v2-banner-close {
+  margin-left: auto;
+  background: none;
+  border: none;
+  color: rgba(255,255,255,0.7);
+  cursor: pointer;
+  font-size: var(--font-md);
+  padding: var(--space-1);
+  flex-shrink: 0;
+}
+
+.v2-banner-close:hover { color: white; }
+
+/* ============================================================
+   LAYOUT
+   ============================================================ */
+.app-shell {
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+}
+
+/* --- HEADER --- */
+.header {
+  display: flex;
+  align-items: center;
+  gap: var(--space-4);
+  padding: var(--space-3) var(--space-6);
+  background: var(--color-surface);
+  border-bottom: 1px solid var(--color-border);
+  z-index: 100;
+  min-height: 56px;
+}
+
+.header-logo {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  font-weight: 800;
+  font-size: var(--font-xl);
+  color: var(--color-text-primary);
+  white-space: nowrap;
+  letter-spacing: -0.5px;
+}
+
+.header-logo .logo-icon {
+  font-size: 1.4rem;
+}
+
+.header-search {
+  flex: 1;
+  max-width: 420px;
+  position: relative;
+}
+
+.header-search input {
+  width: 100%;
+  padding: var(--space-2) var(--space-4);
+  padding-left: 36px;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-pill);
+  font-size: var(--font-base);
+  font-family: var(--font-family);
+  background: var(--color-surface-alt);
+  color: var(--color-text-primary);
+  transition: border-color var(--transition-fast), box-shadow var(--transition-fast);
+}
+
+.header-search input:focus {
+  outline: none;
+  border-color: var(--color-brand);
+  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.12);
+  background: var(--color-surface);
+}
+
+.header-search input::placeholder {
+  color: var(--color-text-muted);
+}
+
+.header-search .search-icon {
+  position: absolute;
+  left: 12px;
+  top: 50%;
+  transform: translateY(-50%);
+  color: var(--color-text-muted);
+  font-size: var(--font-md);
+  pointer-events: none;
+}
+
+.header-actions {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  margin-left: auto;
+}
+
+.header-sync {
+  font-size: var(--font-xs);
+  color: var(--color-text-muted);
+  text-align: right;
+  line-height: 1.4;
+}
+
+.btn-sync {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  padding: var(--space-2) var(--space-4);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-pill);
+  background: var(--color-surface);
+  color: var(--color-text-secondary);
+  font-size: var(--font-sm);
+  font-family: var(--font-family);
+  font-weight: 500;
+  cursor: pointer;
+  transition: all var(--transition-fast);
+  white-space: nowrap;
+}
+
+.btn-sync:hover {
+  border-color: var(--color-brand);
+  color: var(--color-brand);
+  background: var(--color-brand-light);
+}
+
+.btn-primary {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  padding: var(--space-2) var(--space-5);
+  border: none;
+  border-radius: var(--radius-pill);
+  background: var(--color-brand);
+  color: var(--color-text-inverse);
+  font-size: var(--font-sm);
+  font-family: var(--font-family);
+  font-weight: 600;
+  cursor: pointer;
+  transition: background var(--transition-fast);
+  white-space: nowrap;
+}
+
+.btn-primary:hover {
+  background: var(--color-brand-hover);
+}
+
+/* --- FILTER BAR --- */
+.filter-bar {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  padding: var(--space-2) var(--space-6);
+  background: var(--color-surface);
+  border-bottom: 1px solid var(--color-border);
+  overflow-x: auto;
+  flex-wrap: nowrap;
+}
+
+.filter-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  padding: 6px 14px;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-pill);
+  background: var(--color-surface);
+  color: var(--color-text-secondary);
+  font-size: var(--font-sm);
+  font-family: var(--font-family);
+  font-weight: 500;
+  cursor: pointer;
+  transition: all var(--transition-fast);
+  white-space: nowrap;
+  user-select: none;
+}
+
+.filter-pill:hover {
+  border-color: var(--color-brand-muted);
+  background: var(--color-brand-light);
+  color: var(--color-brand);
+}
+
+.filter-pill.active {
+  border-color: var(--color-brand);
+  background: var(--color-brand-light);
+  color: var(--color-brand);
+  font-weight: 600;
+}
+
+.filter-pill .chevron {
+  font-size: 10px;
+  margin-left: 2px;
+  opacity: 0.6;
+}
+
+.filter-divider {
+  width: 1px;
+  height: 24px;
+  background: var(--color-border);
+  flex-shrink: 0;
+}
+
+.result-count {
+  font-size: var(--font-sm);
+  color: var(--color-text-muted);
+  white-space: nowrap;
+  margin-left: auto;
+  font-weight: 500;
+}
+
+.result-count strong {
+  color: var(--color-text-primary);
+  font-weight: 700;
+}
+
+.sort-select {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  padding: 6px 12px;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-pill);
+  background: var(--color-surface);
+  color: var(--color-text-secondary);
+  font-size: var(--font-sm);
+  font-family: var(--font-family);
+  font-weight: 500;
+  cursor: pointer;
+  appearance: none;
+  white-space: nowrap;
+}
+
+.sort-select:focus {
+  outline: none;
+  border-color: var(--color-brand);
+}
+
+/* --- MAIN CONTENT AREA --- */
+.main-content {
+  display: flex;
+  flex: 1;
+  overflow: hidden;
+}
+
+/* --- LISTINGS PANEL --- */
+.listings-panel {
+  width: 480px;
+  min-width: 400px;
+  overflow-y: auto;
+  padding: var(--space-4);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+  background: var(--color-bg);
+  border-right: 1px solid var(--color-border);
+}
+
+/* Scrollbar styling */
+.listings-panel::-webkit-scrollbar { width: 6px; }
+.listings-panel::-webkit-scrollbar-track { background: transparent; }
+.listings-panel::-webkit-scrollbar-thumb { background: var(--color-border); border-radius: 3px; }
+.listings-panel::-webkit-scrollbar-thumb:hover { background: var(--color-text-muted); }
+
+/* ============================================================
+   LISTING CARD — v2 (Rich Details)
+   ============================================================ */
+.listing-card {
+  background: var(--color-surface);
+  border: 2px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  overflow: hidden;
+  box-shadow: var(--shadow-card);
+  transition: box-shadow var(--transition-base), border-color var(--transition-base), transform var(--transition-base);
+  cursor: pointer;
+  position: relative;
+}
+
+.listing-card:hover {
+  box-shadow: var(--shadow-card-hover);
+  border-color: var(--color-border-hover);
+  transform: translateY(-1px);
+}
+
+.listing-card:focus-visible {
+  outline: 2px solid var(--color-brand);
+  outline-offset: 2px;
+}
+
+.listing-card.selected {
+  border-color: var(--color-brand);
+  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.15), var(--shadow-card-hover);
+}
+
+/* --- Card Image --- */
+.card-image-wrapper {
+  position: relative;
+  width: 100%;
+  height: 210px;
+  overflow: hidden;
+  background: var(--color-surface-alt);
+}
+
+.card-image-wrapper img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  transition: transform 0.3s ease;
+}
+
+.listing-card:hover .card-image-wrapper img {
+  transform: scale(1.03);
+}
+
+/* Heart overlay */
+.card-favorite {
+  position: absolute;
+  top: var(--space-3);
+  right: var(--space-3);
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.9);
+  backdrop-filter: blur(4px);
+  border: none;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 18px;
+  color: var(--color-text-muted);
+  transition: all var(--transition-fast);
+  z-index: 2;
+  box-shadow: 0 1px 4px rgba(0,0,0,0.15);
+}
+
+.card-favorite:hover {
+  background: rgba(255, 255, 255, 1);
+  color: var(--color-danger);
+  transform: scale(1.1);
+}
+
+.card-favorite.favorited {
+  color: var(--color-danger);
+}
+
+/* Source badge on image */
+.card-source-badge {
+  position: absolute;
+  top: var(--space-3);
+  left: var(--space-3);
+  padding: 3px 10px;
+  border-radius: var(--radius-pill);
+  font-size: var(--font-xs);
+  font-weight: 600;
+  z-index: 2;
+  backdrop-filter: blur(4px);
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.card-source-badge .source-favicon {
+  width: 14px;
+  height: 14px;
+  border-radius: 2px;
+}
+
+.source-zillow {
+  background: rgba(37, 99, 235, 0.9);
+  color: white;
+}
+
+.source-craigslist {
+  background: rgba(120, 76, 200, 0.9);
+  color: white;
+}
+
+/* Photo count badge */
+.card-photo-count {
+  position: absolute;
+  bottom: var(--space-3);
+  right: var(--space-3);
+  padding: 2px 8px;
+  border-radius: var(--radius-pill);
+  font-size: var(--font-xs);
+  font-weight: 600;
+  background: rgba(0, 0, 0, 0.6);
+  color: white;
+  z-index: 2;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  backdrop-filter: blur(4px);
+}
+
+/* Carousel dots */
+.card-carousel-dots {
+  position: absolute;
+  bottom: var(--space-2);
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  gap: 5px;
+  z-index: 2;
+}
+
+.carousel-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.5);
+  border: none;
+  cursor: pointer;
+  padding: 0;
+  transition: background var(--transition-fast);
+}
+
+.carousel-dot.active {
+  background: rgba(255, 255, 255, 0.95);
+  width: 8px;
+  height: 8px;
+}
+
+/* --- Card Body --- */
+.card-body {
+  padding: var(--space-3) var(--space-4) var(--space-4);
+}
+
+/* Price row */
+.card-price-row {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  margin-bottom: var(--space-1);
+}
+
+.card-price {
+  font-size: var(--font-2xl);
+  font-weight: 800;
+  color: var(--color-text-primary);
+  letter-spacing: -0.5px;
+  line-height: 1.2;
+}
+
+.card-price-sqft {
+  font-size: var(--font-sm);
+  color: var(--color-text-muted);
+  font-weight: 500;
+}
+
+/* Specs */
+.card-specs {
+  font-size: var(--font-base);
+  color: var(--color-text-secondary);
+  font-weight: 500;
+  margin-bottom: var(--space-1);
+}
+
+/* Address */
+.card-address {
+  font-size: var(--font-sm);
+  color: var(--color-text-primary);
+  font-weight: 600;
+  margin-bottom: var(--space-1);
+}
+
+/* Property type + neighborhood */
+.card-property-type {
+  font-size: var(--font-xs);
+  color: var(--color-text-muted);
+  margin-bottom: var(--space-2);
+}
+
+/* Tags row */
+.card-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-1);
+  margin-bottom: var(--space-2);
+}
+
+.tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  padding: 2px 8px;
+  border-radius: var(--radius-pill);
+  font-size: 11px;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.tag-new {
+  background: var(--color-brand-light);
+  color: var(--color-brand);
+}
+
+.tag-today {
+  background: var(--color-success-bg);
+  color: var(--color-success);
+}
+
+.tag-recent {
+  background: var(--color-info-bg);
+  color: var(--color-info);
+}
+
+.tag-aging {
+  background: var(--color-warning-bg);
+  color: var(--color-warning);
+}
+
+.tag-stale {
+  background: var(--color-danger-bg);
+  color: var(--color-danger);
+}
+
+.tag-price-drop {
+  background: var(--color-success-bg);
+  color: var(--color-success);
+}
+
+.tag-price-up {
+  background: var(--color-danger-bg);
+  color: var(--color-danger);
+}
+
+.tag-feature {
+  background: var(--color-surface-alt);
+  color: var(--color-text-secondary);
+}
+
+/* School district */
+.card-district {
+  font-size: var(--font-xs);
+  color: var(--color-text-muted);
+  margin-bottom: var(--space-2);
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-1);
+  line-height: 1.4;
+}
+
+.card-district .district-icon {
+  flex-shrink: 0;
+  margin-top: 1px;
+}
+
+/* Description preview */
+.card-description {
+  font-size: var(--font-sm);
+  color: var(--color-text-secondary);
+  line-height: 1.5;
+  margin-bottom: var(--space-3);
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+/* Metrics row */
+.card-metrics {
+  display: flex;
+  align-items: center;
+  gap: var(--space-4);
+  padding: var(--space-2) var(--space-3);
+  background: var(--color-surface-alt);
+  border-radius: var(--radius-md);
+  margin-bottom: var(--space-3);
+  font-size: var(--font-xs);
+}
+
+.metric {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+
+.metric-label {
+  color: var(--color-text-muted);
+  font-weight: 500;
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.metric-value {
+  font-weight: 700;
+  color: var(--color-text-primary);
+}
+
+.metric-value.positive {
+  color: var(--color-danger);
+}
+
+.metric-value.negative {
+  color: var(--color-success);
+}
+
+.metric-divider {
+  width: 1px;
+  height: 28px;
+  background: var(--color-border);
+}
+
+/* Source link pill */
+.card-source-link {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  padding: 4px 12px;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-pill);
+  font-size: var(--font-xs);
+  font-weight: 500;
+  color: var(--color-text-secondary);
+  text-decoration: none;
+  transition: all var(--transition-fast);
+  margin-bottom: var(--space-2);
+}
+
+.card-source-link:hover {
+  border-color: var(--color-brand);
+  color: var(--color-brand);
+  background: var(--color-brand-light);
+  text-decoration: none;
+}
+
+.card-source-link .link-favicon {
+  width: 12px;
+  height: 12px;
+  border-radius: 2px;
+}
+
+/* Timestamps */
+.card-timestamps {
+  font-size: 11px;
+  color: var(--color-text-muted);
+  font-weight: 400;
+}
+
+/* ============================================================
+   MAP PANEL
+   ============================================================ */
+.map-panel {
+  flex: 1;
+  position: relative;
+  background: #e8eaed;
+  overflow: hidden;
+}
+
+/* Map grid lines */
+.map-grid {
+  position: absolute;
+  inset: 0;
+  background-image:
+    linear-gradient(rgba(0,0,0,0.04) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(0,0,0,0.04) 1px, transparent 1px);
+  background-size: 40px 40px;
+}
+
+/* Map SVG overlay */
+.map-svg {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+}
+
+/* Result badge */
+.map-result-badge {
+  position: absolute;
+  top: var(--space-4);
+  left: var(--space-4);
+  padding: var(--space-2) var(--space-4);
+  background: var(--color-surface);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-md);
+  font-size: var(--font-sm);
+  font-weight: 600;
+  color: var(--color-text-primary);
+  z-index: 10;
+}
+
+/* City labels */
+.map-city-label {
+  position: absolute;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 2px;
+  text-transform: uppercase;
+  color: rgba(0,0,0,0.25);
+  z-index: 5;
+  pointer-events: none;
+  user-select: none;
+}
+
+/* Price pills on map */
+.map-price-pill {
+  position: absolute;
+  padding: 4px 10px;
+  border-radius: var(--radius-pill);
+  font-size: 11px;
+  font-weight: 700;
+  color: white;
+  z-index: 8;
+  cursor: pointer;
+  transition: transform var(--transition-fast), box-shadow var(--transition-fast);
+  box-shadow: 0 2px 6px rgba(0,0,0,0.2);
+  white-space: nowrap;
+}
+
+.map-price-pill:hover {
+  transform: scale(1.1);
+  box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+  z-index: 9;
+}
+
+.map-price-pill.highlighted {
+  transform: scale(1.15);
+  box-shadow: 0 4px 16px rgba(37, 99, 235, 0.4);
+  z-index: 9;
+}
+
+.map-price-pill.blue { background: var(--color-brand); }
+.map-price-pill.purple { background: #7c4cc8; }
+.map-price-pill.green { background: #16a34a; }
+
+/* Zoom controls */
+.map-zoom-controls {
+  position: absolute;
+  bottom: var(--space-8);
+  right: var(--space-4);
+  display: flex;
+  flex-direction: column;
+  background: var(--color-surface);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-md);
+  overflow: hidden;
+  z-index: 10;
+}
+
+.map-zoom-btn {
+  width: 36px;
+  height: 36px;
+  border: none;
+  background: var(--color-surface);
+  color: var(--color-text-secondary);
+  font-size: var(--font-lg);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background var(--transition-fast);
+}
+
+.map-zoom-btn:hover {
+  background: var(--color-surface-alt);
+}
+
+.map-zoom-btn + .map-zoom-btn {
+  border-top: 1px solid var(--color-border);
+}
+
+/* Map attribution */
+.map-attribution {
+  position: absolute;
+  bottom: var(--space-2);
+  left: var(--space-2);
+  font-size: 10px;
+  color: rgba(0,0,0,0.4);
+  z-index: 10;
+}
+
+.map-attribution a {
+  color: rgba(0,0,0,0.5);
+}
+
+/* ============================================================
+   SKELETON LOADING CARD
+   ============================================================ */
+.skeleton-card {
+  background: var(--color-surface);
+  border: 2px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  overflow: hidden;
+}
+
+.skeleton-image {
+  width: 100%;
+  height: 210px;
+  background: linear-gradient(90deg, var(--color-surface-alt) 25%, #e8e9ed 50%, var(--color-surface-alt) 75%);
+  background-size: 200% 100%;
+  animation: shimmer 1.5s infinite;
+}
+
+.skeleton-body {
+  padding: var(--space-3) var(--space-4) var(--space-4);
+}
+
+.skeleton-line {
+  height: 14px;
+  border-radius: 4px;
+  background: linear-gradient(90deg, var(--color-surface-alt) 25%, #e8e9ed 50%, var(--color-surface-alt) 75%);
+  background-size: 200% 100%;
+  animation: shimmer 1.5s infinite;
+  margin-bottom: var(--space-2);
+}
+
+.skeleton-line.w-40 { width: 40%; }
+.skeleton-line.w-60 { width: 60%; }
+.skeleton-line.w-80 { width: 80%; }
+.skeleton-line.w-100 { width: 100%; }
+.skeleton-line.h-24 { height: 24px; }
+.skeleton-line.h-10 { height: 10px; }
+
+.skeleton-tags {
+  display: flex;
+  gap: var(--space-2);
+  margin-bottom: var(--space-2);
+}
+
+.skeleton-tag {
+  width: 60px;
+  height: 20px;
+  border-radius: var(--radius-pill);
+  background: linear-gradient(90deg, var(--color-surface-alt) 25%, #e8e9ed 50%, var(--color-surface-alt) 75%);
+  background-size: 200% 100%;
+  animation: shimmer 1.5s infinite;
+}
+
+.skeleton-metrics {
+  height: 48px;
+  border-radius: var(--radius-md);
+  background: linear-gradient(90deg, var(--color-surface-alt) 25%, #e8e9ed 50%, var(--color-surface-alt) 75%);
+  background-size: 200% 100%;
+  animation: shimmer 1.5s infinite;
+}
+
+@keyframes shimmer {
+  0% { background-position: 200% 0; }
+  100% { background-position: -200% 0; }
+}
+
+/* ============================================================
+   PAGINATION
+   ============================================================ */
+.pagination {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-3);
+  padding: var(--space-4) 0;
+}
+
+.pagination-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  padding: var(--space-2) var(--space-4);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-pill);
+  background: var(--color-surface);
+  color: var(--color-text-secondary);
+  font-size: var(--font-sm);
+  font-family: var(--font-family);
+  font-weight: 500;
+  cursor: pointer;
+  transition: all var(--transition-fast);
+}
+
+.pagination-btn:hover:not(:disabled) {
+  border-color: var(--color-brand);
+  color: var(--color-brand);
+  background: var(--color-brand-light);
+}
+
+.pagination-btn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.pagination-info {
+  font-size: var(--font-sm);
+  color: var(--color-text-muted);
+  font-weight: 500;
+}
+
+.pagination-info strong {
+  color: var(--color-text-primary);
+  font-weight: 700;
+}
+
+/* ============================================================
+   EMPTY & ERROR STATES
+   ============================================================ */
+.state-template {
+  display: none;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: var(--space-10) var(--space-6);
+  text-align: center;
+  gap: var(--space-4);
+}
+
+.state-template.visible {
+  display: flex;
+}
+
+.state-icon {
+  font-size: 48px;
+  opacity: 0.6;
+}
+
+.state-title {
+  font-size: var(--font-lg);
+  font-weight: 700;
+  color: var(--color-text-primary);
+}
+
+.state-description {
+  font-size: var(--font-base);
+  color: var(--color-text-muted);
+  max-width: 320px;
+  line-height: 1.6;
+}
+
+.state-action {
+  margin-top: var(--space-2);
+}
+
+/* ============================================================
+   RESPONSIVE
+   ============================================================ */
+@media (max-width: 1024px) {
+  .listings-panel {
+    width: 380px;
+    min-width: 340px;
+  }
+  .header-search {
+    max-width: 300px;
+  }
+}
+
+@media (max-width: 768px) {
+  .main-content {
+    flex-direction: column;
+  }
+  .listings-panel {
+    width: 100%;
+    min-width: unset;
+    max-height: 60vh;
+    border-right: none;
+    border-bottom: 1px solid var(--color-border);
+  }
+  .map-panel {
+    min-height: 40vh;
+  }
+  .header {
+    padding: var(--space-2) var(--space-3);
+    gap: var(--space-2);
+  }
+  .header-search {
+    max-width: 200px;
+  }
+  .header-sync {
+    display: none;
+  }
+  .filter-bar {
+    padding: var(--space-2) var(--space-3);
+  }
+  .v2-banner {
+    padding: var(--space-2) var(--space-3);
+  }
+}
+</style>
+</head>
+<body>
+
+<div class="app-shell">
+
+  <!-- ============================================================
+       V2 CHANGES BANNER
+       ============================================================ -->
+  <div class="v2-banner" role="banner" aria-label="Version 2 changes">
+    <strong>🚀 v2 Changes:</strong>
+    <div class="v2-banner-items">
+      <span class="v2-banner-item">📐 Precise SVG city boundary</span>
+      <span class="v2-banner-item">📊 $/sqft + vs. Avg metrics</span>
+      <span class="v2-banner-item">🏫 School district info</span>
+      <span class="v2-banner-item">📝 Description previews</span>
+      <span class="v2-banner-item">🔗 Source link pills</span>
+      <span class="v2-banner-item">⏱️ First/Last seen timestamps</span>
+      <span class="v2-banner-item">📸 Photo count + carousel dots</span>
+      <span class="v2-banner-item">📏 sqft + m² dual units</span>
+    </div>
+    <button class="v2-banner-close" aria-label="Dismiss banner" onclick="this.closest('.v2-banner').style.display='none'">✕</button>
+  </div>
+
+  <!-- ============================================================
+       HEADER
+       ============================================================ -->
+  <header class="header" role="banner">
+    <div class="header-logo">
+      <span class="logo-icon">🏠</span>
+      <span>SunnyNest</span>
+    </div>
+
+    <div class="header-search">
+      <span class="search-icon">🔍</span>
+      <input type="text" placeholder="Sunnyvale, CA 94087" value="Sunnyvale, CA 94087" aria-label="Search location">
+    </div>
+
+    <div class="header-actions">
+      <div class="header-sync">
+        <div>Last sync: <strong>2 min ago</strong></div>
+        <div style="color: var(--color-success); font-weight: 600;">● All sources online</div>
+      </div>
+      <button class="btn-sync" aria-label="Sync now">🔄 Sync Now</button>
+      <button class="btn-primary" aria-label="Save search">⭐ Save Search</button>
+    </div>
+  </header>
+
+  <!-- ============================================================
+       FILTER BAR
+       ============================================================ -->
+  <div class="filter-bar" role="toolbar" aria-label="Listing filters">
+    <button class="filter-pill active" role="button" aria-pressed="true" tabindex="0">🏠 Houses <span class="chevron">▾</span></button>
+    <button class="filter-pill" role="button" aria-pressed="false" tabindex="0">💰 $4k–$7k <span class="chevron">▾</span></button>
+    <button class="filter-pill" role="button" aria-pressed="false" tabindex="0">🛏️ 3+ Beds <span class="chevron">▾</span></button>
+    <button class="filter-pill" role="button" aria-pressed="false" tabindex="0">🐕 Pet Friendly</button>
+    <button class="filter-pill" role="button" aria-pressed="false" tabindex="0">❄️ AC</button>
+    <button class="filter-pill" role="button" aria-pressed="false" tabindex="0">🪑 Furnished</button>
+    <button class="filter-pill" role="button" aria-pressed="false" tabindex="0">📉 Price Drops</button>
+    <div class="filter-divider"></div>
+    <span class="result-count"><strong>11</strong> rentals</span>
+    <select class="sort-select" aria-label="Sort listings">
+      <option>Sort: Newest</option>
+      <option>Sort: Price ↑</option>
+      <option>Sort: Price ↓</option>
+      <option>Sort: $/sqft ↑</option>
+      <option>Sort: $/sqft ↓</option>
+    </select>
+  </div>
+
+  <!-- ============================================================
+       MAIN CONTENT: LISTINGS + MAP
+       ============================================================ -->
+  <div class="main-content">
+
+    <!-- ========== LISTINGS PANEL ========== -->
+    <div class="listings-panel" role="list" aria-label="Rental listings">
+
+      <!-- ===== CARD 1 — Selected, Favorited ===== -->
+      <article class="listing-card selected" role="listitem" tabindex="0" data-id="1" aria-label="$5,500 per month, 4 bed 2 bath at 1410 Kelowna Ct">
+        <div class="card-image-wrapper">
+          <img src="https://images.unsplash.com/photo-1570129477492-45c003edd2be?w=600&h=400&fit=crop" alt="4-bedroom home at 1410 Kelowna Ct, Sunnyvale" loading="lazy">
+          <button class="card-favorite favorited" aria-label="Remove from favorites" title="Remove from favorites">♥</button>
+          <span class="card-source-badge source-zillow">
+            <img class="source-favicon" src="https://www.google.com/s2/favicons?domain=zillow.com&sz=32" alt="" width="14" height="14">
+            Zillow
+          </span>
+          <span class="card-photo-count">📷 12</span>
+          <div class="card-carousel-dots">
+            <span class="carousel-dot active"></span>
+            <span class="carousel-dot"></span>
+            <span class="carousel-dot"></span>
+            <span class="carousel-dot"></span>
+            <span class="carousel-dot"></span>
+          </div>
+        </div>
+        <div class="card-body">
+          <div class="card-price-row">
+            <span class="card-price">$5,500<span style="font-size: var(--font-base); font-weight: 500; color: var(--color-text-muted);">/mo</span></span>
+            <span class="card-price-sqft">$3.27/sqft</span>
+          </div>
+          <div class="card-specs">4 bd &nbsp;|&nbsp; 2 ba &nbsp;|&nbsp; 1,683 sqft (156 m²)</div>
+          <div class="card-address">1410 Kelowna Ct, Sunnyvale, CA 94087</div>
+          <div class="card-property-type">House · Cupertino Union SD</div>
+          <div class="card-tags">
+            <span class="tag tag-new">✨ New</span>
+            <span class="tag tag-today">Today</span>
+            <span class="tag tag-feature">🐕 Dog Friendly</span>
+            <span class="tag tag-feature">✅ Available Now</span>
+          </div>
+          <div class="card-district">
+            <span class="district-icon">🎓</span>
+            <span>Cupertino Union School District / Fremont Union High School District</span>
+          </div>
+          <div class="card-description">Beautiful 4-bedroom home in a quiet cul-de-sac near Apple campus. Updated kitchen with granite countertops, hardwood floors throughout.</div>
+          <div class="card-metrics">
+            <div class="metric">
+              <span class="metric-label">$/sqft</span>
+              <span class="metric-value">$3.27</span>
+            </div>
+            <div class="metric-divider"></div>
+            <div class="metric">
+              <span class="metric-label">vs. Avg</span>
+              <span class="metric-value negative">−8.2%</span>
+            </div>
+            <div class="metric-divider"></div>
+            <div class="metric">
+              <span class="metric-label">Days Listed</span>
+              <span class="metric-value">Today</span>
+            </div>
+          </div>
+          <a href="#" class="card-source-link" onclick="event.stopPropagation()">
+            <img class="link-favicon" src="https://www.google.com/s2/favicons?domain=zillow.com&sz=32" alt="" width="12" height="12">
+            View on Zillow ↗
+          </a>
+          <div class="card-timestamps">First seen: Mar 26 · Last seen: Mar 26</div>
+        </div>
+      </article>
+
+      <!-- ===== CARD 2 ===== -->
+      <article class="listing-card" role="listitem" tabindex="0" data-id="2" aria-label="$6,000 per month, 4 bed 2 bath at 749 Lois Ave">
+        <div class="card-image-wrapper">
+          <img src="https://images.unsplash.com/photo-1564013799919-ab600027ffc6?w=600&h=400&fit=crop" alt="4-bedroom home at 749 Lois Ave, Sunnyvale" loading="lazy">
+          <button class="card-favorite" aria-label="Add to favorites" title="Add to favorites">♡</button>
+          <span class="card-source-badge source-zillow">
+            <img class="source-favicon" src="https://www.google.com/s2/favicons?domain=zillow.com&sz=32" alt="" width="14" height="14">
+            Zillow
+          </span>
+          <span class="card-photo-count">📷 8</span>
+          <div class="card-carousel-dots">
+            <span class="carousel-dot active"></span>
+            <span class="carousel-dot"></span>
+            <span class="carousel-dot"></span>
+            <span class="carousel-dot"></span>
+          </div>
+        </div>
+        <div class="card-body">
+          <div class="card-price-row">
+            <span class="card-price">$6,000<span style="font-size: var(--font-base); font-weight: 500; color: var(--color-text-muted);">/mo</span></span>
+            <span class="card-price-sqft">$4.45/sqft</span>
+          </div>
+          <div class="card-specs">4 bd &nbsp;|&nbsp; 2 ba &nbsp;|&nbsp; 1,348 sqft (125 m²)</div>
+          <div class="card-address">749 Lois Ave, Sunnyvale, CA 94087</div>
+          <div class="card-property-type">House · Cupertino Union SD</div>
+          <div class="card-tags">
+            <span class="tag tag-new">✨ New</span>
+            <span class="tag tag-today">Today</span>
+            <span class="tag tag-feature">❄️ AC</span>
+          </div>
+          <div class="card-district">
+            <span class="district-icon">🎓</span>
+            <span>Cupertino Union School District / Fremont Union High School District</span>
+          </div>
+          <div class="card-description">Spacious 4-bed home with modern updates. Open floor plan, remodeled bathrooms, central AC. Two-car garage with EV charger.</div>
+          <div class="card-metrics">
+            <div class="metric">
+              <span class="metric-label">$/sqft</span>
+              <span class="metric-value">$4.45</span>
+            </div>
+            <div class="metric-divider"></div>
+            <div class="metric">
+              <span class="metric-label">vs. Avg</span>
+              <span class="metric-value positive">+12.5%</span>
+            </div>
+            <div class="metric-divider"></div>
+            <div class="metric">
+              <span class="metric-label">Days Listed</span>
+              <span class="metric-value">Today</span>
+            </div>
+          </div>
+          <a href="#" class="card-source-link" onclick="event.stopPropagation()">
+            <img class="link-favicon" src="https://www.google.com/s2/favicons?domain=zillow.com&sz=32" alt="" width="12" height="12">
+            View on Zillow ↗
+          </a>
+          <div class="card-timestamps">First seen: Mar 26 · Last seen: Mar 26</div>
+        </div>
+      </article>
+
+      <!-- ===== CARD 3 — Price Drop ===== -->
+      <article class="listing-card" role="listitem" tabindex="0" data-id="3" aria-label="$5,900 per month, 4 bed 3 bath at 1347 Zurich Tr">
+        <div class="card-image-wrapper">
+          <img src="https://images.unsplash.com/photo-1600596542815-ffad4c1539a9?w=600&h=400&fit=crop" alt="4-bedroom home at 1347 Zurich Tr, Sunnyvale" loading="lazy">
+          <button class="card-favorite" aria-label="Add to favorites" title="Add to favorites">♡</button>
+          <span class="card-source-badge source-zillow">
+            <img class="source-favicon" src="https://www.google.com/s2/favicons?domain=zillow.com&sz=32" alt="" width="14" height="14">
+            Zillow
+          </span>
+          <span class="card-photo-count">📷 15</span>
+          <div class="card-carousel-dots">
+            <span class="carousel-dot active"></span>
+            <span class="carousel-dot"></span>
+            <span class="carousel-dot"></span>
+            <span class="carousel-dot"></span>
+            <span class="carousel-dot"></span>
+            <span class="carousel-dot"></span>
+          </div>
+        </div>
+        <div class="card-body">
+          <div class="card-price-row">
+            <span class="card-price">$5,900<span style="font-size: var(--font-base); font-weight: 500; color: var(--color-text-muted);">/mo</span></span>
+            <span class="card-price-sqft">$3.15/sqft</span>
+          </div>
+          <div class="card-specs">4 bd &nbsp;|&nbsp; 3 ba &nbsp;|&nbsp; 1,871 sqft (174 m²)</div>
+          <div class="card-address">1347 Zurich Tr, Sunnyvale, CA 94087</div>
+          <div class="card-property-type">House · Cupertino Union SD</div>
+          <div class="card-tags">
+            <span class="tag tag-price-drop">🔻 −$200</span>
+            <span class="tag tag-new">✨ New</span>
+            <span class="tag tag-recent">3d ago</span>
+          </div>
+          <div class="card-district">
+            <span class="district-icon">🎓</span>
+            <span>Cupertino Union School District / Fremont Union High School District</span>
+          </div>
+          <div class="card-description">Gorgeous 4-bed/3-bath home on a tree-lined street. Vaulted ceilings, fireplace, updated kitchen with stainless steel appliances.</div>
+          <div class="card-metrics">
+            <div class="metric">
+              <span class="metric-label">$/sqft</span>
+              <span class="metric-value">$3.15</span>
+            </div>
+            <div class="metric-divider"></div>
+            <div class="metric">
+              <span class="metric-label">vs. Avg</span>
+              <span class="metric-value negative">−10.8%</span>
+            </div>
+            <div class="metric-divider"></div>
+            <div class="metric">
+              <span class="metric-label">Days Listed</span>
+              <span class="metric-value">3 days ago</span>
+            </div>
+          </div>
+          <a href="#" class="card-source-link" onclick="event.stopPropagation()">
+            <img class="link-favicon" src="https://www.google.com/s2/favicons?domain=zillow.com&sz=32" alt="" width="12" height="12">
+            View on Zillow ↗
+          </a>
+          <div class="card-timestamps">First seen: Mar 23 · Last seen: Mar 26</div>
+        </div>
+      </article>
+
+      <!-- ===== CARD 4 — Craigslist ===== -->
+      <article class="listing-card" role="listitem" tabindex="0" data-id="4" aria-label="$5,500 per month, 3 bed 2 bath at 832 Durshire Way">
+        <div class="card-image-wrapper">
+          <img src="https://images.unsplash.com/photo-1600585154340-be6161a56a0c?w=600&h=400&fit=crop" alt="3-bedroom home at 832 Durshire Way, Sunnyvale" loading="lazy">
+          <button class="card-favorite" aria-label="Add to favorites" title="Add to favorites">♡</button>
+          <span class="card-source-badge source-craigslist">
+            <img class="source-favicon" src="https://www.google.com/s2/favicons?domain=craigslist.org&sz=32" alt="" width="14" height="14">
+            Craigslist
+          </span>
+          <span class="card-photo-count">📷 6</span>
+          <div class="card-carousel-dots">
+            <span class="carousel-dot active"></span>
+            <span class="carousel-dot"></span>
+            <span class="carousel-dot"></span>
+          </div>
+        </div>
+        <div class="card-body">
+          <div class="card-price-row">
+            <span class="card-price">$5,500<span style="font-size: var(--font-base); font-weight: 500; color: var(--color-text-muted);">/mo</span></span>
+            <span class="card-price-sqft">$3.87/sqft</span>
+          </div>
+          <div class="card-specs">3 bd &nbsp;|&nbsp; 2 ba &nbsp;|&nbsp; 1,420 sqft (132 m²)</div>
+          <div class="card-address">832 Durshire Way, Sunnyvale, CA 94087</div>
+          <div class="card-property-type">House · Sunnyvale SD</div>
+          <div class="card-tags">
+            <span class="tag tag-aging">5d ago</span>
+            <span class="tag tag-feature">🐕 Dog Friendly</span>
+            <span class="tag tag-feature">🪑 Furnished</span>
+          </div>
+          <div class="card-district">
+            <span class="district-icon">🎓</span>
+            <span>Sunnyvale School District / Fremont Union High School District</span>
+          </div>
+          <div class="card-description">Charming 3-bedroom ranch home, fully furnished. Quiet neighborhood near Baylands Park. In-unit washer/dryer, garage parking.</div>
+          <div class="card-metrics">
+            <div class="metric">
+              <span class="metric-label">$/sqft</span>
+              <span class="metric-value">$3.87</span>
+            </div>
+            <div class="metric-divider"></div>
+            <div class="metric">
+              <span class="metric-label">vs. Avg</span>
+              <span class="metric-value negative">−2.1%</span>
+            </div>
+            <div class="metric-divider"></div>
+            <div class="metric">
+              <span class="metric-label">Days Listed</span>
+              <span class="metric-value">5 days ago</span>
+            </div>
+          </div>
+          <a href="#" class="card-source-link" onclick="event.stopPropagation()">
+            <img class="link-favicon" src="https://www.google.com/s2/favicons?domain=craigslist.org&sz=32" alt="" width="12" height="12">
+            View on Craigslist ↗
+          </a>
+          <div class="card-timestamps">First seen: Mar 21 · Last seen: Mar 26</div>
+        </div>
+      </article>
+
+      <!-- ===== CARD 5 — Stale, Price Up ===== -->
+      <article class="listing-card" role="listitem" tabindex="0" data-id="5" aria-label="$5,100 per month, 3 bed 2 bath at 1055 Reed Ave">
+        <div class="card-image-wrapper">
+          <img src="https://images.unsplash.com/photo-1605276374104-dee2a0ed3cd6?w=600&h=400&fit=crop" alt="3-bedroom townhouse at 1055 Reed Ave, Sunnyvale" loading="lazy">
+          <button class="card-favorite" aria-label="Add to favorites" title="Add to favorites">♡</button>
+          <span class="card-source-badge source-zillow">
+            <img class="source-favicon" src="https://www.google.com/s2/favicons?domain=zillow.com&sz=32" alt="" width="14" height="14">
+            Zillow
+          </span>
+          <span class="card-photo-count">📷 9</span>
+          <div class="card-carousel-dots">
+            <span class="carousel-dot active"></span>
+            <span class="carousel-dot"></span>
+            <span class="carousel-dot"></span>
+            <span class="carousel-dot"></span>
+          </div>
+        </div>
+        <div class="card-body">
+          <div class="card-price-row">
+            <span class="card-price">$5,100<span style="font-size: var(--font-base); font-weight: 500; color: var(--color-text-muted);">/mo</span></span>
+            <span class="card-price-sqft">$4.25/sqft</span>
+          </div>
+          <div class="card-specs">3 bd &nbsp;|&nbsp; 2 ba &nbsp;|&nbsp; 1,200 sqft (111 m²)</div>
+          <div class="card-address">1055 Reed Ave, Sunnyvale, CA 94086</div>
+          <div class="card-property-type">Townhouse · Sunnyvale SD</div>
+          <div class="card-tags">
+            <span class="tag tag-price-up">🔺 +$100</span>
+            <span class="tag tag-stale">18d ago</span>
+            <span class="tag tag-feature">❄️ AC</span>
+          </div>
+          <div class="card-district">
+            <span class="district-icon">🎓</span>
+            <span>Sunnyvale School District / Fremont Union High School District</span>
+          </div>
+          <div class="card-description">Modern townhouse with open layout. Community pool and gym access. Close to Google campus and downtown Murphy Ave.</div>
+          <div class="card-metrics">
+            <div class="metric">
+              <span class="metric-label">$/sqft</span>
+              <span class="metric-value">$4.25</span>
+            </div>
+            <div class="metric-divider"></div>
+            <div class="metric">
+              <span class="metric-label">vs. Avg</span>
+              <span class="metric-value positive">+7.3%</span>
+            </div>
+            <div class="metric-divider"></div>
+            <div class="metric">
+              <span class="metric-label">Days Listed</span>
+              <span class="metric-value">18 days ago</span>
+            </div>
+          </div>
+          <a href="#" class="card-source-link" onclick="event.stopPropagation()">
+            <img class="link-favicon" src="https://www.google.com/s2/favicons?domain=zillow.com&sz=32" alt="" width="12" height="12">
+            View on Zillow ↗
+          </a>
+          <div class="card-timestamps">First seen: Mar 8 · Last seen: Mar 26</div>
+        </div>
+      </article>
+
+      <!-- ===== SKELETON LOADING CARD ===== -->
+      <div class="skeleton-card" aria-hidden="true">
+        <div class="skeleton-image"></div>
+        <div class="skeleton-body">
+          <div class="skeleton-line h-24 w-40"></div>
+          <div class="skeleton-line w-60"></div>
+          <div class="skeleton-line w-80"></div>
+          <div class="skeleton-line w-60"></div>
+          <div class="skeleton-tags">
+            <div class="skeleton-tag"></div>
+            <div class="skeleton-tag"></div>
+            <div class="skeleton-tag"></div>
+          </div>
+          <div class="skeleton-line h-10 w-100"></div>
+          <div class="skeleton-line h-10 w-100"></div>
+          <div class="skeleton-metrics"></div>
+        </div>
+      </div>
+
+      <!-- ===== PAGINATION ===== -->
+      <div class="pagination" role="navigation" aria-label="Pagination">
+        <button class="pagination-btn" disabled aria-label="Previous page">← Previous</button>
+        <span class="pagination-info">Page <strong>1</strong> of <strong>2</strong> · 11 listings</span>
+        <button class="pagination-btn" aria-label="Next page">Next →</button>
+      </div>
+
+      <!-- ===== EMPTY STATE (hidden) ===== -->
+      <div class="state-template" id="empty-state" role="status">
+        <div class="state-icon">🏘️</div>
+        <div class="state-title">No rentals match your filters</div>
+        <div class="state-description">Try adjusting your search criteria or removing some filters to see more results.</div>
+        <div class="state-action">
+          <button class="btn-primary">Clear All Filters</button>
+        </div>
+      </div>
+
+      <!-- ===== ERROR STATE (hidden) ===== -->
+      <div class="state-template" id="error-state" role="alert">
+        <div class="state-icon">⚠️</div>
+        <div class="state-title">Unable to load listings</div>
+        <div class="state-description">We're having trouble connecting to our data sources. Cached results may be shown. Please try again.</div>
+        <div class="state-action">
+          <button class="btn-primary">🔄 Retry</button>
+        </div>
+      </div>
+
+    </div><!-- /listings-panel -->
+
+    <!-- ========== MAP PANEL ========== -->
+    <div class="map-panel" role="region" aria-label="Map view">
+      <div class="map-grid"></div>
+
+      <!-- Map SVG with city boundary -->
+      <svg class="map-svg" viewBox="0 0 100 100" preserveAspectRatio="xMidYMid meet" xmlns="http://www.w3.org/2000/svg">
+        <defs>
+          <linearGradient id="boundaryGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+            <stop offset="0%" style="stop-color:#2563eb;stop-opacity:0.15" />
+            <stop offset="100%" style="stop-color:#2563eb;stop-opacity:0.08" />
+          </linearGradient>
+        </defs>
+        <!-- Sunnyvale city boundary polygon -->
+        <polygon
+          points="15.0,78.2 19.7,81.2 21.0,81.1 21.1,81.6 23.8,84.9 27.0,83.7 27.4,81.5 43.0,80.8 54.9,83.6 74.0,80.0 67.6,77.1 69.6,77.1 69.3,73.3 69.7,69.6 73.6,64.0 68.0,60.3 81.3,54.7 81.7,46.1 81.7,41.7 81.7,39.2 27.5,17.5 26.1,35.1 31.2,50.1 28.7,55.7 26.2,55.7 20.4,58.9 18.0,69.0 18.4,71.5 16.8,73.6 15.9,76.0 15.3,77.8"
+          fill="url(#boundaryGradient)"
+          stroke="#2563eb"
+          stroke-width="0.4"
+          stroke-dasharray="2,1.5"
+          stroke-opacity="0.5"
+          fill-rule="evenodd"
+        />
+      </svg>
+
+      <!-- Result badge -->
+      <div class="map-result-badge">📍 11 rentals in Sunnyvale, CA</div>
+
+      <!-- City labels -->
+      <div class="map-city-label" style="top: 55%; left: 42%; transform: translate(-50%, -50%);">SUNNYVALE</div>
+      <div class="map-city-label" style="top: 25%; right: 8%; font-size: 9px;">MOUNTAIN VIEW</div>
+      <div class="map-city-label" style="bottom: 22%; left: 5%; font-size: 9px;">CUPERTINO</div>
+
+      <!-- Price pills scattered within boundary -->
+      <div class="map-price-pill blue highlighted" style="top: 52%; left: 30%;" title="1410 Kelowna Ct — $5,500/mo">$5.5k</div>
+      <div class="map-price-pill blue" style="top: 48%; left: 38%;" title="749 Lois Ave — $6,000/mo">$6.0k</div>
+      <div class="map-price-pill blue" style="top: 56%; left: 44%;" title="1347 Zurich Tr — $5,900/mo">$5.9k</div>
+      <div class="map-price-pill purple" style="top: 62%; left: 35%;" title="832 Durshire Way — $5,500/mo">$5.5k</div>
+      <div class="map-price-pill blue" style="top: 44%; left: 52%;" title="1055 Reed Ave — $5,100/mo">$5.1k</div>
+      <div class="map-price-pill green" style="top: 38%; left: 42%;" title="Listing 6">$4.8k</div>
+      <div class="map-price-pill blue" style="top: 50%; left: 56%;" title="Listing 7">$5.2k</div>
+      <div class="map-price-pill green" style="top: 58%; left: 50%;" title="Listing 8">$4.5k</div>
+      <div class="map-price-pill purple" style="top: 42%; left: 34%;" title="Listing 9">$6.2k</div>
+      <div class="map-price-pill blue" style="top: 66%; left: 42%;" title="Listing 10">$5.7k</div>
+      <div class="map-price-pill green" style="top: 54%; left: 26%;" title="Listing 11">$4.9k</div>
+
+      <!-- Zoom controls -->
+      <div class="map-zoom-controls">
+        <button class="map-zoom-btn" aria-label="Zoom in">+</button>
+        <button class="map-zoom-btn" aria-label="Zoom out">−</button>
+      </div>
+
+      <!-- Map attribution -->
+      <div class="map-attribution">
+        <a href="#">Leaflet</a> | © <a href="#">OpenStreetMap</a> | © <a href="#">CARTO</a>
+      </div>
+    </div><!-- /map-panel -->
+
+  </div><!-- /main-content -->
+
+</div><!-- /app-shell -->
+
+<!-- ============================================================
+     INTERACTIVE BEHAVIOR (Vanilla JS)
+     ============================================================ -->
+<script>
+(function() {
+  'use strict';
+
+  // --- Card selection ---
+  const cards = document.querySelectorAll('.listing-card');
+
+  function selectCard(card) {
+    cards.forEach(c => c.classList.remove('selected'));
+    card.classList.add('selected');
+  }
+
+  cards.forEach(card => {
+    card.addEventListener('click', function(e) {
+      // Don't select if clicking favorite or source link
+      if (e.target.closest('.card-favorite') || e.target.closest('.card-source-link')) return;
+      selectCard(this);
+    });
+
+    // Keyboard: Enter/Space to select
+    card.addEventListener('keydown', function(e) {
+      if (e.key === 'Enter' || e.key === ' ') {
+        e.preventDefault();
+        selectCard(this);
+      }
+    });
+  });
+
+  // --- Heart toggle ---
+  const hearts = document.querySelectorAll('.card-favorite');
+
+  hearts.forEach(heart => {
+    heart.addEventListener('click', function(e) {
+      e.stopPropagation();
+      const isFavorited = this.classList.toggle('favorited');
+      if (isFavorited) {
+        this.textContent = '♥';
+        this.setAttribute('aria-label', 'Remove from favorites');
+        this.setAttribute('title', 'Remove from favorites');
+      } else {
+        this.textContent = '♡';
+        this.setAttribute('aria-label', 'Add to favorites');
+        this.setAttribute('title', 'Add to favorites');
+      }
+    });
+  });
+
+  // --- Filter pill toggle ---
+  const filterPills = document.querySelectorAll('.filter-pill');
+
+  filterPills.forEach(pill => {
+    pill.addEventListener('click', function() {
+      const isActive = this.classList.toggle('active');
+      this.setAttribute('aria-pressed', isActive ? 'true' : 'false');
+    });
+  });
+
+})();
+</script>
+
+</body>
+</html>

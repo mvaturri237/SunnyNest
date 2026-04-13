@@ -1,0 +1,1490 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SunnyNest — Redesigned Rental Finder</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+/* ============================================================
+   DESIGN TOKENS
+   ============================================================ */
+:root {
+  /* Colors — Neutral + Accent (Professional SaaS palette) */
+  --color-bg:          #f5f6f8;
+  --color-surface:     #ffffff;
+  --color-surface-alt: #f0f1f4;
+  --color-border:      #e2e4e9;
+  --color-border-hover:#c5c8d0;
+
+  /* Text */
+  --color-text-primary:   #1a1d26;
+  --color-text-secondary: #5a5f72;
+  --color-text-muted:     #8b90a0;
+  --color-text-inverse:   #ffffff;
+
+  /* Brand */
+  --color-brand:       #2563eb;
+  --color-brand-hover: #1d4ed8;
+  --color-brand-light: #eff6ff;
+  --color-brand-muted: #93b4f5;
+
+  /* Semantic */
+  --color-success:     #16a34a;
+  --color-success-bg:  #dcfce7;
+  --color-warning:     #d97706;
+  --color-warning-bg:  #fef3c7;
+  --color-danger:      #dc2626;
+  --color-danger-bg:   #fee2e2;
+  --color-info:        #0891b2;
+  --color-info-bg:     #e0f7fa;
+
+  /* Shadows */
+  --shadow-sm:   0 1px 2px rgba(0,0,0,0.05);
+  --shadow-md:   0 2px 8px rgba(0,0,0,0.08);
+  --shadow-lg:   0 4px 16px rgba(0,0,0,0.10);
+  --shadow-card: 0 1px 3px rgba(0,0,0,0.06), 0 1px 2px rgba(0,0,0,0.04);
+  --shadow-card-hover: 0 8px 24px rgba(0,0,0,0.12);
+
+  /* Spacing (8px base) */
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 20px;
+  --space-6: 24px;
+  --space-8: 32px;
+  --space-10: 40px;
+
+  /* Radius */
+  --radius-sm: 6px;
+  --radius-md: 8px;
+  --radius-lg: 12px;
+  --radius-xl: 16px;
+  --radius-pill: 999px;
+
+  /* Typography */
+  --font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  --font-xs:   0.75rem;   /* 12px */
+  --font-sm:   0.8125rem; /* 13px */
+  --font-base: 0.875rem;  /* 14px */
+  --font-md:   1rem;      /* 16px */
+  --font-lg:   1.125rem;  /* 18px */
+  --font-xl:   1.25rem;   /* 20px */
+  --font-2xl:  1.5rem;    /* 24px */
+  --font-3xl:  1.875rem;  /* 30px */
+
+  /* Transitions */
+  --transition-fast: 150ms ease-out;
+  --transition-base: 200ms ease-out;
+}
+
+/* ============================================================
+   RESET & BASE
+   ============================================================ */
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+body {
+  font-family: var(--font-family);
+  font-size: var(--font-base);
+  color: var(--color-text-primary);
+  background: var(--color-bg);
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+  overflow: hidden;
+  height: 100vh;
+}
+
+a { color: var(--color-brand); text-decoration: none; }
+a:hover { text-decoration: underline; }
+a:focus-visible { outline: 2px solid var(--color-brand); outline-offset: 2px; border-radius: 2px; }
+
+button:focus-visible { outline: 2px solid var(--color-brand); outline-offset: 2px; border-radius: var(--radius-sm); }
+
+img { display: block; max-width: 100%; }
+
+/* ============================================================
+   LAYOUT
+   ============================================================ */
+.app-shell {
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+}
+
+/* --- HEADER --- */
+.header {
+  display: flex;
+  align-items: center;
+  gap: var(--space-4);
+  padding: var(--space-3) var(--space-6);
+  background: var(--color-surface);
+  border-bottom: 1px solid var(--color-border);
+  z-index: 100;
+  min-height: 56px;
+}
+
+.header-logo {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  font-weight: 800;
+  font-size: var(--font-xl);
+  color: var(--color-text-primary);
+  white-space: nowrap;
+  letter-spacing: -0.5px;
+}
+
+.header-logo .logo-icon {
+  font-size: 1.4rem;
+}
+
+/* IMPROVEMENT #3 — Search bar in header (Zillow-style) */
+.header-search {
+  flex: 1;
+  max-width: 420px;
+  position: relative;
+}
+
+.header-search input {
+  width: 100%;
+  padding: var(--space-2) var(--space-4);
+  padding-left: 36px;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-pill);
+  font-size: var(--font-base);
+  font-family: var(--font-family);
+  background: var(--color-surface-alt);
+  color: var(--color-text-primary);
+  transition: border-color var(--transition-fast), box-shadow var(--transition-fast);
+}
+
+.header-search input:focus {
+  outline: none;
+  border-color: var(--color-brand);
+  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.12);
+  background: var(--color-surface);
+}
+
+.header-search input::placeholder {
+  color: var(--color-text-muted);
+}
+
+.header-search .search-icon {
+  position: absolute;
+  left: 12px;
+  top: 50%;
+  transform: translateY(-50%);
+  color: var(--color-text-muted);
+  font-size: var(--font-md);
+  pointer-events: none;
+}
+
+.header-actions {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  margin-left: auto;
+}
+
+.header-sync {
+  font-size: var(--font-xs);
+  color: var(--color-text-muted);
+  text-align: right;
+  line-height: 1.4;
+}
+
+.btn-sync {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  padding: var(--space-2) var(--space-4);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-pill);
+  background: var(--color-surface);
+  color: var(--color-text-secondary);
+  font-size: var(--font-sm);
+  font-family: var(--font-family);
+  font-weight: 500;
+  cursor: pointer;
+  transition: all var(--transition-fast);
+  white-space: nowrap;
+}
+
+.btn-sync:hover {
+  border-color: var(--color-brand);
+  color: var(--color-brand);
+  background: var(--color-brand-light);
+}
+
+.btn-primary {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  padding: var(--space-2) var(--space-5);
+  border: none;
+  border-radius: var(--radius-pill);
+  background: var(--color-brand);
+  color: var(--color-text-inverse);
+  font-size: var(--font-sm);
+  font-family: var(--font-family);
+  font-weight: 600;
+  cursor: pointer;
+  transition: background var(--transition-fast);
+  white-space: nowrap;
+}
+
+.btn-primary:hover {
+  background: var(--color-brand-hover);
+}
+
+/* --- FILTER BAR (IMPROVEMENT #3) --- */
+.filter-bar {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  padding: var(--space-2) var(--space-6);
+  background: var(--color-surface);
+  border-bottom: 1px solid var(--color-border);
+  overflow-x: auto;
+  flex-wrap: nowrap;
+}
+
+.filter-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  padding: 6px 14px;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-pill);
+  background: var(--color-surface);
+  color: var(--color-text-secondary);
+  font-size: var(--font-sm);
+  font-family: var(--font-family);
+  font-weight: 500;
+  cursor: pointer;
+  transition: all var(--transition-fast);
+  white-space: nowrap;
+  user-select: none;
+}
+
+.filter-pill:hover {
+  border-color: var(--color-brand-muted);
+  background: var(--color-brand-light);
+  color: var(--color-brand);
+}
+
+.filter-pill.active {
+  border-color: var(--color-brand);
+  background: var(--color-brand-light);
+  color: var(--color-brand);
+  font-weight: 600;
+}
+
+.filter-pill .chevron {
+  font-size: 10px;
+  margin-left: 2px;
+  opacity: 0.6;
+}
+
+.filter-divider {
+  width: 1px;
+  height: 24px;
+  background: var(--color-border);
+  flex-shrink: 0;
+}
+
+.result-count {
+  font-size: var(--font-sm);
+  color: var(--color-text-muted);
+  white-space: nowrap;
+  margin-left: auto;
+  font-weight: 500;
+}
+
+.result-count strong {
+  color: var(--color-text-primary);
+  font-weight: 700;
+}
+
+/* Sort dropdown */
+.sort-select {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  padding: 6px 12px;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-pill);
+  background: var(--color-surface);
+  color: var(--color-text-secondary);
+  font-size: var(--font-sm);
+  font-family: var(--font-family);
+  font-weight: 500;
+  cursor: pointer;
+  appearance: none;
+  white-space: nowrap;
+}
+
+.sort-select:focus {
+  outline: none;
+  border-color: var(--color-brand);
+}
+
+/* --- MAIN CONTENT AREA --- */
+.main-content {
+  display: flex;
+  flex: 1;
+  overflow: hidden;
+}
+
+/* --- LISTINGS PANEL --- */
+.listings-panel {
+  width: 440px;
+  min-width: 380px;
+  overflow-y: auto;
+  padding: var(--space-4);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+  background: var(--color-bg);
+  border-right: 1px solid var(--color-border);
+}
+
+/* Scrollbar styling */
+.listings-panel::-webkit-scrollbar { width: 6px; }
+.listings-panel::-webkit-scrollbar-track { background: transparent; }
+.listings-panel::-webkit-scrollbar-thumb { background: var(--color-border); border-radius: 3px; }
+.listings-panel::-webkit-scrollbar-thumb:hover { background: var(--color-text-muted); }
+
+/* --- LISTING CARD (IMPROVEMENTS #1, #2, #4) --- */
+.listing-card {
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  overflow: hidden;
+  box-shadow: var(--shadow-card);
+  transition: box-shadow var(--transition-base), border-color var(--transition-base), transform var(--transition-base);
+  cursor: pointer;
+  position: relative;
+}
+
+.listing-card:hover {
+  box-shadow: var(--shadow-card-hover);
+  border-color: var(--color-border-hover);
+  transform: translateY(-1px);
+}
+
+.listing-card:focus-within {
+  outline: 2px solid var(--color-brand);
+  outline-offset: 2px;
+}
+
+.listing-card.selected {
+  border-color: var(--color-brand);
+  box-shadow: 0 0 0 2px rgba(37, 99, 235, 0.15), var(--shadow-card-hover);
+}
+
+/* IMPROVEMENT #1 — Large image with carousel */
+.card-image-wrapper {
+  position: relative;
+  width: 100%;
+  height: 200px;
+  overflow: hidden;
+  background: var(--color-surface-alt);
+}
+
+.card-image-wrapper img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  transition: transform 0.3s ease;
+}
+
+.listing-card:hover .card-image-wrapper img {
+  transform: scale(1.03);
+}
+
+/* IMPROVEMENT #1 — Heart overlay (Zillow-style) */
+.card-favorite {
+  position: absolute;
+  top: var(--space-3);
+  right: var(--space-3);
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.9);
+  backdrop-filter: blur(4px);
+  border: none;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 18px;
+  color: var(--color-text-muted);
+  transition: all var(--transition-fast);
+  z-index: 2;
+  box-shadow: 0 1px 4px rgba(0,0,0,0.15);
+}
+
+.card-favorite:hover {
+  background: rgba(255, 255, 255, 1);
+  color: var(--color-danger);
+  transform: scale(1.1);
+}
+
+.card-favorite.favorited {
+  color: var(--color-danger);
+}
+
+/* Carousel dots */
+.card-carousel-dots {
+  position: absolute;
+  bottom: var(--space-2);
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  gap: 5px;
+  z-index: 2;
+}
+
+.carousel-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.5);
+  border: none;
+  cursor: pointer;
+  padding: 0;
+  transition: background var(--transition-fast);
+}
+
+.carousel-dot.active {
+  background: rgba(255, 255, 255, 0.95);
+  width: 8px;
+  height: 8px;
+}
+
+/* Source badge on image */
+.card-source-badge {
+  position: absolute;
+  top: var(--space-3);
+  left: var(--space-3);
+  padding: 3px 10px;
+  border-radius: var(--radius-pill);
+  font-size: var(--font-xs);
+  font-weight: 600;
+  z-index: 2;
+  backdrop-filter: blur(4px);
+}
+
+.source-zillow {
+  background: rgba(37, 99, 235, 0.9);
+  color: white;
+}
+
+.source-craigslist {
+  background: rgba(120, 76, 200, 0.9);
+  color: white;
+}
+
+/* IMPROVEMENT #2 — Card body with clear hierarchy */
+.card-body {
+  padding: var(--space-3) var(--space-4) var(--space-4);
+}
+
+.card-price-row {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  margin-bottom: var(--space-1);
+}
+
+.card-price {
+  font-size: var(--font-xl);
+  font-weight: 800;
+  color: var(--color-text-primary);
+  letter-spacing: -0.5px;
+  line-height: 1.2;
+}
+
+.card-price-period {
+  font-size: var(--font-sm);
+  font-weight: 500;
+  color: var(--color-text-muted);
+}
+
+.card-specs {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  font-size: var(--font-sm);
+  color: var(--color-text-secondary);
+  font-weight: 500;
+  margin-bottom: var(--space-2);
+}
+
+.card-specs .spec-divider {
+  color: var(--color-border);
+  font-size: 10px;
+}
+
+.card-address {
+  font-size: var(--font-sm);
+  color: var(--color-text-secondary);
+  margin-bottom: var(--space-2);
+  line-height: 1.4;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.card-neighborhood {
+  color: var(--color-brand);
+  font-weight: 500;
+}
+
+.card-neighborhood:hover {
+  text-decoration: underline;
+}
+
+/* Tags row */
+.card-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-1);
+  margin-bottom: var(--space-3);
+}
+
+.tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  padding: 2px 8px;
+  border-radius: var(--radius-pill);
+  font-size: 11px;
+  font-weight: 600;
+  line-height: 1.5;
+  white-space: nowrap;
+}
+
+.tag-new {
+  background: var(--color-success-bg);
+  color: var(--color-success);
+}
+
+.tag-price-drop {
+  background: var(--color-warning-bg);
+  color: var(--color-warning);
+}
+
+.tag-price-up {
+  background: var(--color-danger-bg);
+  color: var(--color-danger);
+}
+
+.tag-pet {
+  background: var(--color-info-bg);
+  color: var(--color-info);
+}
+
+.tag-fresh {
+  background: var(--color-success-bg);
+  color: var(--color-success);
+}
+
+.tag-aging {
+  background: var(--color-warning-bg);
+  color: var(--color-warning);
+}
+
+.tag-days {
+  background: var(--color-surface-alt);
+  color: var(--color-text-muted);
+  font-weight: 500;
+}
+
+/* School district */
+.card-district {
+  font-size: var(--font-xs);
+  color: var(--color-text-muted);
+  display: flex;
+  align-items: center;
+  gap: var(--space-1);
+  margin-bottom: var(--space-3);
+}
+
+/* IMPROVEMENT #4 — Investment metrics (Mashvisor-style) */
+.card-metrics {
+  display: flex;
+  gap: var(--space-3);
+  padding-top: var(--space-3);
+  border-top: 1px solid var(--color-border);
+}
+
+.card-metric {
+  flex: 1;
+  text-align: center;
+}
+
+.card-metric-label {
+  font-size: 10px;
+  font-weight: 600;
+  color: var(--color-text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  margin-bottom: 2px;
+}
+
+.card-metric-value {
+  font-size: var(--font-sm);
+  font-weight: 700;
+  color: var(--color-text-primary);
+}
+
+.card-metric-value.positive {
+  color: var(--color-success);
+}
+
+.card-metric-value.negative {
+  color: var(--color-danger);
+}
+
+/* Card actions */
+.card-actions {
+  display: flex;
+  gap: var(--space-2);
+  padding-top: var(--space-3);
+}
+
+.btn-card {
+  flex: 1;
+  padding: var(--space-2) var(--space-3);
+  border-radius: var(--radius-md);
+  font-size: var(--font-sm);
+  font-family: var(--font-family);
+  font-weight: 600;
+  cursor: pointer;
+  transition: all var(--transition-fast);
+  text-align: center;
+  border: none;
+}
+
+.btn-card-outline {
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  color: var(--color-text-secondary);
+}
+
+.btn-card-outline:hover {
+  border-color: var(--color-brand);
+  color: var(--color-brand);
+  background: var(--color-brand-light);
+}
+
+.btn-card-primary {
+  background: var(--color-brand);
+  color: var(--color-text-inverse);
+}
+
+.btn-card-primary:hover {
+  background: var(--color-brand-hover);
+}
+
+/* --- MAP PANEL --- */
+.map-panel {
+  flex: 1;
+  position: relative;
+  background: #e8eaed;
+  overflow: hidden;
+}
+
+.map-placeholder {
+  width: 100%;
+  height: 100%;
+  background:
+    linear-gradient(135deg, #e8eaed 0%, #d4d7dd 100%);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+}
+
+/* Simulated map grid lines */
+.map-placeholder::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background-image:
+    linear-gradient(rgba(0,0,0,0.03) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(0,0,0,0.03) 1px, transparent 1px);
+  background-size: 60px 60px;
+}
+
+/* Map price pills */
+.map-pill {
+  position: absolute;
+  padding: 4px 10px;
+  border-radius: var(--radius-pill);
+  font-size: 12px;
+  font-weight: 700;
+  color: white;
+  cursor: pointer;
+  transition: transform var(--transition-fast), box-shadow var(--transition-fast);
+  z-index: 5;
+  white-space: nowrap;
+  box-shadow: 0 2px 6px rgba(0,0,0,0.2);
+}
+
+.map-pill:hover {
+  transform: scale(1.12);
+  box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+  z-index: 10;
+}
+
+.map-pill.blue { background: var(--color-brand); }
+.map-pill.purple { background: #7c3aed; }
+.map-pill.green { background: var(--color-success); }
+
+/* Map overlay badge */
+.map-result-badge {
+  position: absolute;
+  top: var(--space-4);
+  left: 50%;
+  transform: translateX(-50%);
+  padding: var(--space-2) var(--space-4);
+  background: rgba(26, 29, 38, 0.85);
+  backdrop-filter: blur(8px);
+  color: white;
+  border-radius: var(--radius-pill);
+  font-size: var(--font-sm);
+  font-weight: 600;
+  z-index: 20;
+  box-shadow: var(--shadow-md);
+}
+
+/* Map zoom controls */
+.map-controls {
+  position: absolute;
+  bottom: var(--space-6);
+  right: var(--space-4);
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  z-index: 20;
+  border-radius: var(--radius-md);
+  overflow: hidden;
+  box-shadow: var(--shadow-md);
+}
+
+.map-zoom-btn {
+  width: 36px;
+  height: 36px;
+  background: var(--color-surface);
+  border: none;
+  cursor: pointer;
+  font-size: var(--font-lg);
+  color: var(--color-text-secondary);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background var(--transition-fast);
+}
+
+.map-zoom-btn:hover {
+  background: var(--color-surface-alt);
+}
+
+/* Map city label */
+.map-city-label {
+  position: absolute;
+  font-size: 13px;
+  font-weight: 700;
+  color: rgba(0,0,0,0.18);
+  letter-spacing: 4px;
+  text-transform: uppercase;
+  z-index: 3;
+  pointer-events: none;
+}
+
+/* Map boundary outline (simulated) */
+.map-boundary {
+  position: absolute;
+  border: 2px dashed rgba(37, 99, 235, 0.25);
+  border-radius: 40% 50% 45% 55%;
+  z-index: 2;
+  pointer-events: none;
+}
+
+/* --- PAGINATION --- */
+.pagination {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-3);
+  padding: var(--space-3) 0;
+}
+
+.pagination-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  padding: var(--space-2) var(--space-4);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  background: var(--color-surface);
+  color: var(--color-text-secondary);
+  font-size: var(--font-sm);
+  font-family: var(--font-family);
+  font-weight: 500;
+  cursor: pointer;
+  transition: all var(--transition-fast);
+}
+
+.pagination-btn:hover {
+  border-color: var(--color-brand);
+  color: var(--color-brand);
+}
+
+.pagination-btn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.pagination-info {
+  font-size: var(--font-sm);
+  color: var(--color-text-muted);
+}
+
+/* ============================================================
+   EMPTY STATE
+   ============================================================ */
+.empty-state {
+  display: none; /* Toggle via JS */
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: var(--space-10);
+  text-align: center;
+  color: var(--color-text-muted);
+}
+
+.empty-state-icon {
+  font-size: 48px;
+  margin-bottom: var(--space-4);
+  opacity: 0.4;
+}
+
+.empty-state h3 {
+  font-size: var(--font-lg);
+  color: var(--color-text-secondary);
+  margin-bottom: var(--space-2);
+}
+
+.empty-state p {
+  font-size: var(--font-sm);
+  max-width: 280px;
+}
+
+/* ============================================================
+   LOADING STATE (skeleton)
+   ============================================================ */
+.skeleton {
+  display: none; /* Toggle via JS */
+}
+
+.skeleton-card {
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  overflow: hidden;
+}
+
+.skeleton-image {
+  height: 200px;
+  background: linear-gradient(90deg, var(--color-surface-alt) 25%, #e8eaed 50%, var(--color-surface-alt) 75%);
+  background-size: 200% 100%;
+  animation: shimmer 1.5s infinite;
+}
+
+.skeleton-line {
+  height: 14px;
+  border-radius: 4px;
+  background: linear-gradient(90deg, var(--color-surface-alt) 25%, #e8eaed 50%, var(--color-surface-alt) 75%);
+  background-size: 200% 100%;
+  animation: shimmer 1.5s infinite;
+  margin: var(--space-2) var(--space-4);
+}
+
+.skeleton-line.short { width: 60%; }
+.skeleton-line.medium { width: 80%; }
+.skeleton-line.long { width: 95%; }
+
+@keyframes shimmer {
+  0% { background-position: 200% 0; }
+  100% { background-position: -200% 0; }
+}
+
+/* ============================================================
+   ERROR STATE
+   ============================================================ */
+.error-state {
+  display: none; /* Toggle via JS */
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: var(--space-10);
+  text-align: center;
+}
+
+.error-state-icon {
+  font-size: 48px;
+  margin-bottom: var(--space-4);
+  color: var(--color-danger);
+}
+
+.error-state h3 {
+  font-size: var(--font-lg);
+  color: var(--color-text-primary);
+  margin-bottom: var(--space-2);
+}
+
+.error-state p {
+  font-size: var(--font-sm);
+  color: var(--color-text-muted);
+  max-width: 300px;
+  margin-bottom: var(--space-4);
+}
+
+/* ============================================================
+   IMPROVEMENT ANNOTATIONS (for review)
+   ============================================================ */
+.improvement-banner {
+  background: linear-gradient(135deg, #1e3a5f 0%, #1a2744 100%);
+  color: white;
+  padding: var(--space-4) var(--space-6);
+  display: flex;
+  align-items: center;
+  gap: var(--space-4);
+  font-size: var(--font-sm);
+}
+
+.improvement-banner strong {
+  font-size: var(--font-md);
+  white-space: nowrap;
+}
+
+.improvement-list {
+  display: flex;
+  gap: var(--space-4);
+  flex-wrap: wrap;
+}
+
+.improvement-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  padding: 3px 12px;
+  border-radius: var(--radius-pill);
+  font-size: 12px;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.improvement-chip.i1 { background: rgba(37, 99, 235, 0.2); color: #93c5fd; }
+.improvement-chip.i2 { background: rgba(22, 163, 74, 0.2); color: #86efac; }
+.improvement-chip.i3 { background: rgba(217, 119, 6, 0.2); color: #fcd34d; }
+.improvement-chip.i4 { background: rgba(124, 58, 237, 0.2); color: #c4b5fd; }
+.improvement-chip.i5 { background: rgba(8, 145, 178, 0.2); color: #67e8f9; }
+
+/* ============================================================
+   RESPONSIVE
+   ============================================================ */
+@media (max-width: 1024px) {
+  .listings-panel { width: 360px; min-width: 320px; }
+  .card-image-wrapper { height: 170px; }
+}
+
+@media (max-width: 768px) {
+  .main-content { flex-direction: column; }
+  .listings-panel { width: 100%; min-width: auto; border-right: none; border-bottom: 1px solid var(--color-border); max-height: 50vh; }
+  .map-panel { min-height: 300px; }
+  .header-search { max-width: 200px; }
+  .filter-bar { padding: var(--space-2) var(--space-3); }
+}
+
+/* ============================================================
+   PREFERS REDUCED MOTION
+   ============================================================ */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+</style>
+</head>
+<body>
+
+<!-- ============================================================
+     IMPROVEMENT ANNOTATIONS BANNER
+     ============================================================ -->
+<div class="improvement-banner" role="banner">
+  <strong>🎨 Top 5 Improvements</strong>
+  <div class="improvement-list">
+    <span class="improvement-chip i1">① Larger Images + Carousel + Heart Overlay</span>
+    <span class="improvement-chip i2">② Clean White Cards + Visual Hierarchy</span>
+    <span class="improvement-chip i3">③ Modern Pill-Style Filter Bar</span>
+    <span class="improvement-chip i4">④ Investment Metrics on Cards</span>
+    <span class="improvement-chip i5">⑤ Professional Header + Search + Result Count</span>
+  </div>
+</div>
+
+<div class="app-shell">
+
+  <!-- ============================================================
+       HEADER (IMPROVEMENT #5)
+       ============================================================ -->
+  <header class="header" role="banner">
+    <div class="header-logo">
+      <span class="logo-icon">🏠</span>
+      <span>SunnyNest</span>
+    </div>
+
+    <div class="header-search">
+      <span class="search-icon">🔍</span>
+      <input
+        type="search"
+        placeholder="Sunnyvale, CA 94087"
+        aria-label="Search by address, neighborhood, city, or ZIP"
+        value="Sunnyvale, CA 94087"
+      >
+    </div>
+
+    <div class="header-actions">
+      <div class="header-sync">
+        <div>Last sync: 2 min ago</div>
+        <div>Next: in 28 min</div>
+      </div>
+      <button class="btn-sync" aria-label="Sync listings now">
+        🔄 Sync Now
+      </button>
+      <button class="btn-primary" aria-label="Save current search">
+        Save Search
+      </button>
+    </div>
+  </header>
+
+  <!-- ============================================================
+       FILTER BAR (IMPROVEMENT #3)
+       ============================================================ -->
+  <nav class="filter-bar" role="navigation" aria-label="Listing filters">
+    <button class="filter-pill active" aria-pressed="true">
+      For Rent
+    </button>
+
+    <div class="filter-divider" role="separator"></div>
+
+    <button class="filter-pill active" aria-pressed="true">
+      💰 $5K–$6.5K <span class="chevron">▾</span>
+    </button>
+
+    <button class="filter-pill active" aria-pressed="true">
+      🛏 3–4 Beds <span class="chevron">▾</span>
+    </button>
+
+    <button class="filter-pill" aria-pressed="false">
+      🚿 Any Baths <span class="chevron">▾</span>
+    </button>
+
+    <button class="filter-pill" aria-pressed="false">
+      🏠 Any Type <span class="chevron">▾</span>
+    </button>
+
+    <button class="filter-pill" aria-pressed="false">
+      📍 All Sources <span class="chevron">▾</span>
+    </button>
+
+    <button class="filter-pill" aria-pressed="false">
+      ⚙️ More <span class="chevron">▾</span>
+    </button>
+
+    <div class="filter-divider" role="separator"></div>
+
+    <div class="result-count" aria-live="polite">
+      <strong>11</strong> rentals available
+    </div>
+
+    <select class="sort-select" aria-label="Sort listings">
+      <option>Sort: Newest First</option>
+      <option>Price: Low → High</option>
+      <option>Price: High → Low</option>
+      <option>Sqft: Largest</option>
+    </select>
+  </nav>
+
+  <!-- ============================================================
+       MAIN CONTENT: LISTINGS + MAP
+       ============================================================ -->
+  <main class="main-content">
+
+    <!-- LISTINGS PANEL -->
+    <section class="listings-panel" aria-label="Rental listings">
+
+      <!-- ===== CARD 1 ===== -->
+      <article class="listing-card selected" tabindex="0" aria-label="$5,500 per month, 1410 Kelowna Ct, 4 bed 2 bath">
+        <div class="card-image-wrapper">
+          <img
+            src="https://images.unsplash.com/photo-1570129477492-45c003edd2be?w=600&h=400&fit=crop"
+            alt="Front view of a single-family home at 1410 Kelowna Ct, Sunnyvale"
+            loading="lazy"
+          >
+          <button class="card-favorite favorited" aria-label="Remove from favorites" aria-pressed="true">♥</button>
+          <span class="card-source-badge source-zillow">Zillow</span>
+          <div class="card-carousel-dots" aria-hidden="true">
+            <span class="carousel-dot active"></span>
+            <span class="carousel-dot"></span>
+            <span class="carousel-dot"></span>
+            <span class="carousel-dot"></span>
+          </div>
+        </div>
+        <div class="card-body">
+          <div class="card-price-row">
+            <span class="card-price">$5,500<span class="card-price-period">/mo</span></span>
+          </div>
+          <div class="card-specs">
+            <span>4 bd</span>
+            <span class="spec-divider">|</span>
+            <span>2 ba</span>
+            <span class="spec-divider">|</span>
+            <span>1,683 sqft</span>
+            <span class="spec-divider">|</span>
+            <span>House</span>
+          </div>
+          <div class="card-address">
+            1410 Kelowna Ct, Sunnyvale, CA 94087
+          </div>
+          <div class="card-tags">
+            <span class="tag tag-new">✦ New</span>
+            <span class="tag tag-fresh">Today</span>
+            <span class="tag tag-pet">🐾 Pet Friendly</span>
+          </div>
+          <div class="card-district">
+            🎓 Cupertino Union School District / Fremont Union High School District
+          </div>
+          <div class="card-metrics">
+            <div class="card-metric">
+              <div class="card-metric-label">$/sqft</div>
+              <div class="card-metric-value">$3.27</div>
+            </div>
+            <div class="card-metric">
+              <div class="card-metric-label">vs. Avg</div>
+              <div class="card-metric-value positive">−8.2%</div>
+            </div>
+            <div class="card-metric">
+              <div class="card-metric-label">Days Listed</div>
+              <div class="card-metric-value">1</div>
+            </div>
+          </div>
+        </div>
+      </article>
+
+      <!-- ===== CARD 2 ===== -->
+      <article class="listing-card" tabindex="0" aria-label="$6,000 per month, 749 Lois Ave, 4 bed 2 bath">
+        <div class="card-image-wrapper">
+          <img
+            src="https://images.unsplash.com/photo-1564013799919-ab600027ffc6?w=600&h=400&fit=crop"
+            alt="Modern home exterior at 749 Lois Ave, Sunnyvale"
+            loading="lazy"
+          >
+          <button class="card-favorite" aria-label="Add to favorites" aria-pressed="false">♡</button>
+          <span class="card-source-badge source-zillow">Zillow</span>
+          <div class="card-carousel-dots" aria-hidden="true">
+            <span class="carousel-dot active"></span>
+            <span class="carousel-dot"></span>
+            <span class="carousel-dot"></span>
+          </div>
+        </div>
+        <div class="card-body">
+          <div class="card-price-row">
+            <span class="card-price">$6,000<span class="card-price-period">/mo</span></span>
+          </div>
+          <div class="card-specs">
+            <span>4 bd</span>
+            <span class="spec-divider">|</span>
+            <span>2 ba</span>
+            <span class="spec-divider">|</span>
+            <span>1,348 sqft (125 m²)</span>
+            <span class="spec-divider">|</span>
+            <span>House</span>
+          </div>
+          <div class="card-address">
+            749 Lois Ave, Sunnyvale, CA 94087
+          </div>
+          <div class="card-tags">
+            <span class="tag tag-new">✦ New</span>
+            <span class="tag tag-fresh">Today</span>
+          </div>
+          <div class="card-district">
+            🎓 Cupertino Union School District / Fremont Union High School District
+          </div>
+          <div class="card-metrics">
+            <div class="card-metric">
+              <div class="card-metric-label">$/sqft</div>
+              <div class="card-metric-value">$4.45</div>
+            </div>
+            <div class="card-metric">
+              <div class="card-metric-label">vs. Avg</div>
+              <div class="card-metric-value negative">+12.5%</div>
+            </div>
+            <div class="card-metric">
+              <div class="card-metric-label">Days Listed</div>
+              <div class="card-metric-value">1</div>
+            </div>
+          </div>
+        </div>
+      </article>
+
+      <!-- ===== CARD 3 ===== -->
+      <article class="listing-card" tabindex="0" aria-label="$5,900 per month, 1347 Zurich Tr, 4 bed 3 bath">
+        <div class="card-image-wrapper">
+          <img
+            src="https://images.unsplash.com/photo-1600596542815-ffad4c1539a9?w=600&h=400&fit=crop"
+            alt="Spacious home with landscaped yard at 1347 Zurich Tr, Sunnyvale"
+            loading="lazy"
+          >
+          <button class="card-favorite" aria-label="Add to favorites" aria-pressed="false">♡</button>
+          <span class="card-source-badge source-zillow">Zillow</span>
+          <div class="card-carousel-dots" aria-hidden="true">
+            <span class="carousel-dot active"></span>
+            <span class="carousel-dot"></span>
+            <span class="carousel-dot"></span>
+            <span class="carousel-dot"></span>
+            <span class="carousel-dot"></span>
+          </div>
+        </div>
+        <div class="card-body">
+          <div class="card-price-row">
+            <span class="card-price">$5,900<span class="card-price-period">/mo</span></span>
+          </div>
+          <div class="card-specs">
+            <span>4 bd</span>
+            <span class="spec-divider">|</span>
+            <span>3 ba</span>
+            <span class="spec-divider">|</span>
+            <span>1,871 sqft (174 m²)</span>
+            <span class="spec-divider">|</span>
+            <span>House</span>
+          </div>
+          <div class="card-address">
+            1347 Zurich Tr, Sunnyvale, CA 94087
+          </div>
+          <div class="card-tags">
+            <span class="tag tag-new">✦ New</span>
+            <span class="tag tag-days">3d ago</span>
+            <span class="tag tag-price-drop">↓ Price Drop</span>
+          </div>
+          <div class="card-district">
+            🎓 Cupertino Union School District / Fremont Union High School District
+          </div>
+          <div class="card-metrics">
+            <div class="card-metric">
+              <div class="card-metric-label">$/sqft</div>
+              <div class="card-metric-value">$3.15</div>
+            </div>
+            <div class="card-metric">
+              <div class="card-metric-label">vs. Avg</div>
+              <div class="card-metric-value positive">−10.8%</div>
+            </div>
+            <div class="card-metric">
+              <div class="card-metric-label">Days Listed</div>
+              <div class="card-metric-value">3</div>
+            </div>
+          </div>
+        </div>
+      </article>
+
+      <!-- ===== CARD 4 ===== -->
+      <article class="listing-card" tabindex="0" aria-label="$5,500 per month, 832 Durshire Way, 3 bed 2 bath">
+        <div class="card-image-wrapper">
+          <img
+            src="https://images.unsplash.com/photo-1600585154340-be6161a56a0c?w=600&h=400&fit=crop"
+            alt="Ranch-style home at 832 Durshire Way, Sunnyvale"
+            loading="lazy"
+          >
+          <button class="card-favorite" aria-label="Add to favorites" aria-pressed="false">♡</button>
+          <span class="card-source-badge source-craigslist">Craigslist</span>
+          <div class="card-carousel-dots" aria-hidden="true">
+            <span class="carousel-dot active"></span>
+            <span class="carousel-dot"></span>
+          </div>
+        </div>
+        <div class="card-body">
+          <div class="card-price-row">
+            <span class="card-price">$5,500<span class="card-price-period">/mo</span></span>
+          </div>
+          <div class="card-specs">
+            <span>3 bd</span>
+            <span class="spec-divider">|</span>
+            <span>2 ba</span>
+            <span class="spec-divider">|</span>
+            <span>1,420 sqft</span>
+            <span class="spec-divider">|</span>
+            <span>House</span>
+          </div>
+          <div class="card-address">
+            832 Durshire Way, Sunnyvale, CA 94087
+          </div>
+          <div class="card-tags">
+            <span class="tag tag-aging">5d ago</span>
+            <span class="tag tag-pet">🐾 Pet Friendly</span>
+          </div>
+          <div class="card-district">
+            🎓 Sunnyvale School District / Fremont Union High School District
+          </div>
+          <div class="card-metrics">
+            <div class="card-metric">
+              <div class="card-metric-label">$/sqft</div>
+              <div class="card-metric-value">$3.87</div>
+            </div>
+            <div class="card-metric">
+              <div class="card-metric-label">vs. Avg</div>
+              <div class="card-metric-value positive">−2.1%</div>
+            </div>
+            <div class="card-metric">
+              <div class="card-metric-label">Days Listed</div>
+              <div class="card-metric-value">5</div>
+            </div>
+          </div>
+        </div>
+      </article>
+
+      <!-- PAGINATION -->
+      <nav class="pagination" aria-label="Listing pages">
+        <button class="pagination-btn" disabled aria-label="Previous page">← Previous</button>
+        <span class="pagination-info">Page 1 of 2 · 11 listings</span>
+        <button class="pagination-btn" aria-label="Next page">Next →</button>
+      </nav>
+
+    </section>
+
+    <!-- MAP PANEL -->
+    <section class="map-panel" aria-label="Map view of listings">
+      <div class="map-placeholder">
+
+        <!-- Result count badge -->
+        <div class="map-result-badge">11 rentals in Sunnyvale, CA</div>
+
+        <!-- City label -->
+        <div class="map-city-label" style="top: 38%; left: 42%;">Sunnyvale</div>
+        <div class="map-city-label" style="top: 15%; right: 15%; font-size: 11px;">Mountain View</div>
+
+        <!-- Simulated boundary -->
+        <div class="map-boundary" style="top: 15%; left: 18%; width: 60%; height: 65%;"></div>
+
+        <!-- Price pills scattered on map -->
+        <div class="map-pill blue" style="top: 22%; left: 72%;" title="$5,000/mo">5K</div>
+        <div class="map-pill blue" style="top: 25%; left: 78%;" title="$5,100/mo">5.1K</div>
+        <div class="map-pill purple" style="top: 40%; left: 30%;" title="$6,000/mo">6K</div>
+        <div class="map-pill blue" style="top: 42%; left: 55%;" title="$5,900/mo">5.9K</div>
+        <div class="map-pill blue" style="top: 42%; left: 70%;" title="$5,900/mo">5.9K</div>
+        <div class="map-pill purple" style="top: 50%; left: 52%;" title="$6,000/mo">6K</div>
+        <div class="map-pill green" style="top: 52%; left: 65%;" title="$5,600/mo">5.6K</div>
+        <div class="map-pill blue" style="top: 62%; left: 38%;" title="$5,500/mo" aria-current="true">5.5K</div>
+        <div class="map-pill purple" style="top: 70%; left: 60%;" title="$5,700/mo">5.7K</div>
+        <div class="map-pill blue" style="top: 35%; left: 45%;" title="$5,500/mo">5.5K</div>
+        <div class="map-pill green" style="top: 55%; left: 42%;" title="$5,900/mo">5.9K</div>
+
+        <!-- Zoom controls -->
+        <div class="map-controls">
+          <button class="map-zoom-btn" aria-label="Zoom in">+</button>
+          <button class="map-zoom-btn" aria-label="Zoom out">−</button>
+        </div>
+      </div>
+    </section>
+
+  </main>
+
+</div>
+
+<!-- ============================================================
+     STATES DEMO (hidden by default — toggle via JS)
+     ============================================================ -->
+
+<!-- Loading skeleton state -->
+<template id="loading-state">
+  <div class="skeleton">
+    <div class="skeleton-card">
+      <div class="skeleton-image"></div>
+      <div class="skeleton-line long" style="margin-top: 16px;"></div>
+      <div class="skeleton-line medium"></div>
+      <div class="skeleton-line short"></div>
+      <div class="skeleton-line long" style="margin-bottom: 16px;"></div>
+    </div>
+  </div>
+</template>
+
+<!-- Empty state -->
+<template id="empty-state-template">
+  <div class="empty-state">
+    <div class="empty-state-icon">🏘️</div>
+    <h3>No rentals match your filters</h3>
+    <p>Try adjusting your price range, bedroom count, or removing some filters to see more results.</p>
+    <button class="btn-primary" style="margin-top: 16px;">Reset All Filters</button>
+  </div>
+</template>
+
+<!-- Error state -->
+<template id="error-state-template">
+  <div class="error-state">
+    <div class="error-state-icon">⚠️</div>
+    <h3>Unable to load listings</h3>
+    <p>Something went wrong while fetching rental data. Please check your connection and try again.</p>
+    <button class="btn-primary">Retry</button>
+  </div>
+</template>
+
+<script>
+// Keyboard navigation for listing cards
+document.querySelectorAll('.listing-card').forEach(card => {
+  card.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter' || e.key === ' ') {
+      e.preventDefault();
+      card.classList.toggle('selected');
+      // Deselect others
+      document.querySelectorAll('.listing-card').forEach(c => {
+        if (c !== card) c.classList.remove('selected');
+      });
+    }
+  });
+
+  card.addEventListener('click', () => {
+    document.querySelectorAll('.listing-card').forEach(c => c.classList.remove('selected'));
+    card.classList.add('selected');
+  });
+});
+
+// Favorite toggle
+document.querySelectorAll('.card-favorite').forEach(btn => {
+  btn.addEventListener('click', (e) => {
+    e.stopPropagation();
+    const isFav = btn.classList.toggle('favorited');
+    btn.textContent = isFav ? '♥' : '♡';
+    btn.setAttribute('aria-pressed', isFav);
+    btn.setAttribute('aria-label', isFav ? 'Remove from favorites' : 'Add to favorites');
+  });
+});
+
+// Filter pill toggle
+document.querySelectorAll('.filter-pill').forEach(pill => {
+  pill.addEventListener('click', () => {
+    // Don't toggle "For Rent" — it's always active
+    if (pill.textContent.trim() === 'For Rent') return;
+    pill.classList.toggle('active');
+    pill.setAttribute('aria-pressed', pill.classList.contains('active'));
+  });
+});
+</script>
+
+</body>
+</html>

@@ -1,0 +1,407 @@
+{% extends "base.html" %}
+
+{% block content %}
+<!-- Filter Bar -->
+<header class="filter-bar">
+    <div class="filter-bar-inner">
+        <!-- Logo -->
+        <a href="/" class="logo">
+            <span class="logo-icon">🏠</span>
+            <span class="logo-text">SunnyNest</span>
+        </a>
+
+        <!-- Hidden inputs — hold current filter values for hx-include -->
+        <input type="hidden" name="filter_price_min" id="filter_price_min"
+               value="{{ active_filters.filter_price_min }}">
+        <input type="hidden" name="filter_price_max" id="filter_price_max"
+               value="{{ active_filters.filter_price_max }}">
+        <input type="hidden" name="filter_beds" id="filter_beds"
+               value="{{ active_filters.filter_beds }}">
+        <input type="hidden" name="filter_baths" id="filter_baths"
+               value="{{ active_filters.filter_baths }}">
+        <input type="hidden" name="filter_sqft_min" id="filter_sqft_min"
+               value="{{ active_filters.filter_sqft_min }}">
+        <input type="hidden" name="filter_sqft_max" id="filter_sqft_max"
+               value="{{ active_filters.filter_sqft_max }}">
+        <input type="hidden" name="filter_pet" id="filter_pet"
+               value="{{ active_filters.filter_pet }}">
+        <input type="hidden" name="filter_ac" id="filter_ac"
+               value="{{ active_filters.filter_ac }}">
+        <input type="hidden" name="filter_furnished" id="filter_furnished"
+               value="{{ active_filters.filter_furnished }}">
+        <input type="hidden" name="filter_favorites" id="filter_favorites"
+               value="{{ active_filters.filter_favorites }}">
+        <input type="hidden" name="filter_max_days" id="filter-max-days"
+               value="{{ active_filters.filter_max_days }}">
+
+        <!-- Filter pills -->
+        <div class="filter-group">
+
+            <!-- ===== Price Dropdown ===== -->
+            <div class="filter-dropdown" data-filter="price">
+                <button type="button"
+                        class="filter-pill{% if active_filters.filter_price_min or active_filters.filter_price_max %} active{% endif %}"
+                        aria-expanded="false"
+                        aria-haspopup="dialog"
+                        aria-label="Price range filter"
+                        id="pill-price">
+                    <span class="filter-pill-text" data-default="💰 Price">
+                        {%- if active_filters.filter_price_min and active_filters.filter_price_max -%}
+                            ${{ (active_filters.filter_price_min | int / 1000) | round(0, 'floor') | int }}K–${{ (active_filters.filter_price_max | int / 1000) | round(1) }}K
+                        {%- elif active_filters.filter_price_min -%}
+                            ${{ (active_filters.filter_price_min | int / 1000) | round(0, 'floor') | int }}K+
+                        {%- elif active_filters.filter_price_max -%}
+                            Under ${{ (active_filters.filter_price_max | int / 1000) | round(0, 'floor') | int }}K
+                        {%- else -%}
+                            💰 Price
+                        {%- endif -%}
+                    </span>
+                    <svg class="filter-pill-arrow" width="10" height="6" viewBox="0 0 10 6" aria-hidden="true">
+                        <path d="M0 0l5 6 5-6z" fill="currentColor"/>
+                    </svg>
+                </button>
+                <div class="filter-panel" role="dialog" aria-label="Price range filter" id="panel-price">
+                    <div class="filter-panel-header">Price Range</div>
+                    <div class="filter-panel-row">
+                        <div class="filter-input-group">
+                            <label for="price-min-input" class="sr-only">Minimum price</label>
+                            <input type="text" id="price-min-input" class="filter-input"
+                                   inputmode="numeric" placeholder="No Min"
+                                   value="{{ active_filters.filter_price_min }}">
+                        </div>
+                        <span class="filter-input-separator">–</span>
+                        <div class="filter-input-group">
+                            <label for="price-max-input" class="sr-only">Maximum price</label>
+                            <input type="text" id="price-max-input" class="filter-input"
+                                   inputmode="numeric" placeholder="No Max"
+                                   value="{{ active_filters.filter_price_max }}">
+                        </div>
+                    </div>
+                    <div class="filter-panel-section">
+                        <div class="filter-panel-label">Quick ranges</div>
+                        <div class="filter-radio-group" role="radiogroup" aria-label="Price quick ranges">
+                            <label class="filter-radio">
+                                <input type="radio" name="price_quick" value="0-4000"> Under $4,000
+                            </label>
+                            <label class="filter-radio">
+                                <input type="radio" name="price_quick" value="4000-5000"> $4,000 – $5,000
+                            </label>
+                            <label class="filter-radio">
+                                <input type="radio" name="price_quick" value="5000-6500"> $5,000 – $6,500
+                            </label>
+                            <label class="filter-radio">
+                                <input type="radio" name="price_quick" value="6500-8000"> $6,500 – $8,000
+                            </label>
+                            <label class="filter-radio">
+                                <input type="radio" name="price_quick" value="8000+"> $8,000+
+                            </label>
+                        </div>
+                    </div>
+                    <button type="button" class="filter-apply-btn"
+                            hx-get="/listings" hx-target="#listing-cards"
+                            hx-include="[name^='filter_']"
+                            hx-trigger="apply"
+                            data-panel="price">
+                        Apply
+                    </button>
+                </div>
+            </div>
+
+            <!-- ===== Beds & Baths Dropdown ===== -->
+            <div class="filter-dropdown" data-filter="bedsbaths">
+                <button type="button"
+                        class="filter-pill{% if active_filters.filter_beds != 'any' or active_filters.filter_baths != 'any' %} active{% endif %}"
+                        aria-expanded="false"
+                        aria-haspopup="dialog"
+                        aria-label="Bedrooms and bathrooms filter"
+                        id="pill-bedsbaths">
+                    <span class="filter-pill-text" data-default="🛏️ Beds &amp; Baths">
+                        {%- if active_filters.filter_beds != 'any' and active_filters.filter_baths != 'any' -%}
+                            {{ active_filters.filter_beds }}+ bd, {{ active_filters.filter_baths }}+ ba
+                        {%- elif active_filters.filter_beds != 'any' -%}
+                            {{ active_filters.filter_beds }}+ bd
+                        {%- elif active_filters.filter_baths != 'any' -%}
+                            {{ active_filters.filter_baths }}+ ba
+                        {%- else -%}
+                            🛏️ Beds &amp; Baths
+                        {%- endif -%}
+                    </span>
+                    <svg class="filter-pill-arrow" width="10" height="6" viewBox="0 0 10 6" aria-hidden="true">
+                        <path d="M0 0l5 6 5-6z" fill="currentColor"/>
+                    </svg>
+                </button>
+                <div class="filter-panel" role="dialog" aria-label="Bedrooms and bathrooms filter" id="panel-bedsbaths">
+                    <div class="filter-panel-header">Number of Bedrooms</div>
+                    <div class="segment-group" role="radiogroup" aria-label="Number of Bedrooms" data-target="filter_beds">
+                        <button type="button" class="segment-btn{% if active_filters.filter_beds == 'any' %} selected{% endif %}"
+                                role="radio" aria-checked="{{ 'true' if active_filters.filter_beds == 'any' else 'false' }}"
+                                data-value="any" tabindex="0">Any</button>
+                        <button type="button" class="segment-btn{% if active_filters.filter_beds == '1' %} selected{% endif %}"
+                                role="radio" aria-checked="{{ 'true' if active_filters.filter_beds == '1' else 'false' }}"
+                                data-value="1" tabindex="-1">1+</button>
+                        <button type="button" class="segment-btn{% if active_filters.filter_beds == '2' %} selected{% endif %}"
+                                role="radio" aria-checked="{{ 'true' if active_filters.filter_beds == '2' else 'false' }}"
+                                data-value="2" tabindex="-1">2+</button>
+                        <button type="button" class="segment-btn{% if active_filters.filter_beds == '3' %} selected{% endif %}"
+                                role="radio" aria-checked="{{ 'true' if active_filters.filter_beds == '3' else 'false' }}"
+                                data-value="3" tabindex="-1">3+</button>
+                        <button type="button" class="segment-btn{% if active_filters.filter_beds == '4' %} selected{% endif %}"
+                                role="radio" aria-checked="{{ 'true' if active_filters.filter_beds == '4' else 'false' }}"
+                                data-value="4" tabindex="-1">4+</button>
+                    </div>
+
+                    <div class="filter-panel-header filter-panel-header-spaced">Number of Bathrooms</div>
+                    <div class="segment-group" role="radiogroup" aria-label="Number of Bathrooms" data-target="filter_baths">
+                        <button type="button" class="segment-btn{% if active_filters.filter_baths == 'any' %} selected{% endif %}"
+                                role="radio" aria-checked="{{ 'true' if active_filters.filter_baths == 'any' else 'false' }}"
+                                data-value="any" tabindex="0">Any</button>
+                        <button type="button" class="segment-btn{% if active_filters.filter_baths == '1' %} selected{% endif %}"
+                                role="radio" aria-checked="{{ 'true' if active_filters.filter_baths == '1' else 'false' }}"
+                                data-value="1" tabindex="-1">1+</button>
+                        <button type="button" class="segment-btn{% if active_filters.filter_baths == '2' %} selected{% endif %}"
+                                role="radio" aria-checked="{{ 'true' if active_filters.filter_baths == '2' else 'false' }}"
+                                data-value="2" tabindex="-1">2+</button>
+                        <button type="button" class="segment-btn{% if active_filters.filter_baths == '3' %} selected{% endif %}"
+                                role="radio" aria-checked="{{ 'true' if active_filters.filter_baths == '3' else 'false' }}"
+                                data-value="3" tabindex="-1">3+</button>
+                    </div>
+
+                    <button type="button" class="filter-apply-btn"
+                            hx-get="/listings" hx-target="#listing-cards"
+                            hx-include="[name^='filter_']"
+                            hx-trigger="apply"
+                            data-panel="bedsbaths">
+                        Apply
+                    </button>
+                </div>
+            </div>
+
+            <!-- ===== Source (multi-select dropdown) ===== -->
+            <input type="hidden" name="filter_source" id="filter_source" value="{{ active_filters.filter_source or 'all' }}">
+            <div class="filter-dropdown" data-filter="source">
+                <button type="button"
+                        class="filter-pill{% if active_filters.filter_source and active_filters.filter_source not in ('all', 'zillow,craigslist,realtor') %} active{% endif %}"
+                        aria-expanded="false"
+                        aria-haspopup="dialog"
+                        aria-label="Filter by listing source"
+                        id="pill-source">
+                    <span class="filter-pill-text" data-default="📡 Source">📡 Source</span>
+                    <svg class="filter-pill-arrow" width="10" height="6" viewBox="0 0 10 6" aria-hidden="true">
+                        <path d="M0 0l5 6 5-6z" fill="currentColor"/>
+                    </svg>
+                </button>
+                <div class="filter-panel" role="dialog" aria-label="Filter by source" id="panel-source">
+                    <div class="filter-panel-header">Listing Source</div>
+                    <div class="filter-checkbox-group">
+                        <label class="filter-checkbox">
+                            <input type="checkbox" id="source-zillow" value="zillow"
+                                   {{ 'checked' if active_filters.filter_source in ('all', '') or 'zillow' in (active_filters.filter_source or '') }}>
+                            <span class="filter-checkbox-label">
+                                <img src="https://www.zillow.com/favicon.ico" alt="" width="14" height="14" style="vertical-align: middle; margin-right: 4px;">
+                                Zillow
+                            </span>
+                        </label>
+                        <label class="filter-checkbox">
+                            <input type="checkbox" id="source-craigslist" value="craigslist"
+                                   {{ 'checked' if active_filters.filter_source in ('all', '') or 'craigslist' in (active_filters.filter_source or '') }}>
+                            <span class="filter-checkbox-label">
+                                <img src="https://www.craigslist.org/favicon.ico" alt="" width="14" height="14" style="vertical-align: middle; margin-right: 4px;">
+                                Craigslist
+                            </span>
+                        </label>
+                        <label class="filter-checkbox">
+                            <input type="checkbox" id="source-realtor" value="realtor"
+                                   {{ 'checked' if active_filters.filter_source in ('all', '') or 'realtor' in (active_filters.filter_source or '') }}>
+                            <span class="filter-checkbox-label">
+                                <img src="https://www.realtor.com/favicon.ico" alt="" width="14" height="14" style="vertical-align: middle; margin-right: 4px;">
+                                Realtor.com
+                            </span>
+                        </label>
+                    </div>
+
+                    <button type="button" class="filter-apply-btn"
+                            hx-get="/listings" hx-target="#listing-cards"
+                            hx-include="[name^='filter_']"
+                            hx-trigger="apply"
+                            data-panel="source">
+                        Apply
+                    </button>
+                </div>
+            </div>
+
+            <!-- ===== Days Listed Dropdown ===== -->
+            <div class="filter-dropdown" data-filter="days">
+                <button type="button"
+                        class="filter-pill{% if active_filters.filter_max_days %} active{% endif %}"
+                        aria-expanded="false"
+                        aria-haspopup="dialog"
+                        aria-label="Days listed filter"
+                        id="pill-days">
+                    <span class="filter-pill-text" data-default="📅 Days Listed">
+                        {%- if active_filters.filter_max_days -%}
+                            📅 ≤ {{ active_filters.filter_max_days }} days
+                        {%- else -%}
+                            📅 Days Listed
+                        {%- endif -%}
+                    </span>
+                    <svg class="filter-pill-arrow" width="10" height="6" viewBox="0 0 10 6" aria-hidden="true">
+                        <path d="M0 0l5 6 5-6z" fill="currentColor"/>
+                    </svg>
+                </button>
+                <div class="filter-panel" role="dialog" aria-label="Days listed filter" id="panel-days">
+                    <div class="filter-panel-body">
+                        <div class="filter-section-label">Max days on market</div>
+                        <div class="radio-group" role="radiogroup" aria-label="Days listed presets">
+                            <label class="radio-option">
+                                <input type="radio" name="days_preset" value="any" {{ 'checked' if not active_filters.filter_max_days }}> Any
+                            </label>
+                            <label class="radio-option">
+                                <input type="radio" name="days_preset" value="7" {{ 'checked' if active_filters.filter_max_days == '7' }}> ≤ 7 days
+                            </label>
+                            <label class="radio-option">
+                                <input type="radio" name="days_preset" value="14" {{ 'checked' if active_filters.filter_max_days == '14' }}> ≤ 14 days
+                            </label>
+                            <label class="radio-option">
+                                <input type="radio" name="days_preset" value="30" {{ 'checked' if active_filters.filter_max_days == '30' }}> ≤ 30 days
+                            </label>
+                            <label class="radio-option">
+                                <input type="radio" name="days_preset" value="60" {{ 'checked' if active_filters.filter_max_days == '60' }}> ≤ 60 days
+                            </label>
+                        </div>
+                        <div class="filter-section-label" style="margin-top: 0.75rem;">Custom</div>
+                        <div class="input-row">
+                            <label for="days-custom" class="sr-only">Custom max days</label>
+                            <input type="number" id="days-custom" class="filter-input" placeholder="Max days" min="1"
+                                   value="{{ active_filters.filter_max_days if active_filters.filter_max_days not in ('', '7', '14', '30', '60') else '' }}">
+                        </div>
+                    </div>
+                    <div class="filter-panel-footer">
+                        <button type="button" class="btn-reset" data-reset="days">Reset</button>
+                        <button type="button" class="btn-apply filter-apply-btn"
+                                hx-get="/listings" hx-target="#listing-cards"
+                                hx-include="[name^='filter_']"
+                                hx-trigger="apply"
+                                data-panel="days">Apply</button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- ===== More Dropdown ===== -->
+            <div class="filter-dropdown" data-filter="more">
+                <button type="button"
+                        class="filter-pill{% if active_filters.filter_sqft_min or active_filters.filter_sqft_max or active_filters.filter_pet == '1' or active_filters.filter_ac == '1' or active_filters.filter_furnished == '1' or active_filters.filter_favorites == '1' %} active{% endif %}"
+                        aria-expanded="false"
+                        aria-haspopup="dialog"
+                        aria-label="Additional filters"
+                        id="pill-more">
+                    <span class="filter-pill-text" data-default="⚙️ More">⚙️ More</span>
+                    <svg class="filter-pill-arrow" width="10" height="6" viewBox="0 0 10 6" aria-hidden="true">
+                        <path d="M0 0l5 6 5-6z" fill="currentColor"/>
+                    </svg>
+                </button>
+                <div class="filter-panel filter-panel-wide" role="dialog" aria-label="Additional filters" id="panel-more">
+                    <div class="filter-panel-header">Square Feet</div>
+                    <div class="filter-panel-row">
+                        <div class="filter-input-group">
+                            <label for="sqft-min-input" class="sr-only">Minimum square feet</label>
+                            <input type="text" id="sqft-min-input" class="filter-input"
+                                   inputmode="numeric" placeholder="No Min"
+                                   value="{{ active_filters.filter_sqft_min }}">
+                        </div>
+                        <span class="filter-input-separator">–</span>
+                        <div class="filter-input-group">
+                            <label for="sqft-max-input" class="sr-only">Maximum square feet</label>
+                            <input type="text" id="sqft-max-input" class="filter-input"
+                                   inputmode="numeric" placeholder="No Max"
+                                   value="{{ active_filters.filter_sqft_max }}">
+                        </div>
+                    </div>
+                    <div class="filter-sqft-preview" id="sqft-preview" aria-live="polite"></div>
+
+                    <div class="filter-panel-divider"></div>
+
+                    <div class="filter-panel-header">Features</div>
+                    <div class="filter-checkbox-group">
+                        <label class="filter-checkbox">
+                            <input type="checkbox" id="more-pet"
+                                   {{ 'checked' if active_filters.filter_pet == '1' }}>
+                            <span class="filter-checkbox-label">🐾 Pet Friendly</span>
+                        </label>
+                        <label class="filter-checkbox">
+                            <input type="checkbox" id="more-ac"
+                                   {{ 'checked' if active_filters.filter_ac == '1' }}>
+                            <span class="filter-checkbox-label">❄️ Air Conditioning</span>
+                        </label>
+                        <label class="filter-checkbox">
+                            <input type="checkbox" id="more-furnished"
+                                   {{ 'checked' if active_filters.filter_furnished == '1' }}>
+                            <span class="filter-checkbox-label">🪑 Furnished</span>
+                        </label>
+                    </div>
+
+                    <div class="filter-panel-divider"></div>
+
+                    <label class="filter-checkbox">
+                        <input type="checkbox" id="more-favorites"
+                               {{ 'checked' if active_filters.filter_favorites == '1' }}>
+                        <span class="filter-checkbox-label">⭐ Favorites Only</span>
+                    </label>
+
+                    <div class="filter-panel-divider"></div>
+
+                    <button type="button" class="filter-reset-link" id="reset-all-filters"
+                            aria-label="Reset all filters to defaults">
+                        ⟲ Reset all filters
+                    </button>
+
+                    <button type="button" class="filter-apply-btn"
+                            hx-get="/listings" hx-target="#listing-cards"
+                            hx-include="[name^='filter_']"
+                            hx-trigger="apply"
+                            data-panel="more">
+                        Apply
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Vertical divider -->
+        <div class="filter-divider" aria-hidden="true"></div>
+
+        <!-- Sort (native select — right side) -->
+        <select name="filter_sort" class="filter-select filter-sort-select"
+                aria-label="Sort listings"
+                hx-get="/listings" hx-target="#listing-cards" hx-include="[name^='filter_']">
+            <option value="newest" {{ 'selected' if active_filters.filter_sort == 'newest' }}>🕐 Newest</option>
+            <option value="price_asc" {{ 'selected' if active_filters.filter_sort == 'price_asc' }}>💲 Price ↑</option>
+            <option value="price_desc" {{ 'selected' if active_filters.filter_sort == 'price_desc' }}>💲 Price ↓</option>
+        </select>
+
+        <!-- Admin link -->
+        <a href="/admin/" class="admin-link" title="Open Admin Panel">Admin →</a>
+    </div>
+</header>
+
+<!-- Split Panel -->
+<div class="split">
+    <!-- Left Panel: Listing Cards -->
+    <div class="left-panel">
+        <div id="result-count" class="result-count">
+            <span class="result-count-number">{{ listing_count }}</span> listings
+        </div>
+        <div id="listing-cards" aria-live="polite">
+            {% include "partials/listing-cards.html" %}
+        </div>
+    </div>
+
+    <!-- Right Panel: Map + POI Panel -->
+    <div class="right-panel">
+        <div id="map-container"></div>
+        {% include "partials/poi-panel.html" %}
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script src="/static/js/filters.js?v=2"></script>
+{% endblock %}

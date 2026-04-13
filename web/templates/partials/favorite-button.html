@@ -1,0 +1,8 @@
+<button class="fav-btn {{ 'active' if is_fav else '' }}"
+        hx-post="/favorite/{{ listing.id }}"
+        hx-target="this"
+        hx-swap="outerHTML"
+        aria-pressed="{{ 'true' if is_fav else 'false' }}"
+        aria-label="{{ 'Remove from favorites' if is_fav else 'Add to favorites' }}">
+    {{ '★' if is_fav else '☆' }}
+</button>

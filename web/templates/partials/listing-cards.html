@@ -1,0 +1,17 @@
+{% if request.headers.get('hx-request') %}
+<div id="result-count" class="result-count" hx-swap-oob="true">
+    <span class="result-count-number">{{ listings|length }}</span> listings
+</div>
+{% endif %}
+
+{% for listing in listings %}
+  {% include "partials/listing-card.html" %}
+{% endfor %}
+
+{% if not listings %}
+<div class="empty-state">
+    <div class="empty-state-icon">🏠</div>
+    <div class="empty-state-title">No listings found</div>
+    <div class="empty-state-text">Try adjusting your filters to see more results.</div>
+</div>
+{% endif %}

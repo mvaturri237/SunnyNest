@@ -1,0 +1,542 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>SunnyNest — v4 Modern SaaS Dashboard</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <style>
+    /* ============================================
+       DESIGN TOKENS
+       ============================================ */
+    :root {
+      --bg: #0c0f16;
+      --bg-elevated: #131720;
+      --surface: #1a1f2e;
+      --surface-hover: #212738;
+      --brand: #3b82f6;
+      --brand-hover: #2563eb;
+      --brand-light: rgba(59,130,246,0.12);
+      --brand-border: rgba(59,130,246,0.3);
+      --text-1: #f1f3f9;
+      --text-2: #a0a8c0;
+      --text-3: #6b7394;
+      --text-4: #4a5170;
+      --border: rgba(255,255,255,0.06);
+      --border-hover: rgba(59,130,246,0.25);
+      --success: #22c55e;
+      --success-bg: rgba(34,197,94,0.12);
+      --success-border: rgba(34,197,94,0.25);
+      --danger: #ef4444;
+      --danger-bg: rgba(239,68,68,0.12);
+      --danger-border: rgba(239,68,68,0.25);
+      --warning-bg: rgba(245,158,11,0.12);
+      --warning-border: rgba(245,158,11,0.25);
+      --font: 'Inter',-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;
+      --r-sm: 6px;
+      --r-md: 8px;
+      --r-lg: 12px;
+      --r-full: 9999px;
+    }
+
+    /* Reset */
+    *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+    html{font-size:16px;-webkit-font-smoothing:antialiased}
+    body{font-family:var(--font);background:var(--bg);color:var(--text-1);line-height:1.5;min-height:100vh;overflow:hidden}
+    a{color:inherit;text-decoration:none}
+    button{font-family:inherit;cursor:pointer;border:none;background:none}
+    :focus-visible{outline:2px solid var(--brand);outline-offset:2px;border-radius:var(--r-sm)}
+    @media(prefers-reduced-motion:reduce){*,*::before,*::after{animation-duration:.01ms!important;transition-duration:.01ms!important}}
+
+    /* ============================================
+       FILTER BAR
+       ============================================ */
+    .filter-bar{display:flex;align-items:center;gap:8px;padding:10px 20px;background:var(--bg-elevated);border-bottom:1px solid var(--border);height:56px;flex-shrink:0}
+    .brand{display:flex;align-items:center;gap:10px;margin-right:12px;flex-shrink:0}
+    .brand-icon{width:32px;height:32px;background:var(--brand);border-radius:var(--r-md);display:flex;align-items:center;justify-content:center;font-size:1.1rem}
+    .brand-name{font-size:1.25rem;font-weight:800;color:var(--text-1);letter-spacing:-.5px}
+    .pill{display:flex;align-items:center;gap:6px;padding:7px 14px;background:var(--surface);border:1px solid var(--border);border-radius:var(--r-full);color:var(--text-2);font-size:.8rem;font-weight:500;transition:all .15s ease-out;white-space:nowrap;cursor:pointer}
+    .pill:hover{background:var(--surface-hover);border-color:rgba(255,255,255,.12);color:var(--text-1)}
+    .pill.on{background:var(--brand-light);border-color:var(--brand-border);color:var(--brand)}
+    .pill .chev{font-size:.6rem;opacity:.5;margin-left:2px}
+    .count{display:inline-flex;align-items:center;justify-content:center;padding:2px 8px;background:var(--brand);color:#fff;border-radius:var(--r-full);font-size:.7rem;font-weight:700;min-width:20px;height:20px}
+    .spacer{flex:1}
+    .x-btn{width:36px;height:36px;display:flex;align-items:center;justify-content:center;border-radius:var(--r-full);color:var(--text-3);font-size:1rem;transition:all .15s ease-out}
+    .x-btn:hover{background:var(--surface-hover);color:var(--text-1)}
+
+    /* Summary bar */
+    .summary{display:flex;align-items:center;gap:8px;padding:8px 16px;background:var(--bg);border-bottom:1px solid rgba(255,255,255,.04);font-size:.78rem;color:var(--text-3);flex-shrink:0}
+    .summary strong{color:var(--text-2);font-weight:600}
+    .summary .d{width:3px;height:3px;border-radius:50%;background:var(--text-4)}
+
+    /* ============================================
+       SPLIT PANEL
+       ============================================ */
+    .split{display:flex;height:calc(100vh - 56px);overflow:hidden}
+    .left{width:440px;min-width:380px;max-width:480px;display:flex;flex-direction:column;overflow:hidden;background:var(--bg)}
+    .right{flex:1;border-left:1px solid var(--border);position:relative;overflow:hidden}
+
+    /* ============================================
+       SCROLL AREA
+       ============================================ */
+    .scroll{flex:1;overflow-y:auto;overflow-x:hidden;padding:10px 12px;display:flex;flex-direction:column;gap:10px}
+    .scroll::-webkit-scrollbar{width:5px}
+    .scroll::-webkit-scrollbar-track{background:transparent}
+    .scroll::-webkit-scrollbar-thumb{background:rgba(255,255,255,.08);border-radius:3px}
+    .scroll::-webkit-scrollbar-thumb:hover{background:rgba(255,255,255,.15)}
+
+    /* ============================================
+       LISTING CARD — Horizontal (image left + text right)
+       Key: fixed thumbnail size, overflow hidden, no absolute positioning
+       ============================================ */
+    .card {
+      display: flex;
+      gap: 12px;
+      padding: 10px;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--r-lg);
+      box-shadow: 0 1px 3px rgba(0,0,0,.3), 0 1px 2px rgba(0,0,0,.2);
+      transition: transform .2s ease-out, box-shadow .2s ease-out, border-color .2s ease-out;
+      cursor: pointer;
+      overflow: hidden;
+    }
+    .card:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 6px 20px rgba(0,0,0,.35), 0 0 0 1px var(--border-hover);
+      border-color: var(--border-hover);
+    }
+
+    /* Thumbnail — fixed 150×140, never stretches or shrinks */
+    .thumb {
+      width: 150px;
+      min-width: 150px;
+      height: 140px;
+      border-radius: var(--r-md);
+      overflow: hidden;
+      flex-shrink: 0;
+      position: relative;
+      background: var(--surface-hover);
+    }
+    .thumb img {
+      width: 150px;
+      height: 140px;
+      object-fit: cover;
+      display: block;
+    }
+    .thumb .ph {
+      width: 150px;
+      height: 140px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: var(--surface-hover);
+      color: var(--text-4);
+      font-size: 2rem;
+    }
+
+    /* Fav button on thumbnail */
+    .fav {
+      position: absolute;
+      top: 6px;
+      right: 6px;
+      width: 30px;
+      height: 30px;
+      background: rgba(0,0,0,.5);
+      backdrop-filter: blur(6px);
+      -webkit-backdrop-filter: blur(6px);
+      border-radius: 50%;
+      color: #fff;
+      font-size: 14px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      opacity: .8;
+      transition: all .15s ease-out;
+      z-index: 2;
+    }
+    .fav:hover{background:rgba(0,0,0,.7);opacity:1;transform:scale(1.1)}
+    .fav.on{color:#f43f5e;opacity:1;background:rgba(0,0,0,.6)}
+
+    /* Type badge on thumbnail */
+    .type-badge {
+      position: absolute;
+      bottom: 6px;
+      left: 6px;
+      padding: 2px 7px;
+      background: rgba(0,0,0,.55);
+      backdrop-filter: blur(6px);
+      border-radius: var(--r-sm);
+      font-size: 10px;
+      font-weight: 600;
+      color: rgba(255,255,255,.85);
+      text-transform: capitalize;
+      z-index: 2;
+    }
+
+    /* Details column */
+    .details {
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      gap: 4px;
+      flex: 1;
+      min-width: 0;
+      padding: 2px 0;
+    }
+
+    .price-row{display:flex;align-items:baseline;gap:4px}
+    .price{font-size:20px;font-weight:800;color:var(--text-1);letter-spacing:-.5px;line-height:1}
+    .price-unit{font-size:13px;font-weight:500;color:var(--text-3)}
+
+    .addr{font-size:13px;font-weight:500;color:var(--text-2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;line-height:1.2}
+
+    .specs{display:flex;align-items:center;gap:5px;font-size:12.5px;font-weight:500;color:var(--text-3);line-height:1.2}
+    .specs .dot{width:3px;height:3px;border-radius:50%;background:var(--text-4);flex-shrink:0}
+
+    .tags{display:flex;flex-wrap:wrap;gap:5px;align-items:center}
+    .tag{display:inline-flex;align-items:center;gap:3px;padding:2px 8px;border-radius:var(--r-full);font-size:11px;font-weight:600;line-height:1.3;white-space:nowrap}
+    .t-new{background:var(--success-bg);color:var(--success);border:1px solid var(--success-border)}
+    .t-drop{background:var(--success-bg);color:var(--success);border:1px solid var(--success-border)}
+    .t-up{background:var(--danger-bg);color:var(--danger);border:1px solid var(--danger-border)}
+    .t-days{background:transparent;border:1px solid rgba(255,255,255,.08);color:var(--text-3)}
+    .t-pet{background:rgba(59,130,246,.08);color:#60a5fa;border:1px solid rgba(59,130,246,.2)}
+
+    .src{display:inline-flex;align-items:center;gap:4px;padding:2px 9px;border:1px solid var(--brand-border);border-radius:var(--r-full);font-size:11px;font-weight:500;color:var(--brand);background:var(--brand-light);transition:all .15s ease-out;cursor:pointer;margin-left:auto;text-decoration:none}
+    .src:hover{background:rgba(59,130,246,.2);border-color:rgba(59,130,246,.5)}
+    .src img{width:13px;height:13px;border-radius:2px}
+
+    .loc{font-size:11px;color:var(--text-4);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;line-height:1.2}
+
+    /* ============================================
+       PAGINATION
+       ============================================ */
+    .pager{display:flex;align-items:center;justify-content:center;gap:12px;padding:10px 16px;border-top:1px solid var(--border);flex-shrink:0;background:var(--bg)}
+    .pg-btn{display:flex;align-items:center;gap:6px;padding:7px 14px;background:var(--surface);border:1px solid var(--border);border-radius:var(--r-md);color:var(--text-2);font-size:.82rem;font-weight:500;transition:all .15s ease-out;min-height:36px}
+    .pg-btn:hover:not(:disabled){background:var(--surface-hover);border-color:var(--border-hover);color:var(--text-1)}
+    .pg-btn:disabled{opacity:.3;cursor:not-allowed}
+    .pg-info{text-align:center;font-size:.82rem;color:var(--text-3)}
+    .pg-hint{font-size:.68rem;color:var(--text-4);display:block;margin-top:2px}
+
+    /* ============================================
+       MAP
+       ============================================ */
+    .map{width:100%;height:100%;background:#e8eaed;position:relative;overflow:hidden}
+    .map-ctrl{position:absolute;top:16px;left:16px;display:flex;flex-direction:column;z-index:20;border-radius:var(--r-md);overflow:hidden;box-shadow:0 2px 8px rgba(0,0,0,.15)}
+    .map-z{width:36px;height:36px;background:#fff;border:none;color:#333;font-size:18px;font-weight:700;display:flex;align-items:center;justify-content:center;cursor:pointer;transition:background .15s ease-out}
+    .map-z+.map-z{border-top:1px solid #e5e7eb}
+    .map-z:hover{background:#f3f4f6}
+    .marker{position:absolute;background:var(--brand);color:#fff;font-size:11px;font-weight:700;padding:4px 9px;border-radius:var(--r-full);white-space:nowrap;cursor:pointer;box-shadow:0 2px 8px rgba(59,130,246,.3);transition:transform .15s ease-out;z-index:10}
+    .marker:hover{transform:scale(1.12);z-index:15}
+    .map-attr{position:absolute;bottom:6px;right:6px;font-size:11px;color:#666;background:rgba(255,255,255,.85);padding:3px 8px;border-radius:var(--r-sm);z-index:20}
+    .map-attr a{color:#0078A8}
+
+    /* ============================================
+       STATES
+       ============================================ */
+    /* Skeleton */
+    .skel{display:flex;gap:12px;padding:10px;background:var(--surface);border:1px solid var(--border);border-radius:var(--r-lg);overflow:hidden}
+    .skel-img{width:150px;min-width:150px;height:140px;border-radius:var(--r-md);background:linear-gradient(90deg,var(--surface) 25%,var(--surface-hover) 50%,var(--surface) 75%);background-size:200% 100%;animation:shim 1.5s infinite}
+    .skel-body{flex:1;display:flex;flex-direction:column;gap:8px;padding:6px 0}
+    .skel-ln{height:14px;border-radius:var(--r-sm);background:linear-gradient(90deg,var(--surface) 25%,var(--surface-hover) 50%,var(--surface) 75%);background-size:200% 100%;animation:shim 1.5s infinite}
+    .skel-ln.h20{height:22px}.skel-ln.w40{width:40%}.skel-ln.w60{width:60%}.skel-ln.w80{width:80%}.skel-ln.w50{width:50%}
+    @keyframes shim{0%{background-position:200% 0}100%{background-position:-200% 0}}
+
+    /* Empty */
+    .empty{display:flex;flex-direction:column;align-items:center;justify-content:center;padding:64px 32px;text-align:center;gap:16px;flex:1}
+    .empty-icon{width:64px;height:64px;background:var(--surface);border-radius:16px;display:flex;align-items:center;justify-content:center;font-size:1.8rem}
+    .empty h3{font-size:1.05rem;font-weight:600}
+    .empty p{font-size:.85rem;color:var(--text-3);max-width:280px;line-height:1.5}
+    .btn-p{padding:9px 20px;background:var(--brand);color:#fff;border-radius:var(--r-md);font-size:.82rem;font-weight:600;transition:all .15s ease-out;border:none}
+    .btn-p:hover{background:var(--brand-hover)}
+
+    /* Error */
+    .err{display:flex;flex-direction:column;align-items:center;justify-content:center;padding:64px 32px;text-align:center;gap:14px;flex:1}
+    .err-icon{width:64px;height:64px;background:var(--danger-bg);border-radius:16px;display:flex;align-items:center;justify-content:center;font-size:1.8rem}
+    .err h3{font-size:1rem;font-weight:600}
+    .err p{font-size:.85rem;color:var(--text-3);max-width:280px;line-height:1.5}
+    .btn-d{padding:9px 20px;background:transparent;border:1px solid var(--danger-border);color:var(--danger);border-radius:var(--r-md);font-size:.82rem;font-weight:600;transition:all .15s ease-out}
+    .btn-d:hover{background:var(--danger-bg)}
+
+    /* State tabs */
+    .tabs{position:fixed;bottom:20px;left:50%;transform:translateX(-50%);display:flex;gap:2px;background:rgba(0,0,0,.9);padding:4px;border-radius:var(--r-lg);z-index:1000;box-shadow:0 8px 32px rgba(0,0,0,.6);backdrop-filter:blur(12px)}
+    .tab{padding:7px 16px;border-radius:var(--r-md);font-size:.72rem;font-weight:600;color:#888;transition:all .15s ease-out;white-space:nowrap}
+    .tab:hover{color:#fff;background:rgba(255,255,255,.08)}
+    .tab.on{color:#fff;background:var(--brand)}
+    .panel{display:none}
+    .panel.on{display:flex;flex-direction:column;flex:1;overflow:hidden}
+
+    /* Responsive */
+    @media(max-width:1024px){.left{min-width:340px;width:38%}}
+    @media(max-width:768px){.split{flex-direction:column}.left{width:100%;max-width:none;min-width:auto;height:55vh}.right{border-left:none;border-top:1px solid var(--border);height:45vh}.filter-bar{overflow-x:auto;gap:4px;padding:8px 12px}}
+  </style>
+</head>
+<body>
+
+  <!-- FILTER BAR -->
+  <header class="filter-bar" role="banner">
+    <div class="brand">
+      <div class="brand-icon" aria-hidden="true">🏠</div>
+      <span class="brand-name">SunnyNest</span>
+    </div>
+    <button class="pill on" aria-label="Price: $5K–$6.5K">💰 $5K–$6.5K <span class="chev">▾</span></button>
+    <button class="pill on" aria-label="Beds: 3-4">🛏 3-4 <span class="chev">▾</span></button>
+    <button class="pill" aria-label="Baths: Any">🚿 Any <span class="chev">▾</span></button>
+    <button class="pill" aria-label="Type: Any">🏠 Any Type <span class="chev">▾</span></button>
+    <button class="pill" aria-label="Source: All">📡 All <span class="chev">▾</span></button>
+    <button class="pill" aria-label="View: Default">👁️ Def… <span class="chev">▾</span></button>
+    <button class="pill" aria-label="Sort: Newest">📊 Newest F… <span class="chev">▾</span></button>
+    <span class="count" aria-live="polite">13</span>
+    <span class="spacer"></span>
+    <button class="x-btn" aria-label="Reset filters" title="Reset all filters">✕</button>
+  </header>
+
+  <!-- SPLIT PANEL -->
+  <main class="split" role="main">
+    <section class="left" aria-label="Listings">
+      <div class="summary">
+        <strong>13 rentals</strong><span class="d"></span><span>Sunnyvale, CA</span><span class="d"></span><span>$5K–$6.5K</span><span class="d"></span><span>3-4 beds</span>
+      </div>
+
+      <!-- DEFAULT -->
+      <div class="panel on" id="s-default">
+        <div class="scroll" role="list" aria-label="Rental listings" tabindex="0">
+
+          <!-- Card 1: 749 Lois Ave -->
+          <article class="card" role="listitem" tabindex="0">
+            <div class="thumb">
+              <img src="https://photos.zillowstatic.com/fp/72947fdc2cba78be464ce28c68b2ab3b-p_f.jpg" alt="749 Lois Ave" loading="lazy">
+              <button class="fav" aria-label="Save to favorites" aria-pressed="false">☆</button>
+              <span class="type-badge">House</span>
+            </div>
+            <div class="details">
+              <div class="price-row"><span class="price">$6,000</span><span class="price-unit">/mo</span></div>
+              <div class="addr">749 Lois Ave, Sunnyvale, CA 94087</div>
+              <div class="specs"><span>4 bed</span><span class="dot"></span><span>2 bath</span><span class="dot"></span><span>1,348 sqft (125 m²)</span></div>
+              <div class="tags">
+                <span class="tag t-new">New</span>
+                <span class="tag t-days">1d ago</span>
+                <a href="https://www.zillow.com/homedetails/19537531_zpid/" target="_blank" rel="noopener" class="src"><img src="https://www.google.com/s2/favicons?domain=zillow.com&sz=64" alt=""> Zillow</a>
+              </div>
+              <div class="loc">Cupertino Union School District / Fremont Union High School District</div>
+            </div>
+          </article>
+
+          <!-- Card 2: 1410 Kelowna Ct -->
+          <article class="card" role="listitem" tabindex="0">
+            <div class="thumb">
+              <img src="https://photos.zillowstatic.com/fp/a39306aa81047b842508692c30001612-p_f.jpg" alt="1410 Kelowna Ct" loading="lazy">
+              <button class="fav" aria-label="Save to favorites" aria-pressed="false">☆</button>
+              <span class="type-badge">House</span>
+            </div>
+            <div class="details">
+              <div class="price-row"><span class="price">$5,500</span><span class="price-unit">/mo</span></div>
+              <div class="addr">1410 Kelowna Ct, Sunnyvale, CA 94087</div>
+              <div class="specs"><span>4 bed</span><span class="dot"></span><span>2 bath</span><span class="dot"></span><span>1,683 sqft (156 m²)</span></div>
+              <div class="tags">
+                <span class="tag t-new">New</span>
+                <span class="tag t-days">1d ago</span>
+                <a href="https://www.zillow.com/homedetails/19622680_zpid/" target="_blank" rel="noopener" class="src"><img src="https://www.google.com/s2/favicons?domain=zillow.com&sz=64" alt=""> Zillow</a>
+              </div>
+              <div class="loc">Cupertino Union School District / Fremont Union High School District</div>
+            </div>
+          </article>
+
+          <!-- Card 3: 1347 Zurich Tr -->
+          <article class="card" role="listitem" tabindex="0">
+            <div class="thumb">
+              <img src="https://photos.zillowstatic.com/fp/7a4e83e876ce19985de47d576e11c183-p_f.jpg" alt="1347 Zurich Tr" loading="lazy">
+              <button class="fav" aria-label="Save to favorites" aria-pressed="false">☆</button>
+              <span class="type-badge">Townhouse</span>
+            </div>
+            <div class="details">
+              <div class="price-row"><span class="price">$5,900</span><span class="price-unit">/mo</span></div>
+              <div class="addr">1347 Zurich Tr, Sunnyvale, CA 94087</div>
+              <div class="specs"><span>4 bed</span><span class="dot"></span><span>3 bath</span><span class="dot"></span><span>1,871 sqft (174 m²)</span></div>
+              <div class="tags">
+                <span class="tag t-days">4d ago</span>
+                <a href="https://www.zillow.com/homedetails/19537531_zpid/" target="_blank" rel="noopener" class="src"><img src="https://www.google.com/s2/favicons?domain=zillow.com&sz=64" alt=""> Zillow</a>
+              </div>
+              <div class="loc">Cupertino Union School District / Fremont Union High School District</div>
+            </div>
+          </article>
+
+          <!-- Card 4: 1557 Finch Way (favorited) -->
+          <article class="card" role="listitem" tabindex="0">
+            <div class="thumb">
+              <img src="https://photos.zillowstatic.com/fp/206d8c1623bc5c7a587ea54c329e5cae-p_f.jpg" alt="1557 Finch Way" loading="lazy">
+              <button class="fav on" aria-label="Remove from favorites" aria-pressed="true">★</button>
+              <span class="type-badge">House</span>
+            </div>
+            <div class="details">
+              <div class="price-row"><span class="price">$5,700</span><span class="price-unit">/mo</span></div>
+              <div class="addr">1557 Finch Way, Sunnyvale, CA 94087</div>
+              <div class="specs"><span>4 bed</span><span class="dot"></span><span>2 bath</span><span class="dot"></span><span>1,664 sqft (155 m²)</span></div>
+              <div class="tags">
+                <span class="tag t-days">6d ago</span>
+                <a href="https://www.zillow.com/homedetails/19537531_zpid/" target="_blank" rel="noopener" class="src"><img src="https://www.google.com/s2/favicons?domain=zillow.com&sz=64" alt=""> Zillow</a>
+              </div>
+              <div class="loc">Cupertino Union School District / Fremont Union High School District</div>
+            </div>
+          </article>
+
+          <!-- Card 5: 838 San Ramon Ave -->
+          <article class="card" role="listitem" tabindex="0">
+            <div class="thumb">
+              <img src="https://photos.zillowstatic.com/fp/ece38dba8fcd8bedc9ba1c92c81d66a0-p_f.jpg" alt="838 San Ramon Ave" loading="lazy">
+              <button class="fav" aria-label="Save to favorites" aria-pressed="false">☆</button>
+              <span class="type-badge">House</span>
+            </div>
+            <div class="details">
+              <div class="price-row"><span class="price">$5,000</span><span class="price-unit">/mo</span></div>
+              <div class="addr">838 San Ramon Ave, Sunnyvale, CA 94085</div>
+              <div class="specs"><span>3 bed</span><span class="dot"></span><span>1 bath</span><span class="dot"></span><span>1,098 sqft (102 m²)</span></div>
+              <div class="tags">
+                <span class="tag t-days">14d ago</span>
+                <a href="https://www.zillow.com/homedetails/19537531_zpid/" target="_blank" rel="noopener" class="src"><img src="https://www.google.com/s2/favicons?domain=zillow.com&sz=64" alt=""> Zillow</a>
+              </div>
+              <div class="loc">Sunnyvale School District / Fremont Union High School District</div>
+            </div>
+          </article>
+
+          <!-- Card 6: 810 Cotati Ter -->
+          <article class="card" role="listitem" tabindex="0">
+            <div class="thumb">
+              <img src="https://photos.zillowstatic.com/fp/68e37ceae416b2efef3ae4212ca44767-p_f.jpg" alt="810 Cotati Ter" loading="lazy">
+              <button class="fav" aria-label="Save to favorites" aria-pressed="false">☆</button>
+              <span class="type-badge">Townhouse</span>
+            </div>
+            <div class="details">
+              <div class="price-row"><span class="price">$5,900</span><span class="price-unit">/mo</span></div>
+              <div class="addr">810 Cotati Ter Unit 4, Sunnyvale, CA 94085</div>
+              <div class="specs"><span>3 bed</span><span class="dot"></span><span>3 bath</span><span class="dot"></span><span>1,871 sqft (174 m²)</span></div>
+              <div class="tags">
+                <span class="tag t-days">2w ago</span>
+                <a href="https://www.zillow.com/homedetails/19537531_zpid/" target="_blank" rel="noopener" class="src"><img src="https://www.google.com/s2/favicons?domain=zillow.com&sz=64" alt=""> Zillow</a>
+              </div>
+              <div class="loc">Sunnyvale School District / Fremont Union High School District</div>
+            </div>
+          </article>
+
+          <!-- Card 7: 885 Ticonderoga Dr -->
+          <article class="card" role="listitem" tabindex="0">
+            <div class="thumb">
+              <img src="https://photos.zillowstatic.com/fp/ce41dac77a81cebf21784aaa720171ec-p_f.jpg" alt="885 Ticonderoga Dr" loading="lazy">
+              <button class="fav" aria-label="Save to favorites" aria-pressed="false">☆</button>
+              <span class="type-badge">House</span>
+            </div>
+            <div class="details">
+              <div class="price-row"><span class="price">$5,700</span><span class="price-unit">/mo</span></div>
+              <div class="addr">885 Ticonderoga Dr, Sunnyvale, CA 94087</div>
+              <div class="specs"><span>4 bed</span><span class="dot"></span><span>2 bath</span><span class="dot"></span><span>1,752 sqft (163 m²)</span></div>
+              <div class="tags">
+                <span class="tag t-days">3w ago</span>
+                <a href="https://www.zillow.com/homedetails/19537531_zpid/" target="_blank" rel="noopener" class="src"><img src="https://www.google.com/s2/favicons?domain=zillow.com&sz=64" alt=""> Zillow</a>
+              </div>
+              <div class="loc">Cupertino Union School District / Fremont Union High School District</div>
+            </div>
+          </article>
+
+          <!-- Card 8: Kensington Place (price up) -->
+          <article class="card" role="listitem" tabindex="0">
+            <div class="thumb">
+              <img src="https://photos.zillowstatic.com/fp/d04a3bedaf14e40960bcf0c596a45a3e-p_f.jpg" alt="Kensington Place" loading="lazy">
+              <button class="fav" aria-label="Save to favorites" aria-pressed="false">☆</button>
+              <span class="type-badge">Apartment</span>
+            </div>
+            <div class="details">
+              <div class="price-row"><span class="price">$5,008</span><span class="price-unit">/mo</span></div>
+              <div class="addr">1220 N Fair Oaks Ave #4313, Sunnyvale, CA 94089</div>
+              <div class="specs"><span>3 bed</span><span class="dot"></span><span>2 bath</span><span class="dot"></span><span>1,386 sqft (129 m²)</span></div>
+              <div class="tags">
+                <span class="tag t-up">↑ +$30</span>
+                <span class="tag t-days">3w ago</span>
+                <a href="https://www.zillow.com/homedetails/460794716_zpid/" target="_blank" rel="noopener" class="src"><img src="https://www.google.com/s2/favicons?domain=zillow.com&sz=64" alt=""> Zillow</a>
+              </div>
+              <div class="loc">Sunnyvale School District / Fremont Union High School District</div>
+            </div>
+          </article>
+
+        </div>
+
+        <nav class="pager" aria-label="Pages">
+          <button class="pg-btn" disabled>← Previous</button>
+          <div class="pg-info" aria-live="polite">Page 1 of 3 · 13 listings<span class="pg-hint">← → to navigate</span></div>
+          <button class="pg-btn">Next →</button>
+        </nav>
+      </div>
+
+      <!-- LOADING -->
+      <div class="panel" id="s-loading">
+        <div class="scroll">
+          <div class="skel"><div class="skel-img"></div><div class="skel-body"><div class="skel-ln h20 w40"></div><div class="skel-ln w80"></div><div class="skel-ln w60"></div><div class="skel-ln w50"></div></div></div>
+          <div class="skel"><div class="skel-img"></div><div class="skel-body"><div class="skel-ln h20 w40"></div><div class="skel-ln w80"></div><div class="skel-ln w60"></div><div class="skel-ln w50"></div></div></div>
+          <div class="skel"><div class="skel-img"></div><div class="skel-body"><div class="skel-ln h20 w40"></div><div class="skel-ln w80"></div><div class="skel-ln w60"></div><div class="skel-ln w50"></div></div></div>
+          <div class="skel"><div class="skel-img"></div><div class="skel-body"><div class="skel-ln h20 w40"></div><div class="skel-ln w80"></div><div class="skel-ln w60"></div><div class="skel-ln w50"></div></div></div>
+        </div>
+      </div>
+
+      <!-- EMPTY -->
+      <div class="panel" id="s-empty">
+        <div class="empty">
+          <div class="empty-icon">🔍</div>
+          <h3>No rentals match your filters</h3>
+          <p>Try adjusting your price range, bedrooms, or other filters to see more results in Sunnyvale.</p>
+          <button class="btn-p">Reset Filters</button>
+        </div>
+      </div>
+
+      <!-- ERROR -->
+      <div class="panel" id="s-error">
+        <div class="err">
+          <div class="err-icon">⚠️</div>
+          <h3>Failed to load listings</h3>
+          <p>We couldn't fetch the latest listings. Cached results may be available.</p>
+          <button class="btn-d">🔄 Retry</button>
+        </div>
+      </div>
+    </section>
+
+    <!-- MAP -->
+    <section class="right" aria-label="Map">
+      <div class="map">
+        <svg width="100%" height="100%" viewBox="0 0 800 700" xmlns="http://www.w3.org/2000/svg" style="position:absolute;top:0;left:0">
+          <rect width="800" height="700" fill="#e8eaed"/>
+          <g stroke="#d4d6da" stroke-width="1" fill="none"><line x1="0" y1="80" x2="800" y2="80"/><line x1="0" y1="160" x2="800" y2="160"/><line x1="0" y1="240" x2="800" y2="240"/><line x1="0" y1="320" x2="800" y2="320"/><line x1="0" y1="400" x2="800" y2="400"/><line x1="0" y1="480" x2="800" y2="480"/><line x1="0" y1="560" x2="800" y2="560"/><line x1="0" y1="640" x2="800" y2="640"/><line x1="100" y1="0" x2="100" y2="700"/><line x1="200" y1="0" x2="200" y2="700"/><line x1="300" y1="0" x2="300" y2="700"/><line x1="400" y1="0" x2="400" y2="700"/><line x1="500" y1="0" x2="500" y2="700"/><line x1="600" y1="0" x2="600" y2="700"/><line x1="700" y1="0" x2="700" y2="700"/></g>
+          <g stroke="#c8cad0" stroke-width="3" fill="none"><line x1="0" y1="320" x2="800" y2="320"/><line x1="400" y1="0" x2="400" y2="700"/><line x1="0" y1="160" x2="800" y2="160"/><line x1="550" y1="0" x2="800" y2="500"/></g>
+          <polygon points="80,60 720,60 750,120 760,300 740,450 700,550 650,620 500,660 300,640 150,580 80,450 60,300 70,150" fill="rgba(59,130,246,.06)" stroke="#3b82f6" stroke-width="2"/>
+          <text x="120" y="200" font-family="Inter,sans-serif" font-size="12" font-weight="600" fill="#9ca3af" letter-spacing="2">MOUNTAIN VIEW</text>
+          <text x="380" y="340" font-family="Inter,sans-serif" font-size="13" font-weight="700" fill="#6b7280" letter-spacing="3">SUNNYVALE</text>
+        </svg>
+        <div class="map-ctrl"><button class="map-z" aria-label="Zoom in">+</button><button class="map-z" aria-label="Zoom out">−</button></div>
+        <div class="marker" style="top:32%;left:38%" title="749 Lois Ave">6K</div>
+        <div class="marker" style="top:62%;left:40%" title="1410 Kelowna Ct">5.5K</div>
+        <div class="marker" style="top:15%;right:22%" title="1180 Pecos Way">7K</div>
+        <div class="marker" style="top:33%;right:18%" title="1557 Finch Way">5.7K</div>
+        <div class="marker" style="top:42%;left:35%" title="838 San Ramon Ave">5K</div>
+        <div class="marker" style="top:48%;left:28%" title="885 Ticonderoga Dr">5.7K</div>
+        <div class="marker" style="top:55%;right:25%" title="810 Cotati Ter">5.9K</div>
+        <div class="marker" style="top:20%;right:30%" title="Kensington Place">5K</div>
+        <div class="marker" style="top:68%;left:22%" title="1694 Nightingale Ave">4.9K</div>
+        <div class="map-attr">🍋 <a href="https://leafletjs.com" target="_blank">Leaflet</a> | © <a href="https://www.openstreetmap.org" target="_blank">OpenStreetMap</a> © <a href="https://carto.com" target="_blank">CARTO</a></div>
+      </div>
+    </section>
+  </main>
+
+  <!-- STATE TABS -->
+  <div class="tabs" role="tablist">
+    <button class="tab on" role="tab" aria-selected="true" data-s="s-default">Default</button>
+    <button class="tab" role="tab" aria-selected="false" data-s="s-loading">Loading</button>
+    <button class="tab" role="tab" aria-selected="false" data-s="s-empty">Empty</button>
+    <button class="tab" role="tab" aria-selected="false" data-s="s-error">Error</button>
+  </div>
+
+  <script>
+    document.querySelectorAll('.tab').forEach(t=>{t.addEventListener('click',()=>{document.querySelectorAll('.tab').forEach(x=>{x.classList.remove('on');x.setAttribute('aria-selected','false')});t.classList.add('on');t.setAttribute('aria-selected','true');document.querySelectorAll('.panel').forEach(p=>p.classList.remove('on'));document.getElementById(t.dataset.s).classList.add('on')})});
+    document.querySelectorAll('.fav').forEach(b=>{b.addEventListener('click',e=>{e.stopPropagation();const f=b.getAttribute('aria-pressed')==='true';b.setAttribute('aria-pressed',f?'false':'true');b.textContent=f?'☆':'★';b.classList.toggle('on',!f);b.setAttribute('aria-label',f?'Save to favorites':'Remove from favorites')})});
+    document.addEventListener('keydown',e=>{const t=(e.target.tagName||'').toLowerCase();if(t==='input'||t==='textarea'||t==='select')return;if(e.key==='ArrowRight'){const b=document.querySelector('.pg-btn:last-child');if(b&&!b.disabled){b.click();e.preventDefault()}}});
+  </script>
+</body>
+</html>

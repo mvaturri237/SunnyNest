@@ -1,0 +1,167 @@
+{# Single listing card — horizontal layout: image (left) + details (right) #}
+{% set first_img = listing.image_urls | first_image %}
+
+<div class="listing-card" data-listing-id="{{ listing.id }}" data-id="{{ listing.id }}"
+     {% if listing.latitude and listing.longitude %}
+     data-lat="{{ listing.latitude }}" data-lng="{{ listing.longitude }}"
+     {% endif %}
+     data-price="{{ listing.price or '' }}"
+     data-address="{{ listing.address or '' }}"
+     data-beds="{{ listing.bedrooms or '' }}"
+     data-baths="{{ listing.bathrooms or '' }}"
+     data-sqft="{{ listing.sqft or '' }}"
+     data-sqm="{{ listing.sqm|int if listing.sqm else '' }}"
+     data-img="{{ first_img or '' }}"
+     data-url="{{ listing.url or '' }}"
+     data-source="{{ listing.source or '' }}">
+    <!-- Image -->
+    <div class="card-image">
+        {% if first_img %}
+            <img src="{{ first_img }}" alt="Listing photo" loading="lazy"
+                 onerror="this.onerror=null; this.parentElement.innerHTML='<div class=\'placeholder-img\'>🏠</div>';">
+        {% else %}
+            <div class="placeholder-img">{{ '🏢' if listing.property_type == 'apartment' else '🏠' }}</div>
+        {% endif %}
+        <!-- Action buttons overlay -->
+        <div class="card-action-buttons">
+            <button class="fav-btn {{ 'active' if listing.is_favorite else '' }}"
+                    hx-post="/favorite/{{ listing.id }}"
+                    hx-target="this"
+                    hx-swap="outerHTML"
+                    aria-pressed="{{ 'true' if listing.is_favorite else 'false' }}"
+                    aria-label="{{ 'Remove from favorites' if listing.is_favorite else 'Add to favorites' }}">
+                {{ '★' if listing.is_favorite else '☆' }}
+            </button>
+            <button class="dislike-btn"
+                    hx-post="/dislike/{{ listing.id }}"
+                    hx-target="closest .listing-card"
+                    hx-swap="outerHTML"
+                    aria-label="Hide this listing"
+                    title="Hide">
+                👎
+            </button>
+        </div>
+    </div>
+
+    <!-- Details -->
+    <div class="card-details">
+        <!-- Price + Title -->
+        <div class="card-price-row">
+            <span class="card-price">
+                {% if listing.price is not none %}
+                    ${{ "{:,.0f}".format(listing.price) }}/mo
+                {% else %}
+                    Price N/A
+                {% endif %}
+            </span>
+            <span class="card-title">{{ (listing.address or listing.title or 'Rental Listing') | truncate(45, true, '…') }}</span>
+        </div>
+
+        <!-- Specs: beds · baths · sqft (m²) -->
+        <div class="card-specs">
+            {% set specs = [] %}
+            {% if listing.bedrooms is not none %}
+                {% set _ = specs.append(listing.bedrooms | string ~ ' bed') %}
+            {% endif %}
+            {% if listing.bathrooms is not none %}
+                {% set bath_str = listing.bathrooms | int | string if listing.bathrooms == listing.bathrooms | int else listing.bathrooms | string %}
+                {% set _ = specs.append(bath_str ~ ' bath') %}
+            {% endif %}
+            {% if listing.sqft is not none %}
+                {% set sqm_str = ' (' ~ listing.sqm | int | string ~ ' m²)' if listing.sqm else '' %}
+                {% set _ = specs.append('{:,}'.format(listing.sqft) ~ ' sqft' ~ sqm_str) %}
+            {% endif %}
+            {{ specs | join(' · ') }}
+        </div>
+
+        <!-- Badges row (max 3) + source pills -->
+        <div class="card-tag-row">
+            {% set tags = [] %}
+
+            {# "New" badge — listed within 3 days #}
+            {% set posted_date = listing.listed_date or (listing.first_seen.date() if listing.first_seen else none) %}
+            {% if posted_date %}
+                {% set days_ago = (today - posted_date).days %}
+                {% if days_ago <= 3 %}
+                    {% set _ = tags.append({"class": "tag-new", "text": "New"}) %}
+                {% endif %}
+            {% endif %}
+
+            {# Days on market badge #}
+            {% if posted_date and tags | length < 3 %}
+                {% set dom_days = (today - posted_date).days %}
+                {% if dom_days == 0 %}
+                    {% set _ = tags.append({"class": "tag-fresh", "text": "Today"}) %}
+                {% elif dom_days == 1 %}
+                    {% set _ = tags.append({"class": "tag-fresh", "text": "1d ago"}) %}
+                {% elif dom_days <= 3 %}
+                    {% set _ = tags.append({"class": "tag-fresh", "text": dom_days ~ "d ago"}) %}
+                {% elif dom_days <= 14 %}
+                    {% set _ = tags.append({"class": "tag-aging", "text": dom_days ~ "d ago"}) %}
+                {% elif dom_days <= 56 %}
+                    {% set _ = tags.append({"class": "tag-stale", "text": (dom_days // 7) ~ "w ago"}) %}
+                {% else %}
+                    {% set _ = tags.append({"class": "tag-stale", "text": dom_days ~ "d ago"}) %}
+                {% endif %}
+            {% endif %}
+
+            {# Pet friendly badge #}
+            {% if listing.pet_friendly and tags | length < 3 %}
+                {% set _ = tags.append({"class": "tag-pet", "text": "🐕 Pets"}) %}
+            {% endif %}
+
+            {# AC badge #}
+            {% if listing.ac and tags | length < 3 %}
+                {% set _ = tags.append({"class": "tag-ac", "text": "❄️ AC"}) %}
+            {% endif %}
+
+            {# Render badges (max 3) — auto-escaped, no | safe needed #}
+            {% for tag in tags[:3] %}
+                <span class="card-tag {{ tag.class }}">{{ tag.text }}</span>
+            {% endfor %}
+
+            {# Source pills #}
+            {% set source_records = listing.sources if listing.sources else [] %}
+            {% if source_records %}
+                {% for src in source_records %}
+                    {% if src.url and src.url.startswith('http') %}
+                        <a href="{{ src.url }}" target="_blank" rel="noopener"
+                           class="source-pill source-{{ src.source | lower }}">
+                            {% if src.source | lower == 'zillow' %}
+                                <img src="https://www.zillow.com/favicon.ico" alt="" width="12" height="12">
+                            {% elif src.source | lower == 'craigslist' %}
+                                <img src="https://www.craigslist.org/favicon.ico" alt="" width="12" height="12">
+                            {% elif src.source | lower == 'realtor' %}
+                                <img src="https://www.realtor.com/favicon.ico" alt="" width="12" height="12">
+                            {% endif %}
+                            {{ src.source | capitalize }}
+                        </a>
+                    {% endif %}
+                {% endfor %}
+            {% elif listing.url and listing.url.startswith('http') %}
+                <a href="{{ listing.url }}" target="_blank" rel="noopener"
+                   class="source-pill source-{{ listing.source | lower }}">
+                    {% if listing.source | lower == 'zillow' %}
+                        <img src="https://www.zillow.com/favicon.ico" alt="" width="12" height="12">
+                    {% elif listing.source | lower == 'craigslist' %}
+                        <img src="https://www.craigslist.org/favicon.ico" alt="" width="12" height="12">
+                    {% elif listing.source | lower == 'realtor' %}
+                        <img src="https://www.realtor.com/favicon.ico" alt="" width="12" height="12">
+                    {% endif %}
+                    {{ listing.source | capitalize }}
+                </a>
+            {% endif %}
+        </div>
+
+        <!-- Location line (skip generic city names — app is Sunnyvale-focused) -->
+        {% set hood = listing.neighborhood | default('', true) | trim | lower %}
+        {% if listing.neighborhood and hood not in ('sunnyvale', 'santa clara', 'cupertino', '') %}
+            <div class="card-location">{{ listing.neighborhood }}</div>
+        {% endif %}
+
+        <!-- School assignment (elementary only) -->
+        {% if listing.school_elementary %}
+            <div class="card-schools">🏫 {{ listing.school_elementary | abbreviate_school }}</div>
+        {% endif %}
+    </div>
+</div>

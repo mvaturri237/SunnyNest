@@ -1,0 +1,226 @@
+{
+  "type": "FeatureCollection",
+  "features": [
+    {
+      "type": "Feature",
+      "properties": {
+        "school_name": "Bishop Elementary School",
+        "district": "Sunnyvale School District"
+      },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [[
+          [-122.036, 37.387],
+          [-122.024, 37.387],
+          [-122.024, 37.401],
+          [-122.036, 37.401],
+          [-122.036, 37.387]
+        ]]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "school_name": "Cherry Chase Elementary School",
+        "district": "Sunnyvale School District"
+      },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [[
+          [-122.050, 37.374],
+          [-122.024, 37.374],
+          [-122.024, 37.387],
+          [-122.050, 37.387],
+          [-122.050, 37.374]
+        ]]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "school_name": "Cumberland Elementary School",
+        "district": "Sunnyvale School District"
+      },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [[
+          [-122.024, 37.374],
+          [-122.012, 37.374],
+          [-122.012, 37.387],
+          [-122.024, 37.387],
+          [-122.024, 37.374]
+        ]]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "school_name": "Ellis Elementary School",
+        "district": "Sunnyvale School District"
+      },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [[
+          [-122.012, 37.355],
+          [-121.990, 37.355],
+          [-121.990, 37.387],
+          [-122.012, 37.387],
+          [-122.012, 37.355]
+        ]]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "school_name": "Fairwood Elementary School",
+        "district": "Sunnyvale School District"
+      },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [[
+          [-122.036, 37.401],
+          [-122.008, 37.401],
+          [-122.008, 37.420],
+          [-122.036, 37.420],
+          [-122.036, 37.401]
+        ]]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "school_name": "Lakewood Elementary School",
+        "district": "Sunnyvale School District"
+      },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [[
+          [-122.008, 37.387],
+          [-121.985, 37.387],
+          [-121.985, 37.420],
+          [-122.008, 37.420],
+          [-122.008, 37.387]
+        ]]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "school_name": "San Miguel Elementary School",
+        "district": "Sunnyvale School District"
+      },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [[
+          [-122.050, 37.387],
+          [-122.036, 37.387],
+          [-122.036, 37.401],
+          [-122.050, 37.401],
+          [-122.050, 37.387]
+        ]]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "school_name": "Vargas Elementary School",
+        "district": "Sunnyvale School District"
+      },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [[
+          [-122.024, 37.387],
+          [-122.008, 37.387],
+          [-122.008, 37.401],
+          [-122.024, 37.401],
+          [-122.024, 37.387]
+        ]]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "school_name": "Eaton Elementary School",
+        "district": "Cupertino Union School District"
+      },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [[
+          [-122.070, 37.330],
+          [-122.050, 37.330],
+          [-122.050, 37.355],
+          [-122.070, 37.355],
+          [-122.070, 37.330]
+        ]]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "school_name": "Garden Gate Elementary School",
+        "district": "Cupertino Union School District"
+      },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [[
+          [-122.050, 37.330],
+          [-122.036, 37.330],
+          [-122.036, 37.355],
+          [-122.050, 37.355],
+          [-122.050, 37.330]
+        ]]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "school_name": "Nimitz Elementary School",
+        "district": "Cupertino Union School District"
+      },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [[
+          [-122.070, 37.355],
+          [-122.050, 37.355],
+          [-122.050, 37.374],
+          [-122.070, 37.374],
+          [-122.070, 37.355]
+        ]]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "school_name": "Stocklmeir Elementary School",
+        "district": "Cupertino Union School District"
+      },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [[
+          [-122.050, 37.355],
+          [-122.036, 37.355],
+          [-122.036, 37.374],
+          [-122.050, 37.374],
+          [-122.050, 37.355]
+        ]]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "school_name": "Stevens Creek Elementary School",
+        "district": "Cupertino Union School District"
+      },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [[
+          [-122.036, 37.330],
+          [-122.012, 37.330],
+          [-122.012, 37.374],
+          [-122.036, 37.374],
+          [-122.036, 37.330]
+        ]]
+      }
+    }
+  ]
+}

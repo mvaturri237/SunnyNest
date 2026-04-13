@@ -1,0 +1,117 @@
+{% extends "admin/base.html" %}
+
+{% block title %}Notifications{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <h1 class="page-title">🔔 Notifications</h1>
+    <p class="page-subtitle">Notification history and delivery statistics</p>
+</div>
+
+{% if not smtp_configured %}
+<div class="info-banner info-banner--warning">
+    <span class="info-icon">⚠️</span>
+    <div>
+        <strong>SMTP password not configured</strong>
+        <p style="margin: 4px 0 0;">Email notifications cannot be sent without SMTP credentials. Set the <code>SMTP_PASSWORD</code> environment variable or add it to a <code>.env</code> file in the project root.</p>
+    </div>
+</div>
+{% endif %}
+
+{% if not whatsapp_configured %}
+<div class="info-banner info-banner--warning">
+    <span class="info-icon">⚠️</span>
+    <div>
+        <strong>WhatsApp API token not configured</strong>
+        <p style="margin: 4px 0 0;">WhatsApp notifications cannot be sent without API credentials. Set the <code>WHATSAPP_API_TOKEN</code> and <code>WHATSAPP_PHONE_NUMBER_ID</code> environment variables or add them to a <code>.env</code> file in the project root.</p>
+    </div>
+</div>
+{% endif %}
+
+<!-- KPI Cards -->
+<div class="kpi-grid kpi-grid-4">
+    <div class="kpi-card kpi-blue">
+        <div class="kpi-label">Total Sent</div>
+        <div class="kpi-value">{{ "{:,}".format(total) }}</div>
+    </div>
+    <div class="kpi-card kpi-teal">
+        <div class="kpi-label">Sent Today</div>
+        <div class="kpi-value">{{ "{:,}".format(today_count) }}</div>
+    </div>
+    <div class="kpi-card kpi-green">
+        <div class="kpi-label">Success Rate</div>
+        <div class="kpi-value">{{ "%.1f"|format(success_rate) }}%</div>
+    </div>
+    <div class="kpi-card {{ 'kpi-red' if failed > 0 else 'kpi-gray' }}">
+        <div class="kpi-label">Failed</div>
+        <div class="kpi-value">{{ "{:,}".format(failed) }}</div>
+    </div>
+</div>
+
+<!-- Daily Notifications -->
+<div class="section">
+    <h2 class="section-title">Daily Notifications (Last 30 Days)</h2>
+    {% if daily_data %}
+    <div class="chart-bars">
+        {% set max_notif = daily_data|map(attribute='count')|max %}
+        {% for day in daily_data %}
+        <div class="bar-row">
+            <span class="bar-label">{{ day.date }}</span>
+            <div class="bar-track">
+                <div class="bar-fill bar-fill-green" style="width: {{ (day.success_count / max_notif * 100)|round if max_notif else 0 }}%"></div>
+                {% if day.count - day.success_count > 0 %}
+                <div class="bar-fill bar-fill-red bar-fill-stacked" style="width: {{ ((day.count - day.success_count) / max_notif * 100)|round }}%"></div>
+                {% endif %}
+            </div>
+            <span class="bar-value">{{ day.count }}</span>
+        </div>
+        {% endfor %}
+    </div>
+    {% else %}
+    <div class="empty-state">
+        <p>No notification data for the last 30 days.</p>
+    </div>
+    {% endif %}
+</div>
+
+<!-- Notification History -->
+<div class="section">
+    <h2 class="section-title">Notification History</h2>
+    {% if history %}
+    <div class="table-container">
+        <table class="admin-table">
+            <thead>
+                <tr>
+                    <th>Timestamp</th>
+                    <th>Channel</th>
+                    <th>Recipient</th>
+                    <th>Listings</th>
+                    <th>Status</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for entry in history %}
+                <tr>
+                    <td>{{ entry.sent_at }}</td>
+                    <td>{{ entry.channel }}</td>
+                    <td>{{ entry.recipient }}</td>
+                    <td>{{ entry.listing_count }}</td>
+                    <td>
+                        {% if entry.success %}
+                        <span class="status-badge status-green">✅ Success</span>
+                        {% else %}
+                        <span class="status-badge status-red">❌ Failed</span>
+                        {% endif %}
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    {% else %}
+    <div class="empty-state">
+        <p>No notification records found.</p>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}

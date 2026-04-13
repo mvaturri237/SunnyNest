@@ -1,0 +1,90 @@
+{
+  "type": "FeatureCollection",
+  "features": [
+    {
+      "type": "Feature",
+      "properties": {
+        "school_name": "Columbia Middle School",
+        "district": "Sunnyvale School District"
+      },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [[
+          [-122.045, 37.375],
+          [-122.015, 37.375],
+          [-122.015, 37.400],
+          [-122.045, 37.400],
+          [-122.045, 37.375]
+        ]]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "school_name": "Sunnyvale Middle School",
+        "district": "Sunnyvale School District"
+      },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [[
+          [-122.035, 37.400],
+          [-121.990, 37.400],
+          [-121.990, 37.420],
+          [-122.035, 37.420],
+          [-122.035, 37.400]
+        ]]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "school_name": "Cupertino Middle School",
+        "district": "Cupertino Union School District"
+      },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [[
+          [-122.065, 37.340],
+          [-122.035, 37.340],
+          [-122.035, 37.360],
+          [-122.065, 37.360],
+          [-122.065, 37.340]
+        ]]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "school_name": "Hyde Middle School",
+        "district": "Cupertino Union School District"
+      },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [[
+          [-122.065, 37.360],
+          [-122.035, 37.360],
+          [-122.035, 37.375],
+          [-122.065, 37.375],
+          [-122.065, 37.360]
+        ]]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "school_name": "Lawson Middle School",
+        "district": "Cupertino Union School District"
+      },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [[
+          [-122.035, 37.340],
+          [-122.015, 37.340],
+          [-122.015, 37.375],
+          [-122.035, 37.375],
+          [-122.035, 37.340]
+        ]]
+      }
+    }
+  ]
+}

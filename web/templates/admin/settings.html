@@ -1,0 +1,68 @@
+{% extends "admin/base.html" %}
+
+{% block title %}Settings{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <h1 class="page-title">⚙️ Settings</h1>
+    <p class="page-subtitle">System configuration (read-only)</p>
+</div>
+
+<!-- Notification Status -->
+<div class="section">
+    <h2 class="section-title">Notification Status</h2>
+    <div class="settings-status-card">
+        <div class="status-row">
+            <span class="status-label">Email Notifications</span>
+            {% if email_settings.enabled %}
+            <span class="status-badge status-green">Enabled</span>
+            {% else %}
+            <span class="status-badge status-gray">Disabled</span>
+            {% endif %}
+        </div>
+        <div class="status-row">
+            <span class="status-label">Email Recipient</span>
+            <span class="status-value">{{ email_settings.recipient_email or "Not configured" }}</span>
+        </div>
+        <div class="status-row" style="margin-top: 12px; padding-top: 12px; border-top: 1px solid #e5e7eb;">
+            <span class="status-label">WhatsApp Notifications</span>
+            {% if whatsapp_settings.enabled %}
+            <span class="status-badge status-green">Enabled</span>
+            {% else %}
+            <span class="status-badge status-gray">Disabled</span>
+            {% endif %}
+        </div>
+        <div class="status-row">
+            <span class="status-label">WhatsApp Recipient</span>
+            <span class="status-value">{{ whatsapp_settings.recipient_phone or "Not configured" }}</span>
+        </div>
+    </div>
+</div>
+
+<!-- Configuration Sections -->
+{% for section_name, items in config_sections.items() %}
+<div class="section">
+    <h2 class="section-title">{{ section_name }}</h2>
+    <div class="config-list">
+        {% for key, value in items.items() %}
+        <div class="config-row">
+            <span class="config-key">{{ key }}</span>
+            <span class="config-value">{{ value }}</span>
+        </div>
+        {% endfor %}
+    </div>
+</div>
+{% endfor %}
+
+<!-- Security Note -->
+<div class="section">
+    <div class="info-banner">
+        <span class="info-icon">🔒</span>
+        <span class="info-text">
+            SMTP password, WhatsApp API token, and API keys are managed via environment variables
+            (<code>SMTP_PASSWORD</code>, <code>WHATSAPP_API_TOKEN</code>, <code>RAPIDAPI_KEY</code>).
+            They are not displayed here for security.
+        </span>
+    </div>
+</div>
+{% endblock %}

@@ -1,0 +1,65 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}Admin{% endblock %} — SunnyNest</title>
+
+    <!-- Inter font -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+
+    <!-- Admin styles -->
+    <link rel="stylesheet" href="/static/css/admin.css?v=7">
+
+    <!-- HTMX -->
+    <script src="https://unpkg.com/htmx.org@2.0.4" integrity="sha384-HGfztofotfshcF7+8n44JQL2oJmowVChPTg48S+jvZoztPfvwD79OC/LTtG6dMp+" crossorigin="anonymous"></script>
+</head>
+<body>
+    <div class="admin-layout">
+        <!-- Sidebar -->
+        <aside class="admin-sidebar" role="navigation" aria-label="Admin navigation">
+            <div class="sidebar-header">
+                <a href="/admin/" class="sidebar-brand">
+                    <span class="brand-icon">🏠</span>
+                    <span class="brand-text">SunnyNest</span>
+                </a>
+                <span class="sidebar-label">BACKOFFICE</span>
+            </div>
+
+            <nav class="sidebar-nav">
+                <a href="/admin/" class="nav-link {{ 'active' if active_page == 'dashboard' }}">
+                    <span class="nav-icon">📊</span>
+                    <span class="nav-text">Dashboard</span>
+                </a>
+                <a href="/admin/analytics" class="nav-link {{ 'active' if active_page == 'analytics' }}">
+                    <span class="nav-icon">📈</span>
+                    <span class="nav-text">Analytics</span>
+                </a>
+                <a href="/admin/api-usage" class="nav-link {{ 'active' if active_page == 'api-usage' }}">
+                    <span class="nav-icon">🔑</span>
+                    <span class="nav-text">API Usage</span>
+                </a>
+                <a href="/admin/notifications" class="nav-link {{ 'active' if active_page == 'notifications' }}">
+                    <span class="nav-icon">🔔</span>
+                    <span class="nav-text">Notifications</span>
+                </a>
+                <a href="/admin/settings" class="nav-link {{ 'active' if active_page == 'settings' }}">
+                    <span class="nav-icon">⚙️</span>
+                    <span class="nav-text">Settings</span>
+                </a>
+            </nav>
+
+            <div class="sidebar-footer">
+                <a href="/" class="back-link">← Back to Dashboard</a>
+            </div>
+        </aside>
+
+        <!-- Main Content -->
+        <main class="admin-content">
+            {% block content %}{% endblock %}
+        </main>
+    </div>
+</body>
+</html>

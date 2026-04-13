@@ -1,0 +1,13 @@
+{
+  "points": [
+    {
+      "id": "poi_panw_hq",
+      "category": "work",
+      "name": "Palo Alto Networks HQ",
+      "address": "3000 Tannery Way, Santa Clara, CA 95054",
+      "latitude": 37.38404,
+      "longitude": -121.983974,
+      "created_at": "2026-03-31T00:00:00Z"
+    }
+  ]
+}

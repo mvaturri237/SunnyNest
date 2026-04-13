@@ -1,0 +1,38 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN"
+  "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <!-- Unique identifier for the log rotation agent -->
+    <key>Label</key>
+    <string>com.sunnynest.log-rotate</string>
+
+    <!-- Script to execute -->
+    <key>ProgramArguments</key>
+    <array>
+        <string>/bin/bash</string>
+        <string>/Users/mvaturri/Documents/zillow/scripts/rotate-logs.sh</string>
+    </array>
+
+    <!-- Working directory -->
+    <key>WorkingDirectory</key>
+    <string>/Users/mvaturri/Documents/zillow</string>
+
+    <!-- Run weekly on Sunday at midnight -->
+    <key>StartCalendarInterval</key>
+    <dict>
+        <key>Weekday</key>
+        <integer>0</integer>
+        <key>Hour</key>
+        <integer>0</integer>
+        <key>Minute</key>
+        <integer>0</integer>
+    </dict>
+
+    <!-- Redirect stdout to log file -->
+    <key>StandardOutPath</key>
+    <string>/tmp/sunnynest/log-rotate-stdout.log</string>
+    <key>StandardErrorPath</key>
+    <string>/tmp/sunnynest/log-rotate-stderr.log</string>
+</dict>
+</plist>

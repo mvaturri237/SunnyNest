@@ -1,0 +1,965 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SunnyNest — Map Tile Comparison</title>
+
+    <!-- Leaflet CSS -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
+          integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY="
+          crossorigin="" />
+
+    <!-- Inter Font -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+
+    <style>
+        /* ===== Reset & Base ===== */
+        *, *::before, *::after {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        html, body {
+            height: 100%;
+            font-family: 'Inter', system-ui, -apple-system, sans-serif;
+            background: #0e1117;
+            color: #ffffff;
+            -webkit-font-smoothing: antialiased;
+            -moz-osx-font-smoothing: grayscale;
+        }
+
+        /* ===== Layout ===== */
+        .app-container {
+            display: flex;
+            flex-direction: column;
+            height: 100vh;
+            max-height: 100vh;
+            overflow: hidden;
+        }
+
+        /* ===== Header ===== */
+        .header {
+            padding: 16px 24px;
+            background: rgba(255, 255, 255, 0.025);
+            border-bottom: 1px solid rgba(255, 255, 255, 0.10);
+            flex-shrink: 0;
+        }
+
+        .header h1 {
+            font-size: 20px;
+            font-weight: 800;
+            color: #ffffff;
+            margin-bottom: 4px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .header h1 .logo-icon {
+            font-size: 24px;
+        }
+
+        .header .subtitle {
+            font-size: 13px;
+            font-weight: 500;
+            color: #888888;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .header .subtitle .kbd {
+            display: inline-flex;
+            align-items: center;
+            padding: 1px 6px;
+            background: rgba(255, 255, 255, 0.08);
+            border: 1px solid rgba(255, 255, 255, 0.15);
+            border-radius: 4px;
+            font-size: 11px;
+            font-weight: 600;
+            color: #cccccc;
+            font-family: 'Inter', monospace;
+        }
+
+        /* ===== Active Tile Label ===== */
+        .active-tile-banner {
+            padding: 8px 24px;
+            background: rgba(37, 99, 235, 0.08);
+            border-bottom: 1px solid rgba(37, 99, 235, 0.2);
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            flex-shrink: 0;
+        }
+
+        .active-tile-banner .label {
+            font-size: 12px;
+            font-weight: 600;
+            color: #888888;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .active-tile-banner .tile-name {
+            font-size: 14px;
+            font-weight: 700;
+            color: #3b82f6;
+        }
+
+        .active-tile-banner .badge {
+            font-size: 11px;
+            font-weight: 600;
+            padding: 2px 8px;
+            border-radius: 10px;
+            margin-left: 4px;
+        }
+
+        .badge-current {
+            background: rgba(220, 38, 38, 0.15);
+            color: #ef9a9a;
+            border: 1px solid rgba(220, 38, 38, 0.3);
+        }
+
+        .badge-recommended {
+            background: rgba(22, 163, 74, 0.15);
+            color: #81c784;
+            border: 1px solid rgba(22, 163, 74, 0.3);
+        }
+
+        .badge-option {
+            background: rgba(139, 92, 246, 0.15);
+            color: #b39ddb;
+            border: 1px solid rgba(139, 92, 246, 0.3);
+        }
+
+        /* ===== Main Content ===== */
+        .main-content {
+            display: flex;
+            flex: 1;
+            min-height: 0;
+            overflow: hidden;
+        }
+
+        /* ===== Map Container ===== */
+        .map-wrapper {
+            flex: 1;
+            position: relative;
+            min-width: 0;
+        }
+
+        #map {
+            width: 100%;
+            height: 100%;
+        }
+
+        /* ===== Leaflet Layer Control Override ===== */
+        .leaflet-control-layers {
+            background: rgba(14, 17, 23, 0.92) !important;
+            backdrop-filter: blur(12px);
+            border: 1px solid rgba(255, 255, 255, 0.12) !important;
+            border-radius: 10px !important;
+            padding: 8px 12px !important;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.4) !important;
+            color: #ffffff !important;
+            font-family: 'Inter', system-ui, sans-serif !important;
+            font-size: 13px !important;
+            min-width: 240px;
+        }
+
+        .leaflet-control-layers-expanded {
+            padding: 10px 14px !important;
+        }
+
+        .leaflet-control-layers label {
+            color: #cccccc !important;
+            font-weight: 500;
+            margin-bottom: 4px;
+            display: flex !important;
+            align-items: center;
+            gap: 6px;
+            padding: 3px 0;
+            cursor: pointer;
+            transition: color 0.15s ease;
+        }
+
+        .leaflet-control-layers label:hover {
+            color: #ffffff !important;
+        }
+
+        .leaflet-control-layers-separator {
+            border-top-color: rgba(255, 255, 255, 0.1) !important;
+            margin: 6px 0 !important;
+        }
+
+        .leaflet-control-layers input[type="radio"] {
+            accent-color: #3b82f6;
+            width: 14px;
+            height: 14px;
+        }
+
+        .leaflet-control-layers input[type="checkbox"] {
+            accent-color: #3b82f6;
+            width: 14px;
+            height: 14px;
+        }
+
+        /* Leaflet zoom control dark theme */
+        .leaflet-control-zoom a {
+            background: rgba(14, 17, 23, 0.92) !important;
+            color: #ffffff !important;
+            border-color: rgba(255, 255, 255, 0.12) !important;
+            backdrop-filter: blur(12px);
+        }
+
+        .leaflet-control-zoom a:hover {
+            background: rgba(30, 35, 45, 0.95) !important;
+            color: #3b82f6 !important;
+        }
+
+        .leaflet-control-zoom a:focus-visible {
+            outline: 2px solid #3b82f6;
+            outline-offset: 2px;
+        }
+
+        /* Leaflet attribution dark theme */
+        .leaflet-control-attribution {
+            background: rgba(14, 17, 23, 0.8) !important;
+            color: #888888 !important;
+            font-size: 10px !important;
+        }
+
+        .leaflet-control-attribution a {
+            color: #3b82f6 !important;
+        }
+
+        /* ===== Price Pill Markers ===== */
+        .price-pill {
+            background: #3b82f6;
+            color: #ffffff;
+            font-family: 'Inter', system-ui, sans-serif;
+            font-size: 11px;
+            font-weight: 700;
+            padding: 4px 10px;
+            border-radius: 12px;
+            white-space: nowrap;
+            box-shadow: 0 2px 8px rgba(59, 130, 246, 0.3);
+            text-align: center;
+            cursor: pointer;
+            transition: transform 0.15s ease, box-shadow 0.15s ease;
+            border: 1.5px solid rgba(255, 255, 255, 0.25);
+            user-select: none;
+        }
+
+        .price-pill:hover {
+            transform: scale(1.08);
+            box-shadow: 0 4px 14px rgba(59, 130, 246, 0.45);
+        }
+
+        .price-pill:focus-visible {
+            outline: 2px solid #ffffff;
+            outline-offset: 2px;
+        }
+
+        .price-pill.selected {
+            background: #1d4ed8;
+            transform: scale(1.12);
+            box-shadow: 0 4px 16px rgba(29, 78, 216, 0.5);
+            z-index: 1000 !important;
+        }
+
+        /* ===== Comparison Notes Panel ===== */
+        .notes-panel {
+            width: 360px;
+            flex-shrink: 0;
+            background: rgba(255, 255, 255, 0.025);
+            border-left: 1px solid rgba(255, 255, 255, 0.10);
+            overflow-y: auto;
+            padding: 20px;
+        }
+
+        .notes-panel h2 {
+            font-size: 15px;
+            font-weight: 700;
+            color: #ffffff;
+            margin-bottom: 16px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .tile-option {
+            background: rgba(255, 255, 255, 0.03);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            border-radius: 10px;
+            padding: 14px;
+            margin-bottom: 12px;
+            transition: border-color 0.2s ease, background 0.2s ease;
+            cursor: pointer;
+        }
+
+        .tile-option:hover {
+            border-color: rgba(59, 130, 246, 0.3);
+            background: rgba(255, 255, 255, 0.04);
+        }
+
+        .tile-option:focus-visible {
+            outline: 2px solid #3b82f6;
+            outline-offset: 2px;
+        }
+
+        .tile-option.active {
+            border-color: rgba(59, 130, 246, 0.5);
+            background: rgba(59, 130, 246, 0.06);
+        }
+
+        .tile-option-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 8px;
+        }
+
+        .tile-option-name {
+            font-size: 13px;
+            font-weight: 700;
+            color: #ffffff;
+        }
+
+        .tile-option-similarity {
+            font-size: 11px;
+            font-weight: 600;
+            color: #888888;
+        }
+
+        .tile-option-similarity .pct {
+            color: #3b82f6;
+            font-weight: 800;
+        }
+
+        .pros-cons {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 8px;
+            margin-top: 8px;
+        }
+
+        .pros-cons h4 {
+            font-size: 11px;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            margin-bottom: 4px;
+        }
+
+        .pros h4 {
+            color: #81c784;
+        }
+
+        .cons h4 {
+            color: #ef9a9a;
+        }
+
+        .pros-cons ul {
+            list-style: none;
+            padding: 0;
+        }
+
+        .pros-cons li {
+            font-size: 11px;
+            font-weight: 400;
+            color: #aaaaaa;
+            padding: 2px 0;
+            line-height: 1.4;
+        }
+
+        .pros li::before {
+            content: "✓ ";
+            color: #81c784;
+            font-weight: 700;
+        }
+
+        .cons li::before {
+            content: "✗ ";
+            color: #ef9a9a;
+            font-weight: 700;
+        }
+
+        /* Feature comparison table */
+        .feature-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 16px;
+            font-size: 11px;
+        }
+
+        .feature-table th {
+            text-align: left;
+            font-weight: 600;
+            color: #888888;
+            padding: 6px 4px;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+            font-size: 10px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .feature-table td {
+            padding: 5px 4px;
+            color: #cccccc;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.04);
+        }
+
+        .feature-table tr:last-child td {
+            border-bottom: none;
+        }
+
+        .feature-table .check {
+            color: #81c784;
+            font-weight: 700;
+        }
+
+        .feature-table .cross {
+            color: #ef9a9a;
+            font-weight: 700;
+        }
+
+        .feature-table .partial {
+            color: #ffd54f;
+            font-weight: 700;
+        }
+
+        /* Recommendation callout */
+        .recommendation {
+            background: rgba(22, 163, 74, 0.08);
+            border: 1px solid rgba(22, 163, 74, 0.25);
+            border-radius: 10px;
+            padding: 12px 14px;
+            margin-top: 16px;
+        }
+
+        .recommendation h3 {
+            font-size: 12px;
+            font-weight: 700;
+            color: #81c784;
+            margin-bottom: 6px;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .recommendation p {
+            font-size: 11px;
+            color: #aaaaaa;
+            line-height: 1.5;
+        }
+
+        .recommendation strong {
+            color: #cccccc;
+        }
+
+        /* ===== Responsive ===== */
+        @media (max-width: 900px) {
+            .main-content {
+                flex-direction: column;
+            }
+
+            .notes-panel {
+                width: 100%;
+                border-left: none;
+                border-top: 1px solid rgba(255, 255, 255, 0.10);
+                max-height: 300px;
+            }
+        }
+
+        /* ===== Reduced Motion ===== */
+        @media (prefers-reduced-motion: reduce) {
+            .price-pill,
+            .tile-option {
+                transition: none !important;
+            }
+
+            .price-pill:hover {
+                transform: none;
+            }
+        }
+
+        /* ===== Focus Visible ===== */
+        :focus-visible {
+            outline: 2px solid #3b82f6;
+            outline-offset: 2px;
+        }
+
+        /* ===== Scrollbar ===== */
+        .notes-panel::-webkit-scrollbar {
+            width: 6px;
+        }
+
+        .notes-panel::-webkit-scrollbar-track {
+            background: transparent;
+        }
+
+        .notes-panel::-webkit-scrollbar-thumb {
+            background: rgba(255, 255, 255, 0.15);
+            border-radius: 3px;
+        }
+
+        .notes-panel::-webkit-scrollbar-thumb:hover {
+            background: rgba(255, 255, 255, 0.25);
+        }
+    </style>
+</head>
+<body>
+    <div class="app-container">
+        <!-- Header -->
+        <header class="header" role="banner">
+            <h1>
+                <span class="logo-icon" aria-hidden="true">🏠</span>
+                SunnyNest Map Tile Comparison
+            </h1>
+            <p class="subtitle">
+                Use the layer control <span class="kbd" aria-label="top-right corner">⊞ top-right</span> to switch between tile options. Click a tile card on the right to jump to it.
+            </p>
+        </header>
+
+        <!-- Active Tile Banner -->
+        <div class="active-tile-banner" role="status" aria-live="polite" id="activeTileBanner">
+            <span class="label">Viewing:</span>
+            <span class="tile-name" id="activeTileName">Option A: OpenStreetMap</span>
+            <span class="badge badge-recommended" id="activeTileBadge">★ Recommended</span>
+        </div>
+
+        <!-- Main Content -->
+        <main class="main-content" role="main">
+            <!-- Map -->
+            <div class="map-wrapper">
+                <div id="map" role="application" aria-label="Interactive map of Sunnyvale, CA showing different tile layer options"></div>
+            </div>
+
+            <!-- Comparison Notes Panel -->
+            <aside class="notes-panel" role="complementary" aria-label="Tile layer comparison notes">
+                <h2>📋 Tile Options</h2>
+
+                <!-- Current: CartoDB Positron -->
+                <div class="tile-option" tabindex="0" role="button" aria-label="Switch to CartoDB Positron tiles"
+                     data-layer="current" id="card-current">
+                    <div class="tile-option-header">
+                        <span class="tile-option-name">Current: CartoDB Positron</span>
+                        <span class="badge badge-current">Current</span>
+                    </div>
+                    <div class="tile-option-similarity">
+                        Google Maps similarity: <span class="pct">~30%</span>
+                    </div>
+                    <div class="pros-cons">
+                        <div class="pros">
+                            <h4>Pros</h4>
+                            <ul>
+                                <li>Clean, minimal look</li>
+                                <li>No API key needed</li>
+                                <li>Fast loading</li>
+                            </ul>
+                        </div>
+                        <div class="cons">
+                            <h4>Cons</h4>
+                            <ul>
+                                <li>No parks visible</li>
+                                <li>No transit/POIs</li>
+                                <li>"Dead map" feeling</li>
+                                <li>No dark variant</li>
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Option A: OpenStreetMap -->
+                <div class="tile-option active" tabindex="0" role="button" aria-label="Switch to OpenStreetMap tiles"
+                     data-layer="optionA" id="card-optionA">
+                    <div class="tile-option-header">
+                        <span class="tile-option-name">Option A: OpenStreetMap</span>
+                        <span class="badge badge-recommended">★ Recommended</span>
+                    </div>
+                    <div class="tile-option-similarity">
+                        Google Maps similarity: <span class="pct">~65%</span>
+                    </div>
+                    <div class="pros-cons">
+                        <div class="pros">
+                            <h4>Pros</h4>
+                            <ul>
+                                <li>Parks in green ✓</li>
+                                <li>Transit & POI labels</li>
+                                <li>Zero cost, no API key</li>
+                                <li>One-line code change</li>
+                                <li>Most complete free tiles</li>
+                            </ul>
+                        </div>
+                        <div class="cons">
+                            <h4>Cons</h4>
+                            <ul>
+                                <li>Slightly busy style</li>
+                                <li>Not as polished as Google</li>
+                                <li>Light theme only</li>
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Option B: Stadia Outdoors -->
+                <div class="tile-option" tabindex="0" role="button" aria-label="Switch to Stadia Outdoors tiles"
+                     data-layer="optionB" id="card-optionB">
+                    <div class="tile-option-header">
+                        <span class="tile-option-name">Option B: Stadia Outdoors</span>
+                        <span class="badge badge-option">Best Match</span>
+                    </div>
+                    <div class="tile-option-similarity">
+                        Google Maps similarity: <span class="pct">~80%</span>
+                    </div>
+                    <div class="pros-cons">
+                        <div class="pros">
+                            <h4>Pros</h4>
+                            <ul>
+                                <li>Best visual match to Google</li>
+                                <li>Parks, water, terrain</li>
+                                <li>Transit & schools labeled</li>
+                                <li>Clean modern typography</li>
+                                <li>Has dark variant</li>
+                            </ul>
+                        </div>
+                        <div class="cons">
+                            <h4>Cons</h4>
+                            <ul>
+                                <li>Requires Stadia account</li>
+                                <li>Free: 200K tiles/mo</li>
+                                <li>API key for production</li>
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Option C: Stadia Smooth -->
+                <div class="tile-option" tabindex="0" role="button" aria-label="Switch to Stadia Smooth tiles"
+                     data-layer="optionC" id="card-optionC">
+                    <div class="tile-option-header">
+                        <span class="tile-option-name">Option C: Stadia Smooth</span>
+                        <span class="badge badge-option">Clean</span>
+                    </div>
+                    <div class="tile-option-similarity">
+                        Google Maps similarity: <span class="pct">~70%</span>
+                    </div>
+                    <div class="pros-cons">
+                        <div class="pros">
+                            <h4>Pros</h4>
+                            <ul>
+                                <li>Clean, Apple Maps feel</li>
+                                <li>Parks visible, subtle terrain</li>
+                                <li>Excellent typography</li>
+                                <li>Dark variant available</li>
+                            </ul>
+                        </div>
+                        <div class="cons">
+                            <h4>Cons</h4>
+                            <ul>
+                                <li>Less POI detail</li>
+                                <li>Requires Stadia account</li>
+                                <li>Free: 200K tiles/mo</li>
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Feature Comparison Table -->
+                <h2 style="margin-top: 8px;">📊 Feature Matrix</h2>
+                <table class="feature-table" role="table" aria-label="Tile layer feature comparison">
+                    <thead>
+                        <tr>
+                            <th scope="col">Feature</th>
+                            <th scope="col">Positron</th>
+                            <th scope="col">OSM</th>
+                            <th scope="col">Outdoors</th>
+                            <th scope="col">Smooth</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td>Parks (green)</td>
+                            <td class="cross" aria-label="No">✗</td>
+                            <td class="check" aria-label="Yes">✓</td>
+                            <td class="check" aria-label="Yes">✓</td>
+                            <td class="check" aria-label="Yes">✓</td>
+                        </tr>
+                        <tr>
+                            <td>Street names</td>
+                            <td class="partial" aria-label="Partial">~</td>
+                            <td class="check" aria-label="Yes">✓</td>
+                            <td class="check" aria-label="Yes">✓</td>
+                            <td class="check" aria-label="Yes">✓</td>
+                        </tr>
+                        <tr>
+                            <td>Transit</td>
+                            <td class="cross" aria-label="No">✗</td>
+                            <td class="check" aria-label="Yes">✓</td>
+                            <td class="check" aria-label="Yes">✓</td>
+                            <td class="check" aria-label="Yes">✓</td>
+                        </tr>
+                        <tr>
+                            <td>POI labels</td>
+                            <td class="cross" aria-label="No">✗</td>
+                            <td class="check" aria-label="Yes">✓</td>
+                            <td class="check" aria-label="Yes">✓</td>
+                            <td class="partial" aria-label="Partial">~</td>
+                        </tr>
+                        <tr>
+                            <td>Free / No key</td>
+                            <td class="check" aria-label="Yes">✓</td>
+                            <td class="check" aria-label="Yes">✓</td>
+                            <td class="cross" aria-label="No">✗</td>
+                            <td class="cross" aria-label="No">✗</td>
+                        </tr>
+                        <tr>
+                            <td>Dark variant</td>
+                            <td class="cross" aria-label="No">✗</td>
+                            <td class="cross" aria-label="No">✗</td>
+                            <td class="check" aria-label="Yes">✓</td>
+                            <td class="check" aria-label="Yes">✓</td>
+                        </tr>
+                        <tr>
+                            <td>Terrain shading</td>
+                            <td class="cross" aria-label="No">✗</td>
+                            <td class="cross" aria-label="No">✗</td>
+                            <td class="check" aria-label="Yes">✓</td>
+                            <td class="partial" aria-label="Partial">~</td>
+                        </tr>
+                    </tbody>
+                </table>
+
+                <!-- Recommendation -->
+                <div class="recommendation">
+                    <h3>🏆 Recommended Approach</h3>
+                    <p>
+                        <strong>Phase 1 (now):</strong> Switch to <strong>OpenStreetMap Standard</strong> — zero cost, one-line change, immediate visual improvement.<br><br>
+                        <strong>Phase 2 (later):</strong> Upgrade to <strong>Stadia Outdoors</strong> — best free-tier quality, closest to Google Maps. Requires free Stadia account + API key.<br><br>
+                        <strong>200K tiles/month</strong> free tier is more than enough for a single-user local app.
+                    </p>
+                </div>
+            </aside>
+        </main>
+    </div>
+
+    <!-- Leaflet JS -->
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
+            integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo="
+            crossorigin=""></script>
+
+    <script>
+        // ===== Sunnyvale Boundary GeoJSON (simplified 66-point polygon) =====
+        const sunnyvaleBoundary = {"type":"FeatureCollection","features":[{"type":"Feature","properties":{"name":"Sunnyvale","state":"CA"},"geometry":{"type":"Polygon","coordinates":[[[-122.0651995,37.3431465],[-122.0627943,37.3391335],[-122.0614512,37.3375021],[-122.0591954,37.3381057],[-122.0580669,37.3377491],[-122.0582064,37.3376253],[-122.0579337,37.3367973],[-122.0585609,37.3361835],[-122.0565693,37.3311793],[-122.0528456,37.3306836],[-122.0528689,37.3318685],[-122.050872,37.3354913],[-122.0507558,37.3365117],[-122.0505333,37.3375088],[-122.0431471,37.3375233],[-122.0304478,37.3382505],[-122.0216194,37.3370819],[-122.0180022,37.332946],[-122.0123592,37.3377237],[-121.9954395,37.3386843],[-121.9987159,37.3414509],[-122.0029081,37.3421195],[-122.0018791,37.3452752],[-122.0008475,37.345176],[-122.0001692,37.3486646],[-122.0010956,37.35324],[-122.0011222,37.3524381],[-122.0009355,37.3540685],[-121.9996099,37.3603794],[-121.9959892,37.3656079],[-121.9873656,37.370349],[-121.9824624,37.37174],[-122.0023797,37.377431],[-122.0008708,37.3776262],[-121.9868716,37.3880812],[-121.9867604,37.4036943],[-121.9864309,37.4043605],[-121.9862398,37.4108756],[-121.986309,37.4128758],[-121.9863214,37.4169056],[-121.9862678,37.4170725],[-121.9957748,37.4176716],[-122.0486865,37.4590852],[-122.0517909,37.4591125],[-122.053943,37.4603114],[-122.0436213,37.4271715],[-122.0474032,37.4015381],[-122.0465058,37.395281],[-122.0473207,37.3885588],[-122.0492136,37.3860412],[-122.05069,37.3859461],[-122.0519073,37.3861674],[-122.0522037,37.3858778],[-122.0583535,37.3813414],[-122.0632626,37.3667237],[-122.061841,37.3619059],[-122.0626744,37.3590888],[-122.0608145,37.3567188],[-122.060774,37.3548366],[-122.0629482,37.353488],[-122.0637308,37.3504652],[-122.0648868,37.3478739],[-122.063481,37.3468423],[-122.064123,37.3449859],[-122.064984,37.3433196],[-122.0651995,37.3431465]]]}}]};
+
+        // ===== Sample Listings (real Sunnyvale coordinates) =====
+        const listings = [
+            { lat: 37.3688, lng: -122.0363, price: "$5.1K", address: "456 E Evelyn Ave" },
+            { lat: 37.3785, lng: -122.0312, price: "$6.2K", address: "1023 Morse Ave" },
+            { lat: 37.3550, lng: -122.0150, price: "$5.5K", address: "789 S Fair Oaks Ave" },
+            { lat: 37.3820, lng: -122.0480, price: "$4.8K", address: "312 W McKinley Ave" },
+            { lat: 37.3720, lng: -122.0550, price: "$7.3K", address: "1450 Hollenbeck Ave" },
+            { lat: 37.3610, lng: -122.0280, price: "$5.9K", address: "890 E Duane Ave" }
+        ];
+
+        // ===== Tile Layer Metadata =====
+        const tileInfo = {
+            current: {
+                name: "Current: CartoDB Positron",
+                badge: '<span class="badge badge-current">Current</span>',
+                badgeClass: "badge-current"
+            },
+            optionA: {
+                name: "Option A: OpenStreetMap",
+                badge: '<span class="badge badge-recommended">★ Recommended</span>',
+                badgeClass: "badge-recommended"
+            },
+            optionB: {
+                name: "Option B: Stadia Outdoors",
+                badge: '<span class="badge badge-option">Best Match</span>',
+                badgeClass: "badge-option"
+            },
+            optionC: {
+                name: "Option C: Stadia Smooth",
+                badge: '<span class="badge badge-option">Clean</span>',
+                badgeClass: "badge-option"
+            }
+        };
+
+        // ===== Initialize Map =====
+        const map = L.map('map', {
+            center: [37.3688, -122.0363],
+            zoom: 13,
+            zoomControl: true
+        });
+
+        // ===== Tile Layers =====
+        const cartoPositron = L.tileLayer(
+            'https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png',
+            {
+                attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/">CARTO</a>',
+                subdomains: 'abcd',
+                maxZoom: 20
+            }
+        );
+
+        const osmStandard = L.tileLayer(
+            'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',
+            {
+                attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
+                maxZoom: 19
+            }
+        );
+
+        const stadiaOutdoors = L.tileLayer(
+            'https://tiles.stadiamaps.com/tiles/outdoors/{z}/{x}/{y}{r}.png',
+            {
+                attribution: '&copy; <a href="https://stadiamaps.com/">Stadia Maps</a> &copy; <a href="https://openmaptiles.org/">OpenMapTiles</a> &copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
+                maxZoom: 20
+            }
+        );
+
+        const stadiaSmooth = L.tileLayer(
+            'https://tiles.stadiamaps.com/tiles/alidade_smooth/{z}/{x}/{y}{r}.png',
+            {
+                attribution: '&copy; <a href="https://stadiamaps.com/">Stadia Maps</a> &copy; <a href="https://openmaptiles.org/">OpenMapTiles</a> &copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
+                maxZoom: 20
+            }
+        );
+
+        // Default to Option A: OpenStreetMap (recommended immediate change)
+        osmStandard.addTo(map);
+
+        // ===== Layer Control =====
+        const baseLayers = {
+            "Current: CartoDB Positron": cartoPositron,
+            "Option A: OpenStreetMap ★": osmStandard,
+            "Option B: Stadia Outdoors": stadiaOutdoors,
+            "Option C: Stadia Smooth": stadiaSmooth
+        };
+
+        const layerControl = L.control.layers(baseLayers, null, {
+            position: 'topright',
+            collapsed: false
+        }).addTo(map);
+
+        // ===== Map → Layer Key Mapping =====
+        const layerToKey = new Map();
+        layerToKey.set(cartoPositron, 'current');
+        layerToKey.set(osmStandard, 'optionA');
+        layerToKey.set(stadiaOutdoors, 'optionB');
+        layerToKey.set(stadiaSmooth, 'optionC');
+
+        // ===== Sunnyvale City Boundary =====
+        L.geoJSON(sunnyvaleBoundary, {
+            style: {
+                color: '#1a73e8',
+                weight: 2,
+                fillColor: '#4285f4',
+                fillOpacity: 0.12,
+                dashArray: null
+            }
+        }).addTo(map);
+
+        // ===== Price Pill Markers =====
+        listings.forEach((listing, index) => {
+            const icon = L.divIcon({
+                className: '',
+                html: `<div class="price-pill" tabindex="0" role="button" aria-label="${listing.price}/mo at ${listing.address}">${listing.price}</div>`,
+                iconSize: [60, 24],
+                iconAnchor: [30, 12]
+            });
+
+            const marker = L.marker([listing.lat, listing.lng], { icon: icon }).addTo(map);
+
+            // Popup with listing info
+            const popupContent = `
+                <div style="font-family: Inter, system-ui, sans-serif; min-width: 200px; max-width: 280px;">
+                    <div style="font-size: 16px; font-weight: 800; color: #2563eb; margin-bottom: 4px;">${listing.price}/mo</div>
+                    <div style="font-size: 13px; font-weight: 600; color: #111111; margin-bottom: 6px;">${listing.address}</div>
+                    <div style="font-size: 12px; color: #555555;">Sunnyvale, CA 94086</div>
+                    <div style="font-size: 12px; color: #555555; margin-top: 4px;">3 bd | 2 ba | 1,450 sqft (135 m²)</div>
+                    <div style="margin-top: 8px; display: flex; gap: 6px;">
+                        <span style="font-size: 10px; padding: 2px 6px; border-radius: 8px; background: rgba(22,163,74,0.1); color: #16a34a; border: 1px solid rgba(22,163,74,0.3); font-weight: 600;">New · 2d ago</span>
+                        <span style="font-size: 10px; padding: 2px 6px; border-radius: 8px; background: rgba(37,99,235,0.1); color: #2563eb; border: 1px solid rgba(37,99,235,0.3); font-weight: 600;">Zillow ↗</span>
+                    </div>
+                </div>
+            `;
+
+            marker.bindPopup(popupContent, {
+                maxWidth: 300,
+                className: 'custom-popup'
+            });
+        });
+
+        // ===== Update Active Tile Banner on Layer Change =====
+        function updateActiveTile(layerKey) {
+            const info = tileInfo[layerKey];
+            if (!info) return;
+
+            document.getElementById('activeTileName').textContent = info.name;
+            document.getElementById('activeTileBadge').outerHTML = info.badge;
+
+            // Update card active states
+            document.querySelectorAll('.tile-option').forEach(card => {
+                card.classList.remove('active');
+            });
+            const activeCard = document.getElementById('card-' + layerKey);
+            if (activeCard) {
+                activeCard.classList.add('active');
+            }
+        }
+
+        // Listen for base layer changes from Leaflet control
+        map.on('baselayerchange', function(e) {
+            const layer = e.layer;
+            const key = layerToKey.get(layer);
+            if (key) {
+                updateActiveTile(key);
+            }
+        });
+
+        // ===== Card Click → Switch Layer =====
+        const keyToLayer = {
+            current: cartoPositron,
+            optionA: osmStandard,
+            optionB: stadiaOutdoors,
+            optionC: stadiaSmooth
+        };
+
+        document.querySelectorAll('.tile-option').forEach(card => {
+            function activateLayer() {
+                const layerKey = card.dataset.layer;
+                const targetLayer = keyToLayer[layerKey];
+                if (!targetLayer) return;
+
+                // Remove all base layers, add the target
+                Object.values(keyToLayer).forEach(l => {
+                    if (map.hasLayer(l)) map.removeLayer(l);
+                });
+                targetLayer.addTo(map);
+
+                updateActiveTile(layerKey);
+
+                // Update the Leaflet radio buttons to match
+                // (Leaflet's layer control listens for map events, so the radio should update)
+            }
+
+            card.addEventListener('click', activateLayer);
+            card.addEventListener('keydown', function(e) {
+                if (e.key === 'Enter' || e.key === ' ') {
+                    e.preventDefault();
+                    activateLayer();
+                }
+            });
+        });
+
+        // ===== Initial State =====
+        updateActiveTile('optionA');
+    </script>
+</body>
+</html>

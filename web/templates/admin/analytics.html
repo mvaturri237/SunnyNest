@@ -1,0 +1,233 @@
+{% extends "admin/base.html" %}
+
+{% block title %}Analytics{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <h1 class="page-title">📈 Listing Analytics</h1>
+    <p class="page-subtitle">Price trends, source breakdown, and inventory analysis</p>
+</div>
+
+<!-- Summary Stats -->
+<div class="kpi-grid kpi-grid-3">
+    <div class="kpi-card kpi-blue">
+        <div class="kpi-label">Total Listings</div>
+        <div class="kpi-value">{{ total_prices }}</div>
+    </div>
+    <div class="kpi-card kpi-purple">
+        <div class="kpi-label">Avg Price</div>
+        <div class="kpi-value">${{ "%.0f"|format(avg_price) }}</div>
+    </div>
+    <div class="kpi-card kpi-teal">
+        <div class="kpi-label">Median Price</div>
+        <div class="kpi-value">${{ "%.0f"|format(median_price) }}</div>
+    </div>
+</div>
+
+<!-- Price Distribution -->
+<div class="section">
+    <h2 class="section-title">Price Distribution</h2>
+    {% if price_buckets %}
+    <div class="chart-bars">
+        {% set max_count = price_buckets|map(attribute='count')|max %}
+        {% for bucket in price_buckets %}
+        <div class="bar-row">
+            <span class="bar-label">{{ bucket.range }}</span>
+            <div class="bar-track">
+                <div class="bar-fill bar-fill-purple" style="width: {{ (bucket.count / max_count * 100)|round }}%"></div>
+            </div>
+            <span class="bar-value">{{ bucket.count }}</span>
+        </div>
+        {% endfor %}
+    </div>
+    {% else %}
+    <div class="empty-state">
+        <p>No price data available.</p>
+    </div>
+    {% endif %}
+</div>
+
+<!-- Two-column: Source Breakdown + Bedrooms -->
+<div class="two-col">
+    <!-- Source Breakdown -->
+    <div class="section">
+        <h2 class="section-title">Source Breakdown (Active vs Inactive)</h2>
+        {% if source_data %}
+        <div class="table-container">
+            <table class="admin-table">
+                <thead>
+                    <tr>
+                        <th>Source</th>
+                        <th>Active</th>
+                        <th>Inactive</th>
+                        <th>Total</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for source, counts in source_data.items()|sort %}
+                    <tr>
+                        <td><span class="source-badge">{{ source|capitalize }}</span></td>
+                        <td class="count-cell count-green">{{ counts.active }}</td>
+                        <td class="count-cell count-gray">{{ counts.inactive }}</td>
+                        <td class="count-cell"><strong>{{ counts.active + counts.inactive }}</strong></td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% else %}
+        <div class="empty-state">
+            <p>No source data available.</p>
+        </div>
+        {% endif %}
+    </div>
+
+    <!-- Listings by Bedroom Count -->
+    <div class="section">
+        <h2 class="section-title">Listings by Bedroom Count</h2>
+        {% if bedroom_counts %}
+        <div class="chart-bars">
+            {% set max_br = bedroom_counts.values()|max %}
+            {% for label, count in bedroom_counts.items()|sort %}
+            <div class="bar-row">
+                <span class="bar-label">{{ label }}</span>
+                <div class="bar-track">
+                    <div class="bar-fill bar-fill-blue" style="width: {{ (count / max_br * 100)|round }}%"></div>
+                </div>
+                <span class="bar-value">{{ count }}</span>
+            </div>
+            {% endfor %}
+        </div>
+        {% else %}
+        <div class="empty-state">
+            <p>No bedroom data available.</p>
+        </div>
+        {% endif %}
+    </div>
+</div>
+
+<!-- Price Changes -->
+<div class="section">
+    <h2 class="section-title">Price Changes</h2>
+    {% if price_changes %}
+    <div class="table-container">
+        <table class="admin-table">
+            <thead>
+                <tr>
+                    <th>Address</th>
+                    <th>Old Price</th>
+                    <th>New Price</th>
+                    <th>Change</th>
+                    <th>Area</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for pc in price_changes %}
+                <tr>
+                    <td>{{ pc.address }}</td>
+                    <td class="price-cell">${{ "%.0f"|format(pc.old_price) }}</td>
+                    <td class="price-cell">${{ "%.0f"|format(pc.new_price) }}</td>
+                    <td class="{{ 'change-up' if pc.change > 0 else 'change-down' }}">
+                        {{ "📈" if pc.change > 0 else "📉" }} ${{ "%.0f"|format(pc.change|abs) }}
+                    </td>
+                    <td>{{ pc.area }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    {% else %}
+    <div class="empty-state">
+        <p>No price changes detected across listings.</p>
+    </div>
+    {% endif %}
+</div>
+
+<!-- Inventory Timeline -->
+<div class="section">
+    <h2 class="section-title">Inventory Timeline</h2>
+    {% if timeline %}
+    <div class="chart-bars">
+        {% set max_inv = timeline|map(attribute='count')|max %}
+        {% for point in timeline %}
+        <div class="bar-row">
+            <span class="bar-label">{{ point.date }}</span>
+            <div class="bar-track">
+                <div class="bar-fill bar-fill-teal" style="width: {{ (point.count / max_inv * 100)|round }}%"></div>
+            </div>
+            <span class="bar-value">{{ point.count }}</span>
+        </div>
+        {% endfor %}
+    </div>
+    {% else %}
+    <div class="empty-state">
+        <p>No inventory timeline data available.</p>
+    </div>
+    {% endif %}
+</div>
+
+<!-- Listing Lifecycle -->
+<div class="section">
+    <h2 class="section-title">⏱️ Listing Lifecycle</h2>
+    <p class="section-subtitle">How long listings stay on the market before being removed</p>
+    
+    <!-- KPI Cards -->
+    <div class="kpi-grid kpi-grid-3">
+        <div class="kpi-card kpi-blue">
+            <div class="kpi-label">Avg Lifespan</div>
+            <div class="kpi-value">{{ "%.1f"|format(lifecycle_stats.avg_lifespan_days) }} days</div>
+        </div>
+        <div class="kpi-card kpi-purple">
+            <div class="kpi-label">Median Lifespan</div>
+            <div class="kpi-value">{{ "%.1f"|format(lifecycle_stats.median_lifespan_days) }} days</div>
+        </div>
+        <div class="kpi-card kpi-teal">
+            <div class="kpi-label">Total Removed</div>
+            <div class="kpi-value">{{ lifecycle_stats.total_removed }}</div>
+        </div>
+    </div>
+    
+    <!-- Two-column: By Bedrooms + By Price Range -->
+    <div class="two-col">
+        <div class="section">
+            <h2 class="section-title">Lifespan by Bedrooms</h2>
+            {% if lifecycle_by_bedrooms %}
+            <div class="chart-bars">
+                {% set max_life_br = lifecycle_by_bedrooms|map(attribute='avg_days')|max %}
+                {% for item in lifecycle_by_bedrooms %}
+                <div class="bar-row">
+                    <span class="bar-label">{{ item.bedrooms }} BR</span>
+                    <div class="bar-track">
+                        <div class="bar-fill bar-fill-blue" style="width: {{ (item.avg_days / max_life_br * 100)|round if max_life_br else 0 }}%"></div>
+                    </div>
+                    <span class="bar-value">{{ "%.1f"|format(item.avg_days) }}d (n={{ item.count }})</span>
+                </div>
+                {% endfor %}
+            </div>
+            {% else %}
+            <div class="empty-state"><p>No lifecycle data available.</p></div>
+            {% endif %}
+        </div>
+        
+        <div class="section">
+            <h2 class="section-title">Lifespan by Price Range</h2>
+            {% if lifecycle_by_price %}
+            <div class="chart-bars">
+                {% set max_life_pr = lifecycle_by_price|map(attribute='avg_days')|max %}
+                {% for item in lifecycle_by_price %}
+                <div class="bar-row">
+                    <span class="bar-label">{{ item.range }}</span>
+                    <div class="bar-track">
+                        <div class="bar-fill bar-fill-purple" style="width: {{ (item.avg_days / max_life_pr * 100)|round if max_life_pr else 0 }}%"></div>
+                    </div>
+                    <span class="bar-value">{{ "%.1f"|format(item.avg_days) }}d (n={{ item.count }})</span>
+                </div>
+                {% endfor %}
+            </div>
+            {% else %}
+            <div class="empty-state"><p>No lifecycle data available.</p></div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+{% endblock %}

@@ -1,0 +1,1352 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>SunnyNest — Modern SaaS Dashboard</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <style>
+    /* ============================================
+       DESIGN TOKENS — Dark SaaS Theme (Blue Accent)
+       ============================================ */
+    :root {
+      --color-bg: #0c0f16;
+      --color-bg-elevated: #131720;
+      --color-surface: #1a1f2e;
+      --color-surface-hover: #212738;
+      --color-surface-active: #252c40;
+
+      --color-brand: #3b82f6;
+      --color-brand-hover: #2563eb;
+      --color-brand-light: rgba(59, 130, 246, 0.12);
+      --color-brand-border: rgba(59, 130, 246, 0.3);
+      --color-brand-glow: rgba(59, 130, 246, 0.15);
+
+      --color-text-primary: #f1f3f9;
+      --color-text-secondary: #a0a8c0;
+      --color-text-muted: #6b7394;
+      --color-text-dim: #4a5170;
+
+      --color-border: rgba(255, 255, 255, 0.06);
+      --color-border-hover: rgba(59, 130, 246, 0.25);
+      --color-border-subtle: rgba(255, 255, 255, 0.04);
+
+      --color-success: #22c55e;
+      --color-success-bg: rgba(34, 197, 94, 0.12);
+      --color-success-border: rgba(34, 197, 94, 0.25);
+      --color-warning: #f59e0b;
+      --color-warning-bg: rgba(245, 158, 11, 0.12);
+      --color-warning-border: rgba(245, 158, 11, 0.25);
+      --color-danger: #ef4444;
+      --color-danger-bg: rgba(239, 68, 68, 0.12);
+      --color-danger-border: rgba(239, 68, 68, 0.25);
+
+      --shadow-card: 0 1px 3px rgba(0, 0, 0, 0.3), 0 1px 2px rgba(0, 0, 0, 0.2);
+      --shadow-card-hover: 0 6px 20px rgba(0, 0, 0, 0.35), 0 0 0 1px var(--color-border-hover);
+
+      --font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+
+      --radius-sm: 6px;
+      --radius-md: 8px;
+      --radius-lg: 12px;
+      --radius-full: 9999px;
+
+      --transition-fast: 150ms ease-out;
+      --transition-base: 200ms ease-out;
+
+      --filter-bar-height: 56px;
+      --panel-width: 440px;
+    }
+
+    /* ============================================
+       RESET & BASE
+       ============================================ */
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    html {
+      font-size: 16px;
+      -webkit-font-smoothing: antialiased;
+      -moz-osx-font-smoothing: grayscale;
+    }
+
+    body {
+      font-family: var(--font-family);
+      background: var(--color-bg);
+      color: var(--color-text-primary);
+      line-height: 1.5;
+      min-height: 100vh;
+      overflow: hidden;
+    }
+
+    a { color: inherit; text-decoration: none; }
+    button { font-family: inherit; cursor: pointer; border: none; background: none; }
+
+    :focus-visible {
+      outline: 2px solid var(--color-brand);
+      outline-offset: 2px;
+      border-radius: var(--radius-sm);
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      *, *::before, *::after {
+        animation-duration: 0.01ms !important;
+        transition-duration: 0.01ms !important;
+      }
+    }
+
+    /* ============================================
+       FILTER BAR — Styled pill buttons
+       ============================================ */
+    .filter-bar {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 10px 20px;
+      background: var(--color-bg-elevated);
+      border-bottom: 1px solid var(--color-border);
+      height: var(--filter-bar-height);
+      flex-shrink: 0;
+    }
+
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      margin-right: 12px;
+      flex-shrink: 0;
+    }
+
+    .brand-icon {
+      width: 32px;
+      height: 32px;
+      background: var(--color-brand);
+      border-radius: var(--radius-md);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 1.1rem;
+    }
+
+    .brand-name {
+      font-size: 1.25rem;
+      font-weight: 800;
+      color: var(--color-text-primary);
+      letter-spacing: -0.5px;
+    }
+
+    .filter-pill {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      padding: 7px 14px;
+      background: var(--color-surface);
+      border: 1px solid var(--color-border);
+      border-radius: var(--radius-full);
+      color: var(--color-text-secondary);
+      font-size: 0.8rem;
+      font-weight: 500;
+      transition: all var(--transition-fast);
+      white-space: nowrap;
+      cursor: pointer;
+    }
+
+    .filter-pill:hover {
+      background: var(--color-surface-hover);
+      border-color: rgba(255, 255, 255, 0.12);
+      color: var(--color-text-primary);
+    }
+
+    .filter-pill.active {
+      background: var(--color-brand-light);
+      border-color: var(--color-brand-border);
+      color: var(--color-brand);
+    }
+
+    .filter-pill .pill-chevron {
+      font-size: 0.6rem;
+      opacity: 0.5;
+      margin-left: 2px;
+    }
+
+    .result-badge {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      padding: 2px 8px;
+      background: var(--color-brand);
+      color: white;
+      border-radius: var(--radius-full);
+      font-size: 0.7rem;
+      font-weight: 700;
+      min-width: 20px;
+      height: 20px;
+    }
+
+    .filter-spacer { flex: 1; }
+
+    .reset-btn {
+      width: 36px;
+      height: 36px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      border-radius: var(--radius-full);
+      color: var(--color-text-muted);
+      font-size: 1rem;
+      transition: all var(--transition-fast);
+    }
+
+    .reset-btn:hover {
+      background: var(--color-surface-hover);
+      color: var(--color-text-primary);
+    }
+
+    /* ============================================
+       RESULT SUMMARY BAR
+       ============================================ */
+    .result-summary {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 8px 16px;
+      background: var(--color-bg);
+      border-bottom: 1px solid var(--color-border-subtle);
+      font-size: 0.78rem;
+      color: var(--color-text-muted);
+      flex-shrink: 0;
+    }
+
+    .result-summary strong {
+      color: var(--color-text-secondary);
+      font-weight: 600;
+    }
+
+    .result-summary .dot {
+      width: 3px;
+      height: 3px;
+      border-radius: 50%;
+      background: var(--color-text-dim);
+    }
+
+    /* ============================================
+       SPLIT PANEL LAYOUT
+       ============================================ */
+    .split-panel {
+      display: flex;
+      height: calc(100vh - var(--filter-bar-height));
+      overflow: hidden;
+    }
+
+    .panel-left {
+      width: var(--panel-width);
+      min-width: 380px;
+      max-width: 480px;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+      background: var(--color-bg);
+    }
+
+    .panel-right {
+      flex: 1;
+      border-left: 1px solid var(--color-border);
+      position: relative;
+      overflow: hidden;
+    }
+
+    /* ============================================
+       LISTINGS SCROLL AREA
+       ============================================ */
+    .listings-scroll {
+      flex: 1;
+      overflow-y: auto;
+      overflow-x: hidden;
+      padding: 10px 12px;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+
+    .listings-scroll::-webkit-scrollbar { width: 5px; }
+    .listings-scroll::-webkit-scrollbar-track { background: transparent; }
+    .listings-scroll::-webkit-scrollbar-thumb {
+      background: rgba(255, 255, 255, 0.08);
+      border-radius: 3px;
+    }
+    .listings-scroll::-webkit-scrollbar-thumb:hover {
+      background: rgba(255, 255, 255, 0.15);
+    }
+
+    /* ============================================
+       LISTING CARD — Horizontal layout (image left + text right)
+       3-4 cards visible at once (~150px card height)
+       ============================================ */
+    .listing-card {
+      display: flex;
+      gap: 12px;
+      padding: 10px;
+      background: var(--color-surface);
+      border: 1px solid var(--color-border);
+      border-radius: var(--radius-lg);
+      box-shadow: var(--shadow-card);
+      transition: transform var(--transition-base),
+                  box-shadow var(--transition-base),
+                  border-color var(--transition-base);
+      cursor: pointer;
+      overflow: hidden;
+    }
+
+    .listing-card:hover {
+      transform: translateY(-2px);
+      box-shadow: var(--shadow-card-hover);
+      border-color: var(--color-border-hover);
+    }
+
+    .listing-card:focus-within {
+      outline: 2px solid var(--color-brand);
+      outline-offset: 2px;
+    }
+
+    /* --- Card: Thumbnail (left) --- */
+    .card-thumbnail {
+      position: relative;
+      width: 140px;
+      min-width: 140px;
+      height: 130px;
+      flex-shrink: 0;
+      border-radius: var(--radius-md);
+      overflow: hidden;
+    }
+
+    .card-thumbnail img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      display: block;
+      transition: transform var(--transition-base);
+    }
+
+    .listing-card:hover .card-thumbnail img {
+      transform: scale(1.03);
+    }
+
+    .card-thumbnail .placeholder-img {
+      width: 100%;
+      height: 100%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: var(--color-surface-hover);
+      color: var(--color-text-dim);
+      font-size: 2rem;
+    }
+
+    /* Favorite button — top right of thumbnail */
+    .card-fav-btn {
+      position: absolute;
+      top: 6px;
+      right: 6px;
+      width: 30px;
+      height: 30px;
+      background: rgba(0, 0, 0, 0.5);
+      backdrop-filter: blur(6px);
+      -webkit-backdrop-filter: blur(6px);
+      border: none;
+      border-radius: 50%;
+      color: white;
+      font-size: 14px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      transition: all var(--transition-fast);
+      z-index: 10;
+      opacity: 0.8;
+    }
+
+    .card-fav-btn:hover {
+      background: rgba(0, 0, 0, 0.7);
+      opacity: 1;
+      transform: scale(1.1);
+    }
+
+    .card-fav-btn.active {
+      color: #f43f5e;
+      opacity: 1;
+      background: rgba(0, 0, 0, 0.6);
+    }
+
+    /* Property type badge — bottom left of thumbnail */
+    .card-type-badge {
+      position: absolute;
+      bottom: 6px;
+      left: 6px;
+      padding: 2px 7px;
+      background: rgba(0, 0, 0, 0.55);
+      backdrop-filter: blur(6px);
+      border-radius: var(--radius-sm);
+      font-size: 10px;
+      font-weight: 600;
+      color: rgba(255, 255, 255, 0.85);
+      text-transform: capitalize;
+      z-index: 10;
+    }
+
+    /* --- Card: Details (right) --- */
+    .card-details {
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      gap: 5px;
+      flex: 1;
+      min-width: 0;
+      padding: 2px 0;
+    }
+
+    /* Price row */
+    .card-price-row {
+      display: flex;
+      align-items: baseline;
+      gap: 6px;
+    }
+
+    .card-price {
+      font-size: 20px;
+      font-weight: 800;
+      color: var(--color-text-primary);
+      letter-spacing: -0.5px;
+      line-height: 1;
+    }
+
+    .card-price-unit {
+      font-size: 13px;
+      font-weight: 500;
+      color: var(--color-text-muted);
+    }
+
+    /* Address */
+    .card-address {
+      font-size: 13px;
+      font-weight: 500;
+      color: var(--color-text-secondary);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      line-height: 1.2;
+    }
+
+    /* Specs row */
+    .card-specs {
+      display: flex;
+      align-items: center;
+      gap: 5px;
+      font-size: 12.5px;
+      font-weight: 500;
+      color: var(--color-text-muted);
+      line-height: 1.2;
+    }
+
+    .card-specs .spec-dot {
+      width: 3px;
+      height: 3px;
+      border-radius: 50%;
+      background: var(--color-text-dim);
+      flex-shrink: 0;
+    }
+
+    /* Tags + source row */
+    .card-tag-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 5px;
+      align-items: center;
+    }
+
+    .tag {
+      display: inline-flex;
+      align-items: center;
+      gap: 3px;
+      padding: 2px 8px;
+      border-radius: var(--radius-full);
+      font-size: 11px;
+      font-weight: 600;
+      line-height: 1.3;
+      white-space: nowrap;
+    }
+
+    .tag-new {
+      background: var(--color-success-bg);
+      color: var(--color-success);
+      border: 1px solid var(--color-success-border);
+    }
+
+    .tag-price-drop {
+      background: var(--color-success-bg);
+      color: var(--color-success);
+      border: 1px solid var(--color-success-border);
+    }
+
+    .tag-price-up {
+      background: var(--color-danger-bg);
+      color: var(--color-danger);
+      border: 1px solid var(--color-danger-border);
+    }
+
+    .tag-days {
+      background: transparent;
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      color: var(--color-text-muted);
+    }
+
+    .tag-pet {
+      background: rgba(59, 130, 246, 0.08);
+      color: #60a5fa;
+      border: 1px solid rgba(59, 130, 246, 0.2);
+    }
+
+    /* Source pill link */
+    .source-pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      padding: 2px 9px;
+      border: 1px solid var(--color-brand-border);
+      border-radius: var(--radius-full);
+      font-size: 11px;
+      font-weight: 500;
+      color: var(--color-brand);
+      background: var(--color-brand-light);
+      transition: all var(--transition-fast);
+      cursor: pointer;
+      margin-left: auto;
+      text-decoration: none;
+    }
+
+    .source-pill:hover {
+      background: rgba(59, 130, 246, 0.2);
+      border-color: rgba(59, 130, 246, 0.5);
+    }
+
+    .source-pill img {
+      width: 13px;
+      height: 13px;
+      border-radius: 2px;
+    }
+
+    /* Location line */
+    .card-location {
+      font-size: 11px;
+      color: var(--color-text-dim);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      line-height: 1.2;
+    }
+
+    /* ============================================
+       PAGINATION
+       ============================================ */
+    .pagination {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 12px;
+      padding: 10px 16px;
+      border-top: 1px solid var(--color-border);
+      flex-shrink: 0;
+      background: var(--color-bg);
+    }
+
+    .pagination-btn {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      padding: 7px 14px;
+      background: var(--color-surface);
+      border: 1px solid var(--color-border);
+      border-radius: var(--radius-md);
+      color: var(--color-text-secondary);
+      font-size: 0.82rem;
+      font-weight: 500;
+      transition: all var(--transition-fast);
+      min-height: 36px;
+    }
+
+    .pagination-btn:hover:not(:disabled) {
+      background: var(--color-surface-hover);
+      border-color: var(--color-border-hover);
+      color: var(--color-text-primary);
+    }
+
+    .pagination-btn:disabled {
+      opacity: 0.3;
+      cursor: not-allowed;
+    }
+
+    .pagination-info {
+      text-align: center;
+      font-size: 0.82rem;
+      color: var(--color-text-muted);
+    }
+
+    .pagination-hint {
+      font-size: 0.68rem;
+      color: var(--color-text-dim);
+      display: block;
+      margin-top: 2px;
+    }
+
+    /* ============================================
+       MAP PANEL
+       ============================================ */
+    .map-placeholder {
+      width: 100%;
+      height: 100%;
+      background: #e8eaed;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .map-controls {
+      position: absolute;
+      top: 16px;
+      left: 16px;
+      display: flex;
+      flex-direction: column;
+      z-index: 20;
+      border-radius: var(--radius-md);
+      overflow: hidden;
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+    }
+
+    .map-zoom-btn {
+      width: 36px;
+      height: 36px;
+      background: white;
+      border: none;
+      color: #333;
+      font-size: 18px;
+      font-weight: 700;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      transition: background var(--transition-fast);
+    }
+
+    .map-zoom-btn + .map-zoom-btn { border-top: 1px solid #e5e7eb; }
+    .map-zoom-btn:hover { background: #f3f4f6; }
+
+    .map-marker {
+      position: absolute;
+      background-color: var(--color-brand);
+      color: white;
+      font-size: 11px;
+      font-weight: 700;
+      padding: 4px 9px;
+      border-radius: var(--radius-full);
+      white-space: nowrap;
+      cursor: pointer;
+      box-shadow: 0 2px 8px rgba(59, 130, 246, 0.3);
+      transition: transform var(--transition-fast), box-shadow var(--transition-fast);
+      z-index: 10;
+    }
+
+    .map-marker:hover {
+      transform: scale(1.12);
+      box-shadow: 0 4px 16px rgba(59, 130, 246, 0.4);
+      z-index: 15;
+    }
+
+    .map-attribution {
+      position: absolute;
+      bottom: 6px;
+      right: 6px;
+      font-size: 11px;
+      color: #666;
+      background: rgba(255, 255, 255, 0.85);
+      padding: 3px 8px;
+      border-radius: var(--radius-sm);
+      z-index: 20;
+    }
+
+    .map-attribution a { color: #0078A8; }
+    .map-attribution a:hover { text-decoration: underline; }
+
+    /* ============================================
+       STATES — Loading skeleton
+       ============================================ */
+    .skeleton-card {
+      display: flex;
+      gap: 12px;
+      padding: 10px;
+      background: var(--color-surface);
+      border: 1px solid var(--color-border);
+      border-radius: var(--radius-lg);
+      overflow: hidden;
+    }
+
+    .skeleton-thumb {
+      width: 140px;
+      min-width: 140px;
+      height: 130px;
+      border-radius: var(--radius-md);
+      background: linear-gradient(90deg, var(--color-surface) 25%, var(--color-surface-hover) 50%, var(--color-surface) 75%);
+      background-size: 200% 100%;
+      animation: shimmer 1.5s infinite;
+    }
+
+    .skeleton-content {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      padding: 6px 0;
+    }
+
+    .skeleton-line {
+      height: 14px;
+      border-radius: var(--radius-sm);
+      background: linear-gradient(90deg, var(--color-surface) 25%, var(--color-surface-hover) 50%, var(--color-surface) 75%);
+      background-size: 200% 100%;
+      animation: shimmer 1.5s infinite;
+    }
+
+    .skeleton-line.h20 { height: 22px; }
+    .skeleton-line.w60 { width: 60%; }
+    .skeleton-line.w80 { width: 80%; }
+    .skeleton-line.w40 { width: 40%; }
+    .skeleton-line.w50 { width: 50%; }
+    .skeleton-line.w30 { width: 30%; }
+
+    @keyframes shimmer {
+      0% { background-position: 200% 0; }
+      100% { background-position: -200% 0; }
+    }
+
+    /* ============================================
+       STATES — Empty
+       ============================================ */
+    .empty-state {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 64px 32px;
+      text-align: center;
+      gap: 16px;
+      flex: 1;
+    }
+
+    .empty-state-icon {
+      width: 64px;
+      height: 64px;
+      background: var(--color-surface);
+      border-radius: 16px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 1.8rem;
+    }
+
+    .empty-state-title {
+      font-size: 1.05rem;
+      font-weight: 600;
+      color: var(--color-text-primary);
+    }
+
+    .empty-state-text {
+      font-size: 0.85rem;
+      color: var(--color-text-muted);
+      max-width: 280px;
+      line-height: 1.5;
+    }
+
+    .btn-primary {
+      padding: 9px 20px;
+      background: var(--color-brand);
+      color: white;
+      border-radius: var(--radius-md);
+      font-size: 0.82rem;
+      font-weight: 600;
+      transition: all var(--transition-fast);
+      border: none;
+    }
+
+    .btn-primary:hover { background: var(--color-brand-hover); }
+
+    /* ============================================
+       STATES — Error
+       ============================================ */
+    .error-state {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 64px 32px;
+      text-align: center;
+      gap: 14px;
+      flex: 1;
+    }
+
+    .error-state-icon {
+      width: 64px;
+      height: 64px;
+      background: var(--color-danger-bg);
+      border-radius: 16px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 1.8rem;
+    }
+
+    .error-state-title {
+      font-size: 1rem;
+      font-weight: 600;
+      color: var(--color-text-primary);
+    }
+
+    .error-state-text {
+      font-size: 0.85rem;
+      color: var(--color-text-muted);
+      max-width: 280px;
+      line-height: 1.5;
+    }
+
+    .btn-outline-danger {
+      padding: 9px 20px;
+      background: transparent;
+      border: 1px solid var(--color-danger-border);
+      color: var(--color-danger);
+      border-radius: var(--radius-md);
+      font-size: 0.82rem;
+      font-weight: 600;
+      transition: all var(--transition-fast);
+    }
+
+    .btn-outline-danger:hover { background: var(--color-danger-bg); }
+
+    /* ============================================
+       STATE TABS (Demo)
+       ============================================ */
+    .state-tabs {
+      position: fixed;
+      bottom: 20px;
+      left: 50%;
+      transform: translateX(-50%);
+      display: flex;
+      gap: 2px;
+      background: rgba(0, 0, 0, 0.9);
+      padding: 4px;
+      border-radius: var(--radius-lg);
+      z-index: 1000;
+      box-shadow: 0 8px 32px rgba(0, 0, 0, 0.6);
+      backdrop-filter: blur(12px);
+    }
+
+    .state-tab {
+      padding: 7px 16px;
+      border-radius: var(--radius-md);
+      font-size: 0.72rem;
+      font-weight: 600;
+      color: #888;
+      transition: all var(--transition-fast);
+      white-space: nowrap;
+    }
+
+    .state-tab:hover { color: white; background: rgba(255, 255, 255, 0.08); }
+    .state-tab.active { color: white; background: var(--color-brand); }
+
+    .state-panel { display: none; }
+    .state-panel.active { display: flex; flex-direction: column; flex: 1; overflow: hidden; }
+
+    /* ============================================
+       RESPONSIVE
+       ============================================ */
+    @media (max-width: 1024px) {
+      .panel-left { min-width: 340px; width: 38%; }
+    }
+
+    @media (max-width: 768px) {
+      .split-panel { flex-direction: column; }
+      .panel-left { width: 100%; max-width: none; min-width: auto; height: 55vh; }
+      .panel-right { border-left: none; border-top: 1px solid var(--color-border); height: 45vh; }
+      .filter-bar { overflow-x: auto; gap: 4px; padding: 8px 12px; }
+    }
+  </style>
+</head>
+<body>
+
+  <!-- ============================================
+       FILTER BAR
+       ============================================ -->
+  <header class="filter-bar" role="banner">
+    <div class="brand">
+      <div class="brand-icon" aria-hidden="true">🏠</div>
+      <span class="brand-name">SunnyNest</span>
+    </div>
+
+    <button class="filter-pill active" aria-label="Price range: $5K to $6.5K" aria-haspopup="listbox">
+      💰 $5K–$6.5K <span class="pill-chevron">▾</span>
+    </button>
+
+    <button class="filter-pill active" aria-label="Bedrooms: 3 to 4" aria-haspopup="listbox">
+      🛏 3-4 <span class="pill-chevron">▾</span>
+    </button>
+
+    <button class="filter-pill" aria-label="Bathrooms: Any" aria-haspopup="listbox">
+      🚿 Any <span class="pill-chevron">▾</span>
+    </button>
+
+    <button class="filter-pill" aria-label="Property type: Any" aria-haspopup="listbox">
+      🏠 Any Type <span class="pill-chevron">▾</span>
+    </button>
+
+    <button class="filter-pill" aria-label="Source: All" aria-haspopup="listbox">
+      📡 All <span class="pill-chevron">▾</span>
+    </button>
+
+    <button class="filter-pill" aria-label="View: Default" aria-haspopup="listbox">
+      👁️ Def… <span class="pill-chevron">▾</span>
+    </button>
+
+    <button class="filter-pill" aria-label="Sort: Newest first" aria-haspopup="listbox">
+      📊 Newest F… <span class="pill-chevron">▾</span>
+    </button>
+
+    <span class="result-badge" aria-live="polite" aria-label="13 results">13</span>
+
+    <span class="filter-spacer"></span>
+
+    <button class="reset-btn" aria-label="Reset all filters" title="Reset all filters">✕</button>
+  </header>
+
+  <!-- ============================================
+       SPLIT PANEL
+       ============================================ -->
+  <main class="split-panel" role="main">
+
+    <!-- LEFT PANEL: Listings -->
+    <section class="panel-left" aria-label="Listing results">
+
+      <div class="result-summary">
+        <strong>13 rentals</strong>
+        <span class="dot"></span>
+        <span>Sunnyvale, CA</span>
+        <span class="dot"></span>
+        <span>$5K–$6.5K</span>
+        <span class="dot"></span>
+        <span>3-4 beds</span>
+      </div>
+
+      <!-- === DEFAULT STATE === -->
+      <div class="state-panel active" id="state-default">
+        <div class="listings-scroll" role="list" aria-label="Rental listings" tabindex="0">
+
+          <!-- CARD 1 — 749 Lois Ave (real data, listed Mar 26 = 1d ago) -->
+          <article class="listing-card" role="listitem" tabindex="0" aria-label="$6,000 per month, 749 Lois Ave">
+            <div class="card-thumbnail">
+              <img src="https://photos.zillowstatic.com/fp/72947fdc2cba78be464ce28c68b2ab3b-p_f.jpg" alt="Photo of 749 Lois Ave, Sunnyvale" loading="lazy">
+              <button class="card-fav-btn" aria-label="Save to favorites" aria-pressed="false">☆</button>
+              <span class="card-type-badge">House</span>
+            </div>
+            <div class="card-details">
+              <div class="card-price-row">
+                <span class="card-price">$6,000</span>
+                <span class="card-price-unit">/mo</span>
+              </div>
+              <div class="card-address">749 Lois Ave, Sunnyvale, CA 94087</div>
+              <div class="card-specs">
+                <span>4 bed</span>
+                <span class="spec-dot"></span>
+                <span>2 bath</span>
+                <span class="spec-dot"></span>
+                <span>1,348 sqft (125 m²)</span>
+              </div>
+              <div class="card-tag-row">
+                <span class="tag tag-new">New</span>
+                <span class="tag tag-days">1d ago</span>
+                <a href="https://www.zillow.com/homedetails/19537531_zpid/" target="_blank" rel="noopener" class="source-pill">
+                  <img src="https://www.google.com/s2/favicons?domain=zillow.com&sz=64" alt=""> Zillow
+                </a>
+              </div>
+              <div class="card-location">Cupertino Union School District / Fremont Union High School District</div>
+            </div>
+          </article>
+
+          <!-- CARD 2 — 1410 Kelowna Ct (real data, listed Mar 26 = 1d ago) -->
+          <article class="listing-card" role="listitem" tabindex="0" aria-label="$5,500 per month, 1410 Kelowna Ct">
+            <div class="card-thumbnail">
+              <img src="https://photos.zillowstatic.com/fp/a39306aa81047b842508692c30001612-p_f.jpg" alt="Photo of 1410 Kelowna Ct, Sunnyvale" loading="lazy">
+              <button class="card-fav-btn" aria-label="Save to favorites" aria-pressed="false">☆</button>
+              <span class="card-type-badge">House</span>
+            </div>
+            <div class="card-details">
+              <div class="card-price-row">
+                <span class="card-price">$5,500</span>
+                <span class="card-price-unit">/mo</span>
+              </div>
+              <div class="card-address">1410 Kelowna Ct, Sunnyvale, CA 94087</div>
+              <div class="card-specs">
+                <span>4 bed</span>
+                <span class="spec-dot"></span>
+                <span>2 bath</span>
+                <span class="spec-dot"></span>
+                <span>1,683 sqft (156 m²)</span>
+              </div>
+              <div class="card-tag-row">
+                <span class="tag tag-new">New</span>
+                <span class="tag tag-days">1d ago</span>
+                <a href="https://www.zillow.com/homedetails/19622680_zpid/" target="_blank" rel="noopener" class="source-pill">
+                  <img src="https://www.google.com/s2/favicons?domain=zillow.com&sz=64" alt=""> Zillow
+                </a>
+              </div>
+              <div class="card-location">Cupertino Union School District / Fremont Union High School District</div>
+            </div>
+          </article>
+
+          <!-- CARD 3 — 1347 Zurich Tr (real data, listed Mar 23 = 4d ago) -->
+          <article class="listing-card" role="listitem" tabindex="0" aria-label="$5,900 per month, 1347 Zurich Tr">
+            <div class="card-thumbnail">
+              <img src="https://photos.zillowstatic.com/fp/7a4e83e876ce19985de47d576e11c183-p_f.jpg" alt="Photo of 1347 Zurich Tr, Sunnyvale" loading="lazy">
+              <button class="card-fav-btn" aria-label="Save to favorites" aria-pressed="false">☆</button>
+              <span class="card-type-badge">Townhouse</span>
+            </div>
+            <div class="card-details">
+              <div class="card-price-row">
+                <span class="card-price">$5,900</span>
+                <span class="card-price-unit">/mo</span>
+              </div>
+              <div class="card-address">1347 Zurich Tr, Sunnyvale, CA 94087</div>
+              <div class="card-specs">
+                <span>4 bed</span>
+                <span class="spec-dot"></span>
+                <span>3 bath</span>
+                <span class="spec-dot"></span>
+                <span>1,871 sqft (174 m²)</span>
+              </div>
+              <div class="card-tag-row">
+                <span class="tag tag-days">4d ago</span>
+                <a href="https://www.zillow.com/homedetails/19537531_zpid/" target="_blank" rel="noopener" class="source-pill">
+                  <img src="https://www.google.com/s2/favicons?domain=zillow.com&sz=64" alt=""> Zillow
+                </a>
+              </div>
+              <div class="card-location">Cupertino Union School District / Fremont Union High School District</div>
+            </div>
+          </article>
+
+          <!-- CARD 4 — 1557 Finch Way (real data, listed Mar 21 = 6d ago) -->
+          <article class="listing-card" role="listitem" tabindex="0" aria-label="$5,700 per month, 1557 Finch Way">
+            <div class="card-thumbnail">
+              <img src="https://photos.zillowstatic.com/fp/206d8c1623bc5c7a587ea54c329e5cae-p_f.jpg" alt="Photo of 1557 Finch Way, Sunnyvale" loading="lazy">
+              <button class="card-fav-btn active" aria-label="Remove from favorites" aria-pressed="true">★</button>
+              <span class="card-type-badge">House</span>
+            </div>
+            <div class="card-details">
+              <div class="card-price-row">
+                <span class="card-price">$5,700</span>
+                <span class="card-price-unit">/mo</span>
+              </div>
+              <div class="card-address">1557 Finch Way, Sunnyvale, CA 94087</div>
+              <div class="card-specs">
+                <span>4 bed</span>
+                <span class="spec-dot"></span>
+                <span>2 bath</span>
+                <span class="spec-dot"></span>
+                <span>1,664 sqft (155 m²)</span>
+              </div>
+              <div class="card-tag-row">
+                <span class="tag tag-days">6d ago</span>
+                <a href="https://www.zillow.com/homedetails/19537531_zpid/" target="_blank" rel="noopener" class="source-pill">
+                  <img src="https://www.google.com/s2/favicons?domain=zillow.com&sz=64" alt=""> Zillow
+                </a>
+              </div>
+              <div class="card-location">Cupertino Union School District / Fremont Union High School District</div>
+            </div>
+          </article>
+
+          <!-- CARD 5 — 838 San Ramon Ave (real data, listed Mar 13 = 14d ago) -->
+          <article class="listing-card" role="listitem" tabindex="0" aria-label="$5,000 per month, 838 San Ramon Ave">
+            <div class="card-thumbnail">
+              <img src="https://photos.zillowstatic.com/fp/ece38dba8fcd8bedc9ba1c92c81d66a0-p_f.jpg" alt="Photo of 838 San Ramon Ave, Sunnyvale" loading="lazy">
+              <button class="card-fav-btn" aria-label="Save to favorites" aria-pressed="false">☆</button>
+              <span class="card-type-badge">House</span>
+            </div>
+            <div class="card-details">
+              <div class="card-price-row">
+                <span class="card-price">$5,000</span>
+                <span class="card-price-unit">/mo</span>
+              </div>
+              <div class="card-address">838 San Ramon Ave, Sunnyvale, CA 94085</div>
+              <div class="card-specs">
+                <span>3 bed</span>
+                <span class="spec-dot"></span>
+                <span>1 bath</span>
+                <span class="spec-dot"></span>
+                <span>1,098 sqft (102 m²)</span>
+              </div>
+              <div class="card-tag-row">
+                <span class="tag tag-days">14d ago</span>
+                <a href="https://www.zillow.com/homedetails/19537531_zpid/" target="_blank" rel="noopener" class="source-pill">
+                  <img src="https://www.google.com/s2/favicons?domain=zillow.com&sz=64" alt=""> Zillow
+                </a>
+              </div>
+              <div class="card-location">Sunnyvale School District / Fremont Union High School District</div>
+            </div>
+          </article>
+
+          <!-- CARD 6 — 810 Cotati Ter (real data, listed Mar 11 = 16d ago) -->
+          <article class="listing-card" role="listitem" tabindex="0" aria-label="$5,900 per month, 810 Cotati Ter">
+            <div class="card-thumbnail">
+              <img src="https://photos.zillowstatic.com/fp/68e37ceae416b2efef3ae4212ca44767-p_f.jpg" alt="Photo of 810 Cotati Ter, Sunnyvale" loading="lazy">
+              <button class="card-fav-btn" aria-label="Save to favorites" aria-pressed="false">☆</button>
+              <span class="card-type-badge">Townhouse</span>
+            </div>
+            <div class="card-details">
+              <div class="card-price-row">
+                <span class="card-price">$5,900</span>
+                <span class="card-price-unit">/mo</span>
+              </div>
+              <div class="card-address">810 Cotati Ter Unit 4, Sunnyvale, CA 94085</div>
+              <div class="card-specs">
+                <span>3 bed</span>
+                <span class="spec-dot"></span>
+                <span>3 bath</span>
+                <span class="spec-dot"></span>
+                <span>1,871 sqft (174 m²)</span>
+              </div>
+              <div class="card-tag-row">
+                <span class="tag tag-days">2w ago</span>
+                <a href="https://www.zillow.com/homedetails/19537531_zpid/" target="_blank" rel="noopener" class="source-pill">
+                  <img src="https://www.google.com/s2/favicons?domain=zillow.com&sz=64" alt=""> Zillow
+                </a>
+              </div>
+              <div class="card-location">Sunnyvale School District / Fremont Union High School District</div>
+            </div>
+          </article>
+
+          <!-- CARD 7 — 885 Ticonderoga Dr (real data, listed Mar 7 = 20d ago) -->
+          <article class="listing-card" role="listitem" tabindex="0" aria-label="$5,700 per month, 885 Ticonderoga Dr">
+            <div class="card-thumbnail">
+              <img src="https://photos.zillowstatic.com/fp/ce41dac77a81cebf21784aaa720171ec-p_f.jpg" alt="Photo of 885 Ticonderoga Dr, Sunnyvale" loading="lazy">
+              <button class="card-fav-btn" aria-label="Save to favorites" aria-pressed="false">☆</button>
+              <span class="card-type-badge">House</span>
+            </div>
+            <div class="card-details">
+              <div class="card-price-row">
+                <span class="card-price">$5,700</span>
+                <span class="card-price-unit">/mo</span>
+              </div>
+              <div class="card-address">885 Ticonderoga Dr, Sunnyvale, CA 94087</div>
+              <div class="card-specs">
+                <span>4 bed</span>
+                <span class="spec-dot"></span>
+                <span>2 bath</span>
+                <span class="spec-dot"></span>
+                <span>1,752 sqft (163 m²)</span>
+              </div>
+              <div class="card-tag-row">
+                <span class="tag tag-days">3w ago</span>
+                <a href="https://www.zillow.com/homedetails/19537531_zpid/" target="_blank" rel="noopener" class="source-pill">
+                  <img src="https://www.google.com/s2/favicons?domain=zillow.com&sz=64" alt=""> Zillow
+                </a>
+              </div>
+              <div class="card-location">Cupertino Union School District / Fremont Union High School District</div>
+            </div>
+          </article>
+
+          <!-- CARD 8 — Kensington Place (real data, listed Mar 3 = 24d ago, price up +$30) -->
+          <article class="listing-card" role="listitem" tabindex="0" aria-label="$5,008 per month, Kensington Place">
+            <div class="card-thumbnail">
+              <img src="https://photos.zillowstatic.com/fp/d04a3bedaf14e40960bcf0c596a45a3e-p_f.jpg" alt="Photo of Kensington Place, Sunnyvale" loading="lazy">
+              <button class="card-fav-btn" aria-label="Save to favorites" aria-pressed="false">☆</button>
+              <span class="card-type-badge">Apartment</span>
+            </div>
+            <div class="card-details">
+              <div class="card-price-row">
+                <span class="card-price">$5,008</span>
+                <span class="card-price-unit">/mo</span>
+              </div>
+              <div class="card-address">1220 N Fair Oaks Ave #4313, Sunnyvale, CA 94089</div>
+              <div class="card-specs">
+                <span>3 bed</span>
+                <span class="spec-dot"></span>
+                <span>2 bath</span>
+                <span class="spec-dot"></span>
+                <span>1,386 sqft (129 m²)</span>
+              </div>
+              <div class="card-tag-row">
+                <span class="tag tag-price-up">↑ +$30</span>
+                <span class="tag tag-days">3w ago</span>
+                <a href="https://www.zillow.com/homedetails/460794716_zpid/" target="_blank" rel="noopener" class="source-pill">
+                  <img src="https://www.google.com/s2/favicons?domain=zillow.com&sz=64" alt=""> Zillow
+                </a>
+              </div>
+              <div class="card-location">Sunnyvale School District / Fremont Union High School District</div>
+            </div>
+          </article>
+
+        </div>
+
+        <!-- Pagination -->
+        <nav class="pagination" aria-label="Listing pages">
+          <button class="pagination-btn" disabled aria-label="Previous page">← Previous</button>
+          <div class="pagination-info" aria-live="polite">
+            Page 1 of 3 · 13 listings
+            <span class="pagination-hint">← → to navigate pages</span>
+          </div>
+          <button class="pagination-btn" aria-label="Next page">Next →</button>
+        </nav>
+      </div>
+
+      <!-- === LOADING STATE === -->
+      <div class="state-panel" id="state-loading">
+        <div class="listings-scroll">
+          <div class="skeleton-card"><div class="skeleton-thumb"></div><div class="skeleton-content"><div class="skeleton-line h20 w40"></div><div class="skeleton-line w80"></div><div class="skeleton-line w60"></div><div class="skeleton-line w50"></div></div></div>
+          <div class="skeleton-card"><div class="skeleton-thumb"></div><div class="skeleton-content"><div class="skeleton-line h20 w40"></div><div class="skeleton-line w80"></div><div class="skeleton-line w60"></div><div class="skeleton-line w50"></div></div></div>
+          <div class="skeleton-card"><div class="skeleton-thumb"></div><div class="skeleton-content"><div class="skeleton-line h20 w40"></div><div class="skeleton-line w80"></div><div class="skeleton-line w60"></div><div class="skeleton-line w50"></div></div></div>
+          <div class="skeleton-card"><div class="skeleton-thumb"></div><div class="skeleton-content"><div class="skeleton-line h20 w40"></div><div class="skeleton-line w80"></div><div class="skeleton-line w60"></div><div class="skeleton-line w50"></div></div></div>
+        </div>
+      </div>
+
+      <!-- === EMPTY STATE === -->
+      <div class="state-panel" id="state-empty">
+        <div class="empty-state">
+          <div class="empty-state-icon">🔍</div>
+          <div class="empty-state-title">No rentals match your filters</div>
+          <div class="empty-state-text">Try adjusting your price range, bedrooms, or other filters to see more results in Sunnyvale.</div>
+          <button class="btn-primary" aria-label="Reset all filters">Reset Filters</button>
+        </div>
+      </div>
+
+      <!-- === ERROR STATE === -->
+      <div class="state-panel" id="state-error">
+        <div class="error-state">
+          <div class="error-state-icon">⚠️</div>
+          <div class="error-state-title">Failed to load listings</div>
+          <div class="error-state-text">We couldn't fetch the latest listings. Cached results may be available. Please try again.</div>
+          <button class="btn-outline-danger" aria-label="Retry loading listings">🔄 Retry</button>
+        </div>
+      </div>
+
+    </section>
+
+    <!-- RIGHT PANEL: Map -->
+    <section class="panel-right" aria-label="Map view">
+      <div class="map-placeholder">
+        <!-- SVG map with real marker positions based on actual lat/lng data -->
+        <svg width="100%" height="100%" viewBox="0 0 800 700" xmlns="http://www.w3.org/2000/svg" style="position:absolute; top:0; left:0;">
+          <rect width="800" height="700" fill="#e8eaed"/>
+          <g stroke="#d4d6da" stroke-width="1" fill="none">
+            <line x1="0" y1="80" x2="800" y2="80"/>
+            <line x1="0" y1="160" x2="800" y2="160"/>
+            <line x1="0" y1="240" x2="800" y2="240"/>
+            <line x1="0" y1="320" x2="800" y2="320"/>
+            <line x1="0" y1="400" x2="800" y2="400"/>
+            <line x1="0" y1="480" x2="800" y2="480"/>
+            <line x1="0" y1="560" x2="800" y2="560"/>
+            <line x1="0" y1="640" x2="800" y2="640"/>
+            <line x1="100" y1="0" x2="100" y2="700"/>
+            <line x1="200" y1="0" x2="200" y2="700"/>
+            <line x1="300" y1="0" x2="300" y2="700"/>
+            <line x1="400" y1="0" x2="400" y2="700"/>
+            <line x1="500" y1="0" x2="500" y2="700"/>
+            <line x1="600" y1="0" x2="600" y2="700"/>
+            <line x1="700" y1="0" x2="700" y2="700"/>
+          </g>
+          <g stroke="#c8cad0" stroke-width="3" fill="none">
+            <line x1="0" y1="320" x2="800" y2="320"/>
+            <line x1="400" y1="0" x2="400" y2="700"/>
+            <line x1="0" y1="160" x2="800" y2="160"/>
+            <line x1="550" y1="0" x2="800" y2="500"/>
+          </g>
+          <polygon points="80,60 720,60 750,120 760,300 740,450 700,550 650,620 500,660 300,640 150,580 80,450 60,300 70,150"
+                   fill="rgba(59,130,246,0.06)" stroke="#3b82f6" stroke-width="2"/>
+          <text x="120" y="200" font-family="Inter, sans-serif" font-size="12" font-weight="600" fill="#9ca3af" letter-spacing="2">MOUNTAIN VIEW</text>
+          <text x="380" y="340" font-family="Inter, sans-serif" font-size="13" font-weight="700" fill="#6b7280" letter-spacing="3">SUNNYVALE</text>
+        </svg>
+
+        <div class="map-controls">
+          <button class="map-zoom-btn" aria-label="Zoom in">+</button>
+          <button class="map-zoom-btn" aria-label="Zoom out">−</button>
+        </div>
+
+        <!-- Real price markers based on actual listing prices -->
+        <div class="map-marker" style="top: 32%; left: 38%;" title="749 Lois Ave — $6,000/mo">6K</div>
+        <div class="map-marker" style="top: 62%; left: 40%;" title="1410 Kelowna Ct — $5,500/mo">5.5K</div>
+        <div class="map-marker" style="top: 15%; right: 22%;" title="1180 Pecos Way — $7,000/mo">7K</div>
+        <div class="map-marker" style="top: 33%; right: 18%;" title="1557 Finch Way — $5,700/mo">5.7K</div>
+        <div class="map-marker" style="top: 42%; left: 35%;" title="838 San Ramon Ave — $5,000/mo">5K</div>
+        <div class="map-marker" style="top: 48%; left: 28%;" title="885 Ticonderoga Dr — $5,700/mo">5.7K</div>
+        <div class="map-marker" style="top: 55%; right: 25%;" title="810 Cotati Ter — $5,900/mo">5.9K</div>
+        <div class="map-marker" style="top: 20%; right: 30%;" title="Kensington Place — $5,008/mo">5K</div>
+        <div class="map-marker" style="top: 68%; left: 22%;" title="1694 Nightingale Ave — $4,850/mo">4.9K</div>
+
+        <div class="map-attribution">
+          🍋 <a href="https://leafletjs.com" target="_blank" rel="noopener">Leaflet</a> |
+          © <a href="https://www.openstreetmap.org" target="_blank" rel="noopener">OpenStreetMap</a>
+          © <a href="https://carto.com" target="_blank" rel="noopener">CARTO</a>
+        </div>
+      </div>
+    </section>
+
+  </main>
+
+  <!-- ============================================
+       STATE SWITCHER (Demo)
+       ============================================ -->
+  <div class="state-tabs" role="tablist" aria-label="View different states">
+    <button class="state-tab active" role="tab" aria-selected="true" data-state="state-default">Default</button>
+    <button class="state-tab" role="tab" aria-selected="false" data-state="state-loading">Loading</button>
+    <button class="state-tab" role="tab" aria-selected="false" data-state="state-empty">Empty</button>
+    <button class="state-tab" role="tab" aria-selected="false" data-state="state-error">Error</button>
+  </div>
+
+  <!-- ============================================
+       INTERACTIVE JS
+       ============================================ -->
+  <script>
+    // State tab switching
+    document.querySelectorAll('.state-tab').forEach(tab => {
+      tab.addEventListener('click', () => {
+        document.querySelectorAll('.state-tab').forEach(t => {
+          t.classList.remove('active');
+          t.setAttribute('aria-selected', 'false');
+        });
+        tab.classList.add('active');
+        tab.setAttribute('aria-selected', 'true');
+        document.querySelectorAll('.state-panel').forEach(p => p.classList.remove('active'));
+        document.getElementById(tab.dataset.state).classList.add('active');
+      });
+    });
+
+    // Favorite toggle
+    document.querySelectorAll('.card-fav-btn').forEach(btn => {
+      btn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        const isFav = btn.getAttribute('aria-pressed') === 'true';
+        btn.setAttribute('aria-pressed', isFav ? 'false' : 'true');
+        btn.textContent = isFav ? '☆' : '★';
+        btn.classList.toggle('active', !isFav);
+        btn.setAttribute('aria-label', isFav ? 'Save to favorites' : 'Remove from favorites');
+      });
+    });
+
+    // Keyboard navigation
+    document.addEventListener('keydown', (e) => {
+      const tag = (e.target.tagName || '').toLowerCase();
+      if (tag === 'input' || tag === 'textarea' || tag === 'select') return;
+      if (e.key === 'ArrowLeft') {
+        const prevBtn = document.querySelector('.pagination-btn:first-child');
+        if (prevBtn && !prevBtn.disabled) { prevBtn.click(); e.preventDefault(); }
+      } else if (e.key === 'ArrowRight') {
+        const nextBtn = document.querySelector('.pagination-btn:last-child');
+        if (nextBtn && !nextBtn.disabled) { nextBtn.click(); e.preventDefault(); }
+      }
+    });
+  </script>
+
+</body>
+</html>

@@ -1,0 +1,61 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN"
+  "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <!-- Unique identifier for the Launch Agent -->
+    <key>Label</key>
+    <string>com.sunnynest.backoffice</string>
+
+    <!-- Use Homebrew Python directly with -m streamlit to avoid venv pyvenv.cfg TCC issue -->
+    <key>ProgramArguments</key>
+    <array>
+        <string>/opt/homebrew/opt/python@3.14/bin/python3.14</string>
+        <string>-m</string>
+        <string>streamlit</string>
+        <string>run</string>
+        <string>backoffice.py</string>
+        <string>--server.headless</string>
+        <string>true</string>
+        <string>--server.port</string>
+        <string>8502</string>
+        <string>--server.address</string>
+        <string>localhost</string>
+    </array>
+
+    <!-- Working directory -->
+    <key>WorkingDirectory</key>
+    <string>/Users/mvaturri/Documents/zillow</string>
+
+    <!-- Start automatically on login -->
+    <key>RunAtLoad</key>
+    <true/>
+
+    <!-- Restart automatically if the process exits -->
+    <key>KeepAlive</key>
+    <true/>
+
+    <!-- Redirect stdout and stderr to log files -->
+    <key>StandardOutPath</key>
+    <string>/tmp/sunnynest/backoffice-stdout.log</string>
+    <key>StandardErrorPath</key>
+    <string>/tmp/sunnynest/backoffice-stderr.log</string>
+
+    <!-- Environment variables -->
+    <key>EnvironmentVariables</key>
+    <dict>
+        <key>PATH</key>
+        <string>/opt/homebrew/opt/python@3.14/bin:/Users/mvaturri/Documents/zillow/.venv/bin:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin</string>
+        <key>PYTHONPATH</key>
+        <string>/Users/mvaturri/Documents/zillow/.venv/lib/python3.14/site-packages</string>
+        <key>PYTHONUNBUFFERED</key>
+        <string>1</string>
+        <key>PYTHONDONTWRITEBYTECODE</key>
+        <string>1</string>
+    </dict>
+
+    <!-- Throttle restarts: wait 10 seconds before restarting a crashed process -->
+    <key>ThrottleInterval</key>
+    <integer>10</integer>
+</dict>
+</plist>
