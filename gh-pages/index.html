@@ -1,0 +1,488 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="SunnyNest — Automated rental listing aggregator for Sunnyvale, CA. Scrapes Zillow, Craigslist, and Realtor.com, deduplicates, and presents in a unified interface with interactive map.">
+  <meta name="theme-color" content="#2563eb">
+  <title>SunnyNest — Rental Listing Aggregator</title>
+
+  <!-- Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+
+  <!-- Favicon (emoji-based) -->
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🏠</text></svg>">
+
+  <!-- Stylesheet -->
+  <link rel="stylesheet" href="css/styles.css">
+</head>
+<body>
+
+  <!-- Skip Link -->
+  <a href="#main" class="skip-link">Skip to main content</a>
+
+  <!-- ===== Navbar ===== -->
+  <nav class="navbar" role="navigation" aria-label="Main navigation">
+    <div class="navbar-inner">
+      <a href="#" class="navbar-brand" aria-label="SunnyNest home">
+        <span class="brand-icon" aria-hidden="true">🏠</span>
+        SunnyNest
+      </a>
+
+      <button class="nav-toggle" aria-label="Toggle navigation menu" aria-expanded="false" onclick="toggleNav()">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
+          <line x1="3" y1="6" x2="21" y2="6"/>
+          <line x1="3" y1="12" x2="21" y2="12"/>
+          <line x1="3" y1="18" x2="21" y2="18"/>
+        </svg>
+      </button>
+
+      <ul class="navbar-nav" id="navMenu" role="menubar">
+        <li role="none"><a href="#features" role="menuitem">Features</a></li>
+        <li role="none"><a href="#tech-stack" role="menuitem">Tech Stack</a></li>
+        <li role="none"><a href="#architecture" role="menuitem">Architecture</a></li>
+        <li role="none">
+          <a href="https://github.com/mvaturri237/SunnyNest" class="btn-github" role="menuitem" target="_blank" rel="noopener noreferrer">
+            <svg viewBox="0 0 16 16" aria-hidden="true"><path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0016 8c0-4.42-3.58-8-8-8z"/></svg>
+            GitHub
+          </a>
+        </li>
+      </ul>
+    </div>
+  </nav>
+
+  <!-- ===== Main Content ===== -->
+  <main id="main">
+
+    <!-- ===== Hero ===== -->
+    <section class="hero" aria-labelledby="hero-heading">
+      <div class="hero-inner">
+        <div class="hero-content">
+          <div class="hero-badge" aria-label="Project status: Active">
+            <span class="pulse" aria-hidden="true"></span>
+            Active Project
+          </div>
+
+          <h1 id="hero-heading">
+            Find your perfect<br>
+            <span class="accent">rental in Sunnyvale</span>
+          </h1>
+
+          <p class="hero-subtitle">
+            Rental Listing Aggregator for Sunnyvale, CA
+          </p>
+
+          <p class="hero-desc">
+            Automated system that scrapes rental listings from Zillow, Craigslist, and Realtor.com — deduplicates across sources, geocodes addresses, enriches with school district data, and presents everything in a unified interface with an interactive map.
+          </p>
+
+          <div class="hero-actions">
+            <a href="https://github.com/mvaturri237/SunnyNest" class="btn-primary" target="_blank" rel="noopener noreferrer">
+              <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true"><path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0016 8c0-4.42-3.58-8-8-8z"/></svg>
+              View on GitHub
+            </a>
+            <a href="#features" class="btn-secondary">
+              Explore Features ↓
+            </a>
+          </div>
+        </div>
+
+        <!-- Hero Visual: Browser Mockup -->
+        <div class="hero-visual fade-in" aria-hidden="true">
+          <div class="hero-mockup">
+            <div class="mockup-titlebar">
+              <span class="mockup-dot red"></span>
+              <span class="mockup-dot yellow"></span>
+              <span class="mockup-dot green"></span>
+              <span class="mockup-url">sunnynest:8000</span>
+            </div>
+            <div class="mockup-body">
+              <!-- Listing Cards Column -->
+              <div class="mockup-listings">
+                <div class="mockup-card">
+                  <div class="mockup-card-img">🏡</div>
+                  <div class="mockup-card-text">
+                    <div class="mockup-card-price">$4,200/mo</div>
+                    <div class="mockup-card-addr">742 Sunnyvale Ave</div>
+                    <div class="mockup-card-specs">3 bd · 2 ba · 1,450 sqft (135 m²)</div>
+                  </div>
+                </div>
+                <div class="mockup-card">
+                  <div class="mockup-card-img">🏠</div>
+                  <div class="mockup-card-text">
+                    <div class="mockup-card-price">$3,800/mo</div>
+                    <div class="mockup-card-addr">1055 Morse Ave</div>
+                    <div class="mockup-card-specs">2 bd · 1 ba · 980 sqft (91 m²)</div>
+                  </div>
+                </div>
+                <div class="mockup-card">
+                  <div class="mockup-card-img">🏢</div>
+                  <div class="mockup-card-text">
+                    <div class="mockup-card-price">$5,500/mo</div>
+                    <div class="mockup-card-addr">388 E Evelyn Ave</div>
+                    <div class="mockup-card-specs">4 bd · 2 ba · 1,683 sqft (156 m²)</div>
+                  </div>
+                </div>
+              </div>
+              <!-- Map Column -->
+              <div class="mockup-map">
+                <div class="mockup-map-grid"></div>
+                <div class="mockup-map-road h1"></div>
+                <div class="mockup-map-road h2"></div>
+                <div class="mockup-map-road v1"></div>
+                <div class="mockup-map-road v2"></div>
+                <div class="mockup-map-park p1"></div>
+                <div class="mockup-map-park p2"></div>
+                <span class="mockup-pin active pin1">$4.2k</span>
+                <span class="mockup-pin pin2">$3.8k</span>
+                <span class="mockup-pin pin3">$5.5k</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ===== Stats Bar ===== -->
+    <section class="stats-bar" aria-label="Project statistics">
+      <div class="stats-inner">
+        <div class="stat-item fade-in">
+          <div class="stat-value"><span class="accent">3</span></div>
+          <div class="stat-label">Data Sources</div>
+        </div>
+        <div class="stat-item fade-in">
+          <div class="stat-value">~<span class="accent">150</span>+</div>
+          <div class="stat-label">Listings Tracked</div>
+        </div>
+        <div class="stat-item fade-in">
+          <div class="stat-value">&lt;<span class="accent">2</span>s</div>
+          <div class="stat-label">Search Results</div>
+        </div>
+        <div class="stat-item fade-in">
+          <div class="stat-value"><span class="accent">6</span></div>
+          <div class="stat-label">Automated Jobs</div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ===== Features ===== -->
+    <section class="features" id="features" aria-labelledby="features-heading">
+      <div class="features-header">
+        <span class="section-label">Features</span>
+        <h2 class="section-title" id="features-heading">Everything you need to find a rental</h2>
+        <p class="section-subtitle">
+          From automated scraping to smart notifications — SunnyNest handles the entire rental search pipeline.
+        </p>
+      </div>
+
+      <div class="features-grid stagger-children">
+        <!-- Feature 1 -->
+        <article class="feature-card fade-in">
+          <div class="feature-icon" aria-hidden="true">🔍</div>
+          <h3>Multi-Source Scraping</h3>
+          <p>
+            Fetches listings from Zillow, Craigslist, and Realtor.com using the adapter pattern. Each source has its own scraper with normalized output.
+          </p>
+          <div class="feature-tags">
+            <span class="feature-tag">Zillow API</span>
+            <span class="feature-tag">Playwright</span>
+            <span class="feature-tag">Adapter Pattern</span>
+          </div>
+        </article>
+
+        <!-- Feature 2 -->
+        <article class="feature-card fade-in">
+          <div class="feature-icon" aria-hidden="true">🗺️</div>
+          <h3>Interactive Map View</h3>
+          <p>
+            Leaflet.js map with price-pill markers, school district boundary overlays, custom POI markers, and card-to-map synchronization.
+          </p>
+          <div class="feature-tags">
+            <span class="feature-tag">Leaflet.js</span>
+            <span class="feature-tag">GeoJSON</span>
+            <span class="feature-tag">Price Pills</span>
+          </div>
+        </article>
+
+        <!-- Feature 3 -->
+        <article class="feature-card fade-in">
+          <div class="feature-icon" aria-hidden="true">📧</div>
+          <h3>Smart Notifications</h3>
+          <p>
+            Email alerts for new listings matching your criteria. Configurable AM/PM digest schedule with anti-spam guards and dedup-aware filtering.
+          </p>
+          <div class="feature-tags">
+            <span class="feature-tag">Email</span>
+            <span class="feature-tag">Scheduled</span>
+            <span class="feature-tag">Filtered</span>
+          </div>
+        </article>
+
+        <!-- Feature 4 -->
+        <article class="feature-card fade-in">
+          <div class="feature-icon" aria-hidden="true">🔄</div>
+          <h3>Cross-Source Deduplication</h3>
+          <p>
+            Multi-signal scoring engine (address, price, beds, baths, sqft) detects duplicate listings across sources. Threshold-based with ≥75 match score.
+          </p>
+          <div class="feature-tags">
+            <span class="feature-tag">Fuzzy Match</span>
+            <span class="feature-tag">Multi-Signal</span>
+          </div>
+        </article>
+
+        <!-- Feature 5 -->
+        <article class="feature-card fade-in">
+          <div class="feature-icon" aria-hidden="true">📊</div>
+          <h3>Admin Dashboard</h3>
+          <p>
+            5-page admin panel with system health, scrape analytics, API usage tracking (donut charts, sparklines), notification management, and settings.
+          </p>
+          <div class="feature-tags">
+            <span class="feature-tag">Analytics</span>
+            <span class="feature-tag">Charts</span>
+            <span class="feature-tag">5 Pages</span>
+          </div>
+        </article>
+
+        <!-- Feature 6 -->
+        <article class="feature-card fade-in">
+          <div class="feature-icon" aria-hidden="true">⚡</div>
+          <h3>Performance First</h3>
+          <p>
+            Lazy-loaded images, clustered map markers, HTMX-driven partial updates, and optimized queries. Search results load in under 2 seconds.
+          </p>
+          <div class="feature-tags">
+            <span class="feature-tag">HTMX</span>
+            <span class="feature-tag">Lazy Load</span>
+            <span class="feature-tag">&lt;2s</span>
+          </div>
+        </article>
+      </div>
+    </section>
+
+    <!-- ===== Tech Stack ===== -->
+    <section class="tech-stack" id="tech-stack" aria-labelledby="tech-heading">
+      <div class="tech-header">
+        <span class="section-label">Tech Stack</span>
+        <h2 class="section-title" id="tech-heading">Built with proven tools</h2>
+        <p class="section-subtitle">
+          A pragmatic stack focused on reliability, simplicity, and local-first operation.
+        </p>
+      </div>
+
+      <div class="tech-grid stagger-children">
+        <div class="tech-item fade-in">
+          <div class="tech-icon" aria-hidden="true">🐍</div>
+          <div class="tech-info">
+            <h4>Python (FastAPI)</h4>
+            <p>Async backend with Jinja2 templates</p>
+          </div>
+        </div>
+
+        <div class="tech-item fade-in">
+          <div class="tech-icon" aria-hidden="true">🗄️</div>
+          <div class="tech-info">
+            <h4>SQLite</h4>
+            <p>Local database, 5 tables, zero config</p>
+          </div>
+        </div>
+
+        <div class="tech-item fade-in">
+          <div class="tech-icon" aria-hidden="true">🌐</div>
+          <div class="tech-info">
+            <h4>HTML / CSS / JS</h4>
+            <p>Jinja2 templates + HTMX partials</p>
+          </div>
+        </div>
+
+        <div class="tech-item fade-in">
+          <div class="tech-icon" aria-hidden="true">🗺️</div>
+          <div class="tech-info">
+            <h4>Leaflet.js</h4>
+            <p>Interactive maps with GeoJSON overlays</p>
+          </div>
+        </div>
+
+        <div class="tech-item fade-in">
+          <div class="tech-icon" aria-hidden="true">⏰</div>
+          <div class="tech-info">
+            <h4>launchd Scheduler</h4>
+            <p>6 macOS agents for automation</p>
+          </div>
+        </div>
+
+        <div class="tech-item fade-in">
+          <div class="tech-icon" aria-hidden="true">🎭</div>
+          <div class="tech-info">
+            <h4>Playwright</h4>
+            <p>Browser-based scraping for Craigslist</p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ===== Architecture ===== -->
+    <section class="architecture" id="architecture" aria-labelledby="arch-heading">
+      <div class="arch-header">
+        <span class="section-label">Architecture</span>
+        <h2 class="section-title" id="arch-heading">Adapter pattern pipeline</h2>
+        <p class="section-subtitle">
+          Each data source has its own scraper adapter. The orchestrator normalizes, geocodes, enriches, and deduplicates before storing.
+        </p>
+      </div>
+
+      <div class="arch-diagram fade-in" role="img" aria-label="Architecture flow diagram: Sources feed into Scrapers, which feed into the Orchestrator, which stores in the Database, which serves the Web UI">
+        <div class="arch-flow">
+          <!-- Stage 1: Sources -->
+          <div class="arch-stage">
+            <div class="arch-stage-box">
+              <div class="arch-stage-icon">🌐</div>
+              <div class="arch-stage-title">Sources</div>
+              <div class="arch-stage-desc">External listing sites</div>
+              <ul class="arch-stage-items">
+                <li>Zillow (API)</li>
+                <li>Craigslist (HTML)</li>
+                <li>Realtor.com (API)</li>
+              </ul>
+            </div>
+          </div>
+
+          <div class="arch-arrow" aria-hidden="true">→</div>
+
+          <!-- Stage 2: Scrapers -->
+          <div class="arch-stage">
+            <div class="arch-stage-box">
+              <div class="arch-stage-icon">🔧</div>
+              <div class="arch-stage-title">Scrapers</div>
+              <div class="arch-stage-desc">Adapter pattern (BaseScraper ABC)</div>
+              <ul class="arch-stage-items">
+                <li>Normalize data</li>
+                <li>Handle errors</li>
+                <li>Rate limiting</li>
+              </ul>
+            </div>
+          </div>
+
+          <div class="arch-arrow" aria-hidden="true">→</div>
+
+          <!-- Stage 3: Orchestrator -->
+          <div class="arch-stage">
+            <div class="arch-stage-box">
+              <div class="arch-stage-icon">⚙️</div>
+              <div class="arch-stage-title">Orchestrator</div>
+              <div class="arch-stage-desc">Pipeline coordinator</div>
+              <ul class="arch-stage-items">
+                <li>Geocode addresses</li>
+                <li>Enrich schools</li>
+                <li>Deduplicate</li>
+              </ul>
+            </div>
+          </div>
+
+          <div class="arch-arrow" aria-hidden="true">→</div>
+
+          <!-- Stage 4: Database -->
+          <div class="arch-stage">
+            <div class="arch-stage-box">
+              <div class="arch-stage-icon">🗄️</div>
+              <div class="arch-stage-title">Database</div>
+              <div class="arch-stage-desc">SQLite with 5 tables</div>
+              <ul class="arch-stage-items">
+                <li>Listings</li>
+                <li>Price history</li>
+                <li>API usage</li>
+              </ul>
+            </div>
+          </div>
+
+          <div class="arch-arrow" aria-hidden="true">→</div>
+
+          <!-- Stage 5: Web UI -->
+          <div class="arch-stage">
+            <div class="arch-stage-box">
+              <div class="arch-stage-icon">🖥️</div>
+              <div class="arch-stage-title">Web UI</div>
+              <div class="arch-stage-desc">FastAPI + Jinja2 + HTMX</div>
+              <ul class="arch-stage-items">
+                <li>Map + cards</li>
+                <li>Filters</li>
+                <li>Admin panel</li>
+              </ul>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+  </main>
+
+  <!-- ===== Footer ===== -->
+  <footer class="footer" role="contentinfo">
+    <div class="footer-inner">
+      <div class="footer-brand">
+        <span class="brand-icon" aria-hidden="true">🏠</span>
+        SunnyNest
+      </div>
+      <div class="footer-text">
+        Built with ☕ by Maor ·
+        <a href="https://github.com/mvaturri237/SunnyNest" target="_blank" rel="noopener noreferrer">GitHub</a>
+      </div>
+      <div class="footer-links">
+        <a href="#features">Features</a>
+        <a href="#tech-stack">Tech Stack</a>
+        <a href="#architecture">Architecture</a>
+      </div>
+    </div>
+  </footer>
+
+  <!-- ===== Scripts ===== -->
+  <script>
+    // Mobile nav toggle
+    function toggleNav() {
+      const menu = document.getElementById('navMenu');
+      const toggle = document.querySelector('.nav-toggle');
+      const isOpen = menu.classList.toggle('open');
+      toggle.setAttribute('aria-expanded', isOpen);
+    }
+
+    // Close nav on link click (mobile)
+    document.querySelectorAll('#navMenu a').forEach(link => {
+      link.addEventListener('click', () => {
+        const menu = document.getElementById('navMenu');
+        const toggle = document.querySelector('.nav-toggle');
+        menu.classList.remove('open');
+        toggle.setAttribute('aria-expanded', 'false');
+      });
+    });
+
+    // Scroll-triggered fade-in animations
+    (function() {
+      const prefersReducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+      if (prefersReducedMotion) {
+        // Make everything visible immediately
+        document.querySelectorAll('.fade-in').forEach(el => el.classList.add('visible'));
+        return;
+      }
+
+      const observer = new IntersectionObserver((entries) => {
+        entries.forEach(entry => {
+          if (entry.isIntersecting) {
+            entry.target.classList.add('visible');
+            observer.unobserve(entry.target);
+          }
+        });
+      }, {
+        threshold: 0.15,
+        rootMargin: '0px 0px -40px 0px'
+      });
+
+      document.querySelectorAll('.fade-in').forEach(el => observer.observe(el));
+    })();
+  </script>
+
+</body>
+</html>
