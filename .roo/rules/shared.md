@@ -64,3 +64,28 @@ SunnyNest is a rental listing aggregator that scrapes/fetches listings from mult
   - Sequential dependency (output of call A needed for call B) — sequential is correct
   - `apply_diff` for code edits — no auto-approved alternative exists, approval required
   - Complex interactive commands — cannot be chained safely
+
+---
+
+## ⚡ 14. AGENT RUNS COMMANDS — USER IS NOT A TERMINAL (P0 — User Preference)
+[Source: User explicit directive 2026-05-08, codified per AGENTS.md §9]
+
+* **Rule:** Agents DEFAULT to running commands via `execute_command`. The user is the **approver** of commands, not the **executor**.
+* **Why:** Generating shell scripts and asking the user to copy-paste-and-run them is strictly worse than running them via `execute_command`. The user reads the diff/output afterward to verify; per-command approval is much less friction than copy-paste-run-paste-back.
+* **Mandatory:**
+  1. Use `execute_command` for any shell operation.
+  2. Chain related commands with `&&` into ONE `execute_command` call.
+  3. Set generous `timeout` values (60s+ for installs, 300s+ for builds).
+  4. If a command hangs, kill it via `pkill -f <pattern>` in a follow-up `execute_command` — don't make the user figure out `Ctrl-C`.
+  5. Chain verification into the same `execute_command` (e.g., `do_thing && verify_thing`).
+* **Anti-patterns (NEVER):**
+  - ❌ "Save this as `install.sh` then run it"
+  - ❌ "Open Terminal.app and paste:"
+  - ❌ "After this, please run `git status` and tell me what it says"
+  - ❌ Markdown-with-bash-fence install scripts that require `sed`+`bash` extraction
+* **Acceptable fallbacks (only when truly necessary):**
+  - ✅ Command needs interactive input the agent can't provide (keychain unlock)
+  - ✅ Command needs UI access (System Settings clicks)
+  - ✅ User explicitly says "give me the commands, I'll run them" (rare)
+* For each fallback, **explain WHY** before delegating to the user.
+* See [`AGENTS.md`](../../AGENTS.md) §9 + [`docs/memory/shared/lessonsLearned.md`](../../docs/memory/shared/lessonsLearned.md) "Agent Runs Commands By Default" for the full incident report.
