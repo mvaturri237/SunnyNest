@@ -205,34 +205,9 @@ The `.roo/` and `.vscode/` folders are **system-protected against agent writes**
 
 **🔓 The `git commit` bypass (works as of 2026-05-08):** The hook only reverts UNTRACKED `.roo/` changes. If the agent runs the install + `git add .roo/` + `git commit -m "..."` as ONE atomic `execute_command` chain, the files are tracked-and-committed before the hook fires, and they survive permanently. **Critical:** the chain must be atomic (`&&` separator, single `execute_command` call). Splitting into multiple commands lets the hook fire between them. Do NOT spawn a `new_task` subtask between the write and the commit — subtask boundaries are when the hook runs.
 
-### §9 — Agent Execution Discipline (User Preference — P0)
+### §9 — Agent Execution Discipline (canonical: `.roo/rules/shared.md` §14)
 
-**Discovered:** 2026-05-08 (during the IDEX adoption task, the user explicitly stated this preference twice)
-
-**Rule:** Agents DEFAULT to running commands via `execute_command`. Generating shell scripts and asking the user to copy-paste them is a worse experience than running the script directly. The user wants to be the **approver** of commands, not the **executor** of them.
-
-**Mandatory practices:**
-1. **Use `execute_command` by default** for any shell operation. The user will see the command + output for verification; the per-command approval prompt is faster than copy-paste-run-paste-back.
-2. **Chain related commands** with `&&` into a single `execute_command` call. One approval, one verification cycle.
-3. **Set generous `timeout` values** (60s+ for installs, 300s+ for builds). If the command exceeds the timeout, partial output is returned and you can decide next steps without making the user wait.
-4. **If a command hangs or runs away, the agent kills it via `pkill -f <pattern>`** in a follow-up `execute_command`. Don't make the user figure out `Ctrl-C` or terminal-kill.
-5. **Chain verification into the same `execute_command`** — e.g., `do_thing && verify_thing && echo SUCCESS`. Don't make the user run the verifier as a separate step.
-
-**Anti-patterns (NEVER do this):**
-- ❌ "Save this as `install.sh`, then run it" — just run it via `execute_command`.
-- ❌ "Open Terminal.app and paste the following:" — same; run it via `execute_command`.
-- ❌ "After this finishes, please run `git status` and tell me what it says" — chain `&& git status` into the same command.
-- ❌ Generating a markdown file with a `bash` fenced block and telling the user to extract+run it — fragile (see [`lessonsLearned.md`](docs/memory/shared/lessonsLearned.md) "Fragile Script Pattern") and worse UX than just running it.
-
-**Acceptable fallbacks (P3 — only when truly necessary):**
-- ✅ The command needs interactive input the agent can't provide (TTY password prompt that requires keychain unlock).
-- ✅ The command needs UI access the agent doesn't have (clicking a button in System Settings).
-- ✅ The user explicitly said "give me the commands, I'll run them myself" (rare; respect it when stated).
-- ✅ The command requires network/auth that's user-scoped (logging into a vendor portal in a browser).
-
-**For each fallback case, explain WHY before delegating** — e.g., "I can't run this for you because it requires unlocking your macOS Keychain, which I don't have access to. Please run …"
-
-📖 See [`lessonsLearned.md`](docs/memory/shared/lessonsLearned.md) — "Agent Runs Commands By Default — User is NOT a Terminal" section for the full incident report.
+Agents DEFAULT to running commands via `execute_command`; the user is the **approver**, not the **executor**. Anti-patterns, fallbacks, and the full rule live in [`.roo/rules/shared.md`](.roo/rules/shared.md) §14 (injected into every mode's prompt). Full incident report in [`lessonsLearned.md`](docs/memory/shared/lessonsLearned.md) — "Agent Runs Commands By Default".
 
 ---
 
@@ -257,37 +232,4 @@ The `.roo/` and `.vscode/` folders are **system-protected against agent writes**
 
 ## 📦 Appendix: Install History
 
-> **Last updated:** 2026-05-08
-> **Status:** ✅ All Phase 1 deliverables installed and committed (`7cef222`)
-
-### IDEX Adoption — Phase 1 (shipped 2026-05-08)
-
-| Target | Tier | Used by mode | Status |
-|--------|------|--------------|--------|
-| `.roo/skill-zero-trust-execution.md` (128 lines) | Tier 1 (universal) | all modes — debug Tier 1 | ✅ INSTALLED (commit `7cef222`) |
-| `.roo/skill-root-cause-analysis.md` (95 lines) | Tier 2 | debug | ✅ INSTALLED (commit `7cef222`) |
-| `.roo/skill-log-analysis-patterns.md` (103 lines) | Tier 2 | debug | ✅ INSTALLED (commit `7cef222`) |
-| `.roo/skill-receiving-code-review.md` (110 lines) | Tier 2 | code (not yet wired in `.roomodes` — opportunity for follow-up) | ✅ INSTALLED (commit `7cef222`) |
-| `.roo/skill-architect-design-review.md` (167 lines) | Tier 1 | architect (not yet wired in `.roomodes` — opportunity for follow-up) | ✅ INSTALLED (commit `7cef222`) |
-| `.roo/skill-code-review.md` (Output Format section replaced) | — | dev-reviewer | ✅ INSTALLED (commit `7cef222`) — strict `[P1]/[P2]/[P3]` parseable format + `✅/🔄` verdict line |
-| `.roomodes` (added `debug` mode) | — | — | ✅ INSTALLED (now 6 custom modes) |
-| `.roo/rules-ux-designer.md` (inserted Hard Stop §0) | — | ux-designer | ✅ INSTALLED (`### 0. READ-WIKI-AND-TEMPLATE-FIRST`) |
-
-### Install procedure that worked
-
-The install was non-trivial because of the `.roo/` system guard (see [§8](#8--roo-folder-write-restriction-critical--all-agents)). What ultimately succeeded:
-
-1. The Architect authored all content into `docs/temp/idex-adoption-phase1.md` (spec, 786 lines, deliverable-scoring 0.92).
-2. A shell script at `docs/temp/apply-phase1.md` extracted the spec sections into the 5 target paths via `awk` + marker pairs.
-3. **Critical step:** `git add .roo/ && git commit -m "feat(modes): install ..."` immediately after the script. Once committed, the lifecycle hook leaves the files alone (hook only reverts untracked changes).
-
-### Lessons learned (codified)
-
-- See [`docs/memory/wiki/concepts/agent-mode-tiering.md`](docs/memory/wiki/concepts/agent-mode-tiering.md) — Tier 1/Tier 2 skill loading pattern
-- See [`docs/memory/wiki/concepts/agent-failure-discipline.md`](docs/memory/wiki/concepts/agent-failure-discipline.md) — 2-failure rule + 7 "never assume" principles + Disk-First Review Discipline
-
-### Future opportunities (not in scope of this task)
-
-- Wire [`skill-receiving-code-review.md`](.roo/skill-receiving-code-review.md) into the `code` mode's `customInstructions` in [`.roomodes`](.roomodes) (Tier 2: load when fixing review feedback)
-- Wire [`skill-architect-design-review.md`](.roo/skill-architect-design-review.md) into the `architect` mode's `customInstructions` (Tier 1)
-- Migrate `code`, `dev-reviewer`, `architect`, `ux-designer`, `orchestrator` modes to the explicit Tier 1/Tier 2 skill loading style (see [agent-mode-tiering](docs/memory/wiki/concepts/agent-mode-tiering.md) "Migration plan")
+Past install records (commits, file lists, install procedures) live in [`docs/memory/wiki/log.md`](docs/memory/wiki/log.md). For the IDEX adoption Phase 1 install (2026-05-08), see commit `7cef222` and the log entry "IDEX Mode Improvements — Phase 1 (✅ fully shipped, commit 7cef222)".
