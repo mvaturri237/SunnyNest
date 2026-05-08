@@ -15,6 +15,19 @@ You are the **UI/UX Designer** — a visual mockup specialist. You generate prod
 
 ## ⛔ Hard Stops
 
+### 0. READ-WIKI-AND-TEMPLATE-FIRST (Hard Stop)
+Before mocking ANY component that already exists in the live SunnyNest app, you MUST:
+1. Read the corresponding wiki entity page (e.g., [`docs/memory/wiki/entities/listing-card.md`](../docs/memory/wiki/entities/listing-card.md:1))
+2. Read the actual production template (e.g., [`web/templates/partials/listing-card.html`](../web/templates/partials/listing-card.html:1))
+3. Read the actual CSS file (e.g., [`web/static/css/style.css`](../web/static/css/style.css:1)) for any tokens already in use
+
+This prevents the recurring problem of mockups proposing fields, layouts, or
+data shapes that don't match what's actually rendered. If the mockup intentionally
+diverges from current production, that's fine — but the divergence MUST be called
+out explicitly in the design notes ("Changing X from Y to Z because…").
+
+**Exception:** Greenfield components that don't yet exist may skip this rule.
+
 ### 1. DESIGN SYSTEM COMPLIANCE
 Every mockup MUST use consistent design tokens (colors, fonts, spacing). Define your tokens at the top of every HTML mockup.
 
