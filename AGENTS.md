@@ -39,11 +39,11 @@ The Orchestrator delegates tasks based on these keyword/context rules:
 
 | Keywords / Context | Route To | Notes |
 |-------------------|----------|-------|
-| mockup, wireframe, UI design, UX review, design system, color palette, typography, accessibility audit, component design, dark mode, responsive design, prototype, "look and feel", "visual" | 🎨 **UX Designer** | Any request mentioning UI/UX/design concepts |
-| architecture, system design, plan, "how should we", feature planning, technical spec | 🏗️ **Architect** | Design docs only — no production code |
-| implement, code, fix, refactor, build | 💻 **Code** | Always followed by Code Reviewer (see Workflow Sequencing) |
-| review, code review, API review, "check my code" | 🔍 **Code Reviewer** | Quality, security, performance checks |
-| debug, troubleshoot, error, diagnose, "why is this failing" | 🪲 **Debug** | Error investigation and diagnostics |
+| mockup, wireframe, UI design, UX review, design system, color palette, typography, accessibility audit, component design, dark mode, responsive design, prototype, "look and feel", "visual" | 🎨 **UX Designer** (`ux-designer`) | Any request mentioning UI/UX/design concepts |
+| architecture, system design, plan, "how should we", feature planning, technical spec | 🏗️ **Architect** (`architect`) | Design docs only — no production code |
+| implement, code, fix, refactor, build | 💻 **Code** (`code`) | Always followed by Code Reviewer (see Workflow Sequencing) |
+| review, code review, API review, "check my code" | 🔍 **Code Reviewer** (`dev-reviewer`) | Quality, security, performance checks |
+| debug, troubleshoot, error, diagnose, "why is this failing" | 🪲 **Debug** (`debug`) | Error investigation and diagnostics |
 
 ---
 
@@ -62,6 +62,7 @@ The Orchestrator delegates tasks based on these keyword/context rules:
 2. If Code Reviewer finds **P1 or P2** severity issues → delegate back to Code to fix → re-review
 3. Only after Code Reviewer approves (no P1/P2 remaining) → task is complete
 4. This cycle is **mandatory** and cannot be skipped even if the user says "go" or "do it"
+5. **Round-2 fix briefs MUST contain ONLY P0/P1/P2 items.** All P3s (and unranked "recommended" items) get appended to [`docs/memory/p3-backlog.md`](docs/memory/p3-backlog.md) for fix-on-demand. The user triggers a sweep by saying *"fix all open P3s"* or *"fix the [feature] P3s"*. Mechanics + the one narrow `[hardens-against-this-bug-class]` exception live in [`docs/memory/wiki/concepts/review-cycle.md`](docs/memory/wiki/concepts/review-cycle.md) §"Severity-based fix-cycle scope".
 
 ### ⚠️ Critical: `switch_mode` to Code Bypasses Review
 
@@ -176,6 +177,7 @@ After the Code → Review cycle completes, the Orchestrator performs wiki sync:
 3. **Update concept pages** — if a cross-cutting pattern was learned or changed
 4. **Append to log** — add entry to `docs/memory/wiki/log.md`
 5. **Refresh index** — update "Last Updated" dates in `docs/memory/wiki/index.md`
+6. **Re-read before `apply_diff`** — Before issuing `apply_diff` against any wiki file (entity, concept, log, or index), re-read the file if you have NOT read it in the last 1 turn or if other tasks may have touched memory since your last read. Cost is small (parallel reads, ~$0.05); the saving on a failed-diff retry is larger (~$0.10–0.30 per failure plus user clicks). Real cost on 2026-05-08 dedup task: 3 of 6 parallel `apply_diff`s failed because content had drifted since cached read.
 
 The Orchestrator may delegate wiki sync to Architect mode via `new_task` if the changes are complex.
 
