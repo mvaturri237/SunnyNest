@@ -12,6 +12,61 @@ Find the *true* root cause of a bug, not the first plausible-looking explanation
 
 ---
 
+---
+
+## Pattern: Live Re-Invocation First (Silent Failures & No-Ops)
+
+> **Default first move when the symptom is shaped "feature X didn't do Y to data Z" (silent failure, no-op bug):** BEFORE running forensic queries on the result-state Z, instrument logging on X and **re-invoke X against Z inside a `session.rollback()`-guarded REPL**. The resulting log trace pinpoints the failure path in one shot.
+
+### Why this beats forensic-first
+
+Forensic queries on the post-failure state tell you **scope** ("how many rows are stuck?"), but rarely **cause** ("why did the merge no-op?"). The cause is encoded in control-flow you can't see from data alone — `try`/`except` swallow points, early-return guards, conditional branches that didn't fire. A live re-invocation with INFO/DEBUG logging surfaces the missing log line in one round.
+
+### The 5-step pattern
+
+1. **Read the production code path** that *should* have done the thing. Identify the function name and entry point.
+2. **Build a minimal rollback-guarded invocation** of that path against the actual production data:
+   ```python
+   from src.database import session_scope
+   from src.dedup import find_and_merge_duplicate
+   import logging; logging.basicConfig(level=logging.DEBUG)
+
+   with session_scope() as s:
+       try:
+           result = find_and_merge_duplicate(s, listing_id=12345)
+           print("RESULT:", result)
+       finally:
+           s.rollback()  # never commit during diagnosis
+   ```
+3. **Enable INFO/DEBUG logging** on the relevant logger(s). Do this BEFORE the invocation so the very first call is captured.
+4. **Read the trace top-down.** The log line *immediately preceding the silent failure* is almost always the cause — usually a logged-but-swallowed exception or a conditional that returned early.
+5. **Only then** run forensic queries on the result-state to assess scope ("how many other rows are affected?") — now that you know the cause, scope queries take seconds.
+
+### Worked example: 2026-05-08 cross-source dedup `IntegrityError` silent no-op
+
+**Symptom:** Cross-source dedup scoring correctly identified duplicates, but **zero merges had occurred for ~6 weeks**. No errors in logs. `notification_log` showed no failures.
+
+**Anti-pattern that wasted ~$0.80 / ~4 user clicks / ~3-4 min** (rounds 2, 5, 6 of the 7-round investigation): Debug ran SQL queries against `listings` + `listing_sources` + `dedup_decision_log` looking for the missing merge rows. Found nothing — because the merges had been silently rolled back, leaving no trace.
+
+**The one-shot fix that actually worked** (round 7): Debug invoked `find_and_merge_duplicate(session, listing_id=...)` inside a `session.rollback()`-guarded REPL with `logger.setLevel(DEBUG)`. The trace immediately surfaced:
+
+```
+DEBUG src.dedup  Inserting ListingSource(listing_id=42, source='craigslist', external_id='cl-7891') ...
+WARNING src.dedup  possible race condition during merge: (sqlite3.IntegrityError) UNIQUE constraint failed: ...uq_ls_source_external_id
+```
+
+That single DEBUG -> WARNING transition pinpointed the broad `except IntegrityError` block in `_merge_duplicate()` that was masking the bug as a fake race condition. **Total time from REPL start to root cause: ~30 seconds.** Fix was 9 production lines.
+
+### When to skip this pattern
+
+- Symptom is a **crash with stack trace** — read the stack, no re-invocation needed.
+- Symptom is **"feature X is slow"** — profile, don't re-invoke.
+- Symptom is **a UI rendering bug** — `curl` the page; the rendered HTML is your evidence.
+- The data Z required to reproduce X **doesn't exist anymore** (DB pruned, log rotated). Then forensic-first is the only option.
+
+For everything else shaped "X didn't do Y to Z," default to live re-invocation first.
+
+
 ## The 5 Whys (with a SunnyNest worked example)
 
 Ask "why?" until you hit a root cause that's **actionable** (not "because the universe is hard").
