@@ -17,57 +17,21 @@ customModes:
         - fileRegex: \.md$
           description: Markdown files only
     customInstructions: >-
-      PRE-FLIGHT: At task start, read AGENTS.md for role-specific rules and coordination protocols.
+      PRE-FLIGHT: Read AGENTS.md (routing rules, workflow sequencing, .roo/ guard, agent-runs-commands rule) + docs/memory/wiki/index.md + docs/memory/tasks/default/activeContext.md.
 
-      MODE DELEGATION RULES:
+      DELEGATION: Use the routing table in AGENTS.md "Orchestrator Routing Rules" to pick the target mode. Always EXPLAIN to the user WHY you are delegating before doing so.
 
-      UX/UI TASKS → 🎨 UX Designer (ux-designer):
-      When the user's request involves any of the following, delegate to the ux-designer mode:
-      - Visual mockups, wireframes, or prototypes
-      - UI design reviews or audits
-      - Color palette, typography, or design system decisions
-      - Accessibility audits or WCAG compliance
-      - Responsive design or layout patterns
-      - Component design or styling
-      - Dark mode or theming
-      - Map UI or geospatial interface design
-      - Filter/search UX patterns
-      - Any request mentioning "UI", "UX", "design", "mockup", "wireframe", "look and feel", or "visual"
+      WORKFLOW SEQUENCING (mandatory — see AGENTS.md §"Workflow Sequencing Rules" for full text):
+      - ANY Code task → Code Reviewer next, no exception (even if user says "go")
+      - If reviewer finds P1/P2 → back to Code → re-review until approved
+      - NEVER use switch_mode to Code for code changes (bypasses the cycle); ALWAYS use new_task(mode: "code", ...)
+      - switch_mode to Code is OK only for read-only ops (running a query, checking a file)
 
-      ARCHITECTURE TASKS → 🏗️ Architect (architect):
-      Delegate system design, feature planning, and technical specs.
+      WIKI SYNC (after Code→Review cycle approves): update affected entity pages → update relevant concept pages → append to log.md → bump dates in index.md → trim activeContext.md to 3 most recent changes. See AGENTS.md §7 for the full protocol.
 
-      CODE TASKS → 💻 Code (code):
-      Delegate implementation, bug fixes, refactoring, and feature coding.
+      WIKI LINT: When user says "/wiki-lint" or "lint the wiki", follow .roo/skill-wiki-lint.md.
 
-      REVIEW TASKS → 🔍 Code Reviewer (dev-reviewer):
-      Delegate code reviews, API reviews, and quality checks.
-
-      DEBUG TASKS → 🪲 Debug (debug):
-      Delegate troubleshooting, error investigation, and diagnostics.
-
-      WORKFLOW SEQUENCING RULES:
-      - After ANY Code mode task that creates or modifies code files, you MUST delegate to Code Reviewer (dev-reviewer) before completing the task. Never skip the review step.
-      - If Code Reviewer finds issues (P1 or P2 severity), delegate back to Code mode to fix them, then re-review with Code Reviewer.
-      - Only after Code Reviewer approves (no P1/P2 issues remaining) should you consider the task complete.
-      - This Code → Review → Fix cycle is mandatory and must not be skipped even if the user says "go" or "do it".
-
-      CRITICAL: Never use switch_mode to enter Code mode for code changes. Always use new_task(mode: "code", ...) for any code modifications. switch_mode to Code bypasses the Orchestrator and skips the mandatory Code Reviewer step. switch_mode to Code is only acceptable for read-only operations (e.g., running a database query, checking a file).
-
-      WIKI SYNC: After the Code→Review cycle completes (approved, no P1/P2), perform wiki sync:
-      1. Read the Code mode's completion message for the list of affected entities
-      2. Update the affected entity pages in docs/memory/wiki/entities/
-      3. Update concept pages in docs/memory/wiki/concepts/ if a cross-cutting pattern was learned or changed
-      4. Append an entry to docs/memory/wiki/log.md
-      5. Update "Last Updated" dates in docs/memory/wiki/index.md
-      6. Update docs/memory/tasks/default/activeContext.md (keep only 3 most recent changes)
-      If the wiki sync is complex (many entities, new concepts), delegate to Architect mode via new_task.
-
-      WIKI LINT: When the user says "/wiki-lint" or "lint the wiki", run the checks defined in .roo/skill-wiki-lint.md. Produce a lint report and fix any issues you can (you can edit .md files).
-
-      Always explain to the user why you are delegating to a specific mode before doing so.
-      At task start, read memory files per .roo/skill-memory-manager.md.
-      At task end, perform self-reflection per .roo/skill-self-reflection.md, then update memory.
+      AT TASK END: Self-reflect per .roo/skill-self-reflection.md, then update memory per .roo/skill-memory-manager.md.
 
   - slug: dev-reviewer
     name: 🔍 Code Reviewer

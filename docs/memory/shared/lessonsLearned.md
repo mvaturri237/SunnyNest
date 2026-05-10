@@ -1,5 +1,35 @@
 # Lessons Learned
 
+<!-- TOC-START -->
+## 📋 Index
+
+> **Read this first.** Click the lesson title to jump directly. Avoid reading the entire file unless you need broad context — each lesson is self-contained.
+
+1. [Streamlit DOM Wrapper Mismatch](#streamlit-dom-wrapper-mismatch)
+2. [Streamlit apps need a process manager for persistent operation](#streamlit-apps-need-a-process-manager-for-persistent-operation)
+3. [macOS TCC (Transparency, Consent, Control) blocks launchd access to ~/Documents](#macos-tcc-transparency-consent-control-blocks-launchd-access-to-documents)
+4. [CSS Card Layout — Image/Text Alignment in Horizontal Cards](#css-card-layout-imagetext-alignment-in-horizontal-cards)
+5. [The "Silent Failure" Pattern — Environment Variables & Missing Credentials](#the-silent-failure-pattern-environment-variables-missing-credentials)
+6. [Code Review Patterns for Multi-Source Aggregators](#code-review-patterns-for-multi-source-aggregators)
+7. [macOS does not have a `python` command — always use `.venv/bin/python`](#macos-does-not-have-a-python-command-always-use-venvbinpython)
+8. [`switch_mode` to Code Bypasses the Mandatory Code → Review Cycle](#switch_mode-to-code-bypasses-the-mandatory-code-review-cycle)
+9. [App Isolation: Dashboard (app.py) and Backoffice (backoffice.py) Must Not Cross-Contaminate](#app-isolation-dashboard-apppy-and-backoffice-backofficepy-must-not-cross-contaminate)
+10. [Environment Variables Must Persist Across Server Restarts](#environment-variables-must-persist-across-server-restarts)
+11. [Shell Quoting: `pip install pkg>=version` Creates Stray Files](#shell-quoting-pip-install-pkgversion-creates-stray-files)
+12. [User-Managed Flags Must Be Excluded from Generic Update Loops](#user-managed-flags-must-be-excluded-from-generic-update-loops)
+13. [Never Embed Schedulers Inside Web Server Processes](#never-embed-schedulers-inside-web-server-processes)
+14. [Craigslist Renewal Dates Overwrite Original `listed_date`](#craigslist-renewal-dates-overwrite-original-listed_date)
+15. [Jinja2 Auto-Escaping Breaks HTML Entities in Template Expressions](#jinja2-auto-escaping-breaks-html-entities-in-template-expressions)
+16. [CSS Cache Versioning Must Be Bumped on Every CSS Change](#css-cache-versioning-must-be-bumped-on-every-css-change)
+17. [Config Values Override Code Constants — Update Both](#config-values-override-code-constants-update-both)
+18. [Code Review Must Include Runtime Verification for UI Changes](#code-review-must-include-runtime-verification-for-ui-changes)
+19. [Agent Runs Commands By Default — User is NOT a Terminal (P0 user preference)](#agent-runs-commands-by-default-user-is-not-a-terminal-p0-user-preference)
+20. [Fragile Script Pattern — Markdown-Embedded Bash Block Recursion (P1)](#fragile-script-pattern-markdown-embedded-bash-block-recursion-p1)
+21. [`.roo/` and `.vscode/` System Write Guard — `git commit` Bypass (P0)](#roo-and-vscode-system-write-guard-git-commit-bypass-p0)
+
+---
+
+<!-- TOC-END -->
 ## Streamlit DOM Wrapper Mismatch
 - **Date:** 2026-03-29
 - **Context:** CSS rules targeting `stVerticalBlockBorderWrapper` didn't work because Streamlit's actual DOM uses `stLayoutWrapper` as the wrapper element
