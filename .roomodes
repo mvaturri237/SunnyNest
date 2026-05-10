@@ -91,14 +91,17 @@ customModes:
     customInstructions: >-
       PRE-FLIGHT: At task start, read AGENTS.md for role-specific rules and coordination protocols.
 
-      When reviewing API endpoints, follow .roo/skill-api-endpoint-review.md.
-      When reviewing code quality, follow .roo/skill-code-review.md.
-      When reviewing scraping or data pipeline code, follow .roo/skill-data-scraping.md.
-      When reviewing notification code, follow .roo/skill-notification-system.md.
-      At session end, follow .roo/skill-self-learn.md to evaluate if you learned something worth proposing as a skill or rule improvement.
-      At task start, read memory files per .roo/skill-memory-manager.md.
-      At task end, perform self-reflection per .roo/skill-self-reflection.md, then update memory.
-      When scoring deliverable quality, follow .roo/skill-deliverable-scoring.md.
+      SKILLS — Tier 1 (load every task):
+      - .roo/skill-code-review.md — ALWAYS use the strict [P1]/[P2]/[P3] + Why:/Fix: + ✅/🔄 verdict format; the Orchestrator parses these tokens to decide whether to delegate back to Code
+      - .roo/skill-self-reflection.md — REAR template at task end (mandatory, every review)
+
+      SKILLS — Tier 2 (load when relevant):
+      - .roo/skill-api-endpoint-review.md — load when reviewing FastAPI/Flask endpoints under web/routes/*.py
+      - .roo/skill-data-scraping.md — load when reviewing changes under src/scrapers/, src/orchestrator.py, or src/dedup.py
+      - .roo/skill-notification-system.md — load when reviewing src/notifier.py or notification_log changes
+      - .roo/skill-deliverable-scoring.md — load before scoring a deliverable's quality (PRDs, ADRs, plans)
+      - .roo/skill-memory-manager.md — load only if reviewing wiki/memory file changes (rare for dev-reviewer)
+      - .roo/skill-self-learn.md — load at session end if a new pattern was discovered worth proposing
 
 
   - slug: ux-designer
@@ -140,15 +143,19 @@ customModes:
       Apply everything in the Design Bible. If you make new design decisions during
       a task, update the Design Bible before ending the session.
 
-      SKILLS (load and follow these for relevant tasks):
-      - .roo/skill-frontend-design.md — Layout patterns, anti-AI-slop rules, responsive design
-      - .roo/skill-ui-ux-pro-max.md — Visual styles, color palettes, font pairings, charts, components
-      - .roo/skill-design-system-patterns.md — Design tokens, theming, component architecture
-      - .roo/skill-ui-audit.md — UI audit framework, 7-dimension review, prioritized findings
-      - .roo/skill-map-ui.md — Map/geospatial UI patterns, split-pane layout, markers
-      - .roo/skill-filter-search-ux.md — Filter bar patterns, search UX, sort options
-      - .roo/skill-notification-system.md — Notification preferences UI, channel selection, digest patterns
-      At session end, follow .roo/skill-self-learn.md to evaluate if you learned something worth proposing as a skill or rule improvement.
+      SKILLS — Tier 1 (load every task):
+      - .roo/skill-design-system-patterns.md — design tokens, component architecture, theming (ALWAYS apply — every mockup must follow these tokens)
+      - .roo/skill-self-reflection.md — REAR template at task end (mandatory, every design)
+
+      SKILLS — Tier 2 (load when relevant):
+      - .roo/skill-frontend-design.md — load when implementing responsive layouts, HTML/CSS mockups, or anti-AI-slop checks
+      - .roo/skill-ui-ux-pro-max.md — load when picking color palettes, font pairings, or designing complex components
+      - .roo/skill-ui-audit.md — load when running a UI audit (7-dimension review, prioritized findings)
+      - .roo/skill-map-ui.md — load when working on map view, markers, or geospatial UI
+      - .roo/skill-filter-search-ux.md — load when working on filter bar or search UX
+      - .roo/skill-notification-system.md — load when designing notification preferences UI
+      - .roo/skill-memory-manager.md — load only if updating wiki design entries (rare for ux-designer)
+      - .roo/skill-self-learn.md — load at session end if a new pattern was discovered worth proposing
 
       OUTPUT: Always create self-contained HTML files with inline CSS. Save to docs/temp/mockups/.
       Use realistic data, not Lorem ipsum. Include all states (default, hover, loading, empty, error).
@@ -190,11 +197,14 @@ customModes:
     customInstructions: >-
       PRE-FLIGHT: At task start, read AGENTS.md for role-specific rules and coordination protocols.
 
-      SKILLS (load and follow these for relevant tasks):
-      - .roo/skill-data-scraping.md — Source adapters, deduplication, sync architecture
-      - .roo/skill-notification-system.md — Event-driven notifications, channel adapters, retry logic
-      - .roo/skill-code-review.md — Code quality, security, performance checks
-      At session end, follow .roo/skill-self-learn.md to evaluate if you learned something worth proposing as a skill or rule improvement.
+      SKILLS — Tier 1 (load every task):
+      - .roo/skill-code-review.md — strict [P1]/[P2]/[P3] + ✅/🔄 verdict format (this is the format dev-reviewer will use; Code mode produces output that maps cleanly to it)
+
+      SKILLS — Tier 2 (load when relevant):
+      - .roo/skill-data-scraping.md — load when touching src/scrapers/, src/orchestrator.py, or src/dedup.py (source adapters, dedup, sync architecture)
+      - .roo/skill-notification-system.md — load when touching src/notifier.py or notification_log (event-driven channels, retry logic)
+      - .roo/skill-receiving-code-review.md — load when responding to dev-reviewer feedback (after a 🔄 CHANGES REQUESTED verdict); read-all-first rule, 🔴/🟠/🟡/🟢/🔵 categorization, 5-question verification per suggestion, push-back guidance
+      - .roo/skill-self-learn.md — load at session end if a new pattern was discovered worth proposing as a skill/rule improvement
 
       RULES: Follow .roo/rules/shared.md for all tasks.
       At task start, read memory files per .roo/skill-memory-manager.md.
@@ -292,13 +302,16 @@ customModes:
     customInstructions: >-
       PRE-FLIGHT: At task start, read AGENTS.md for role-specific rules and coordination protocols.
 
-      SKILLS (load and follow these for relevant tasks):
-      - .roo/skill-data-scraping.md — Scraping architecture, adapter pattern, deduplication
-      - .roo/skill-notification-system.md — Notification architecture, channels, event-driven design
-      - .roo/skill-map-ui.md — Map/geospatial architecture patterns
-      - .roo/skill-filter-search-ux.md — Search and filter system design
-      At session end, follow .roo/skill-self-learn.md to evaluate if you learned something worth proposing as a skill or rule improvement.
-      Tier 2 - Read .roo/skill-concurrent-edit-lock.md before editing shared config files when multiple VS Code windows are open.
+      SKILLS — Tier 1 (load every task):
+      - .roo/skill-architect-design-review.md — ADR template (with mandatory negative consequences), 5 ADR anti-patterns, Mermaid diagram standards, plan freshness tagging — apply this format to every architecture document you produce
+
+      SKILLS — Tier 2 (load when relevant):
+      - .roo/skill-data-scraping.md — load when designing scraper changes or new data-source adapters (adapter pattern, dedup architecture)
+      - .roo/skill-notification-system.md — load when designing notification flow, channels, or event triggers
+      - .roo/skill-map-ui.md — load when designing map/geospatial UI features
+      - .roo/skill-filter-search-ux.md — load when designing search/filter system
+      - .roo/skill-concurrent-edit-lock.md — load before editing shared config files (.roomodes, AGENTS.md) when multiple VS Code windows are open
+      - .roo/skill-self-learn.md — load at session end if a new pattern was discovered worth proposing
 
 
 
