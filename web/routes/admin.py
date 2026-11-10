@@ -29,6 +29,7 @@ from src.database import (
     get_batch_price_changes,
     get_data_freshness,
     get_filtered_listings,
+    get_last_channel_failure,
     get_lifecycle_by_bedrooms,
     get_lifecycle_by_price_range,
     get_lifecycle_stats,
@@ -44,7 +45,14 @@ from src.database import (
     get_source_counts_with_inactive,
     get_today_notification_count,
 )
-from src.utils import get_email_settings, get_whatsapp_settings, load_config, sqft_to_sqm
+from src.utils import (
+    get_email_settings,
+    get_telegram_settings,
+    get_whatsapp_settings,
+    load_config,
+    resolve_cities,
+    sqft_to_sqm,
+)
 from web.dependencies import get_env_status, templates
 
 logger = logging.getLogger("sunnynest.admin")
@@ -588,7 +596,7 @@ async def admin_notifications(request: Request):
     # Daily data
     daily_data = get_notifications_by_day(30)
 
-    # History
+    # History (now includes error category / message for failed sends)
     history = get_notification_history(100)
     formatted_history = []
     for entry in history:
@@ -598,6 +606,8 @@ async def admin_notifications(request: Request):
             "recipient": entry.get("recipient", "—"),
             "listing_count": entry.get("listing_count", 0),
             "success": entry.get("success", False),
+            "error_category": entry.get("error_category"),
+            "error_message": entry.get("error_message"),
         })
 
     # SMTP credential status check (mirrors API key check on api-usage page)
@@ -614,6 +624,17 @@ async def admin_notifications(request: Request):
     whatsapp_phone_id = os.environ.get("WHATSAPP_PHONE_NUMBER_ID", "").strip()
     whatsapp_configured = bool(whatsapp_api_token and whatsapp_phone_id)
 
+    # Telegram credential status check
+    telegram_bot_token = os.environ.get("TELEGRAM_BOT_TOKEN", "").strip()
+    telegram_chat_id = os.environ.get("TELEGRAM_CHAT_ID", "").strip()
+    telegram_configured = bool(telegram_bot_token and telegram_chat_id)
+
+    # Last-failure surfaces (token-expired etc.) — only flagged if the
+    # MOST RECENT send for that channel failed within the last 48h.
+    whatsapp_failure = get_last_channel_failure("whatsapp", within_hours=48)
+    email_failure = get_last_channel_failure("email", within_hours=48)
+    telegram_failure = get_last_channel_failure("telegram", within_hours=48)
+
     return templates.TemplateResponse(
         request,
         "admin/notifications.html",
@@ -627,6 +648,10 @@ async def admin_notifications(request: Request):
             "history": formatted_history,
             "smtp_configured": smtp_configured,
             "whatsapp_configured": whatsapp_configured,
+            "whatsapp_failure": whatsapp_failure,
+            "email_failure": email_failure,
+            "telegram_configured": telegram_configured,
+            "telegram_failure": telegram_failure,
         },
     )
 
@@ -636,6 +661,7 @@ async def admin_settings(request: Request):
     """Settings page with read-only config display."""
     email_settings = get_email_settings()
     whatsapp_settings = get_whatsapp_settings()
+    telegram_settings = get_telegram_settings()
 
     try:
         config = load_config()
@@ -644,6 +670,7 @@ async def admin_settings(request: Request):
 
     email_cfg = config.get("email", {})
     whatsapp_cfg = config.get("whatsapp", {})
+    telegram_cfg = config.get("telegram", {})
     zillow_cfg = config.get("zillow_api", {})
     realtor_cfg = config.get("realtor_api", {})
     schedule_cfg = config.get("schedule", {})
@@ -651,9 +678,25 @@ async def admin_settings(request: Request):
     filters_cfg = config.get("filters", {})
     notif_schedule = config.get("notification_schedule", {})
 
+    # Telegram chat_id lives in env (never config.yaml — co-secret with bot token).
+    # Display the last 4 digits only on the settings page.
+    telegram_chat_id_env = os.environ.get("TELEGRAM_CHAT_ID", "").strip()
+    if telegram_chat_id_env:
+        if len(telegram_chat_id_env) > 4:
+            telegram_chat_display = "…" + telegram_chat_id_env[-4:]
+        else:
+            telegram_chat_display = "…"
+    else:
+        telegram_chat_display = "Not configured"
+
     config_sections = {
         "Search": {
-            "City": search_cfg.get("city", "Not configured"),
+            # Show all configured scrape-territory cities (multi-city aware).
+            # resolve_cities() bridges the new `cities` list and the legacy
+            # `city` scalar; label pluralises for clarity.
+            (
+                "Cities" if len(resolve_cities(search_cfg)) > 1 else "City"
+            ): ", ".join(resolve_cities(search_cfg)),
             "State": search_cfg.get("state", "N/A"),
             "ZIP Codes": ", ".join(search_cfg.get("zip_codes", [])),
         },
@@ -678,6 +721,11 @@ async def admin_settings(request: Request):
             "Enabled": "Yes" if whatsapp_cfg.get("enabled") else "No",
             "Recipient Phone": whatsapp_cfg.get("recipient_phone", "Not configured") or "Not configured",
         },
+        "Telegram": {
+            "Enabled": "Yes" if telegram_cfg.get("enabled") else "No",
+            "Parse Mode": str(telegram_cfg.get("parse_mode", "HTML")),
+            "Chat ID (last 4)": telegram_chat_display,
+        },
         "Zillow API": {
             "API Host": zillow_cfg.get("rapidapi_host", "Not configured"),
             "Budget Limit": f"{API_BUDGET_LIMITS['zillow']} requests/month",
@@ -698,5 +746,7 @@ async def admin_settings(request: Request):
             "config_sections": config_sections,
             "email_settings": email_settings,
             "whatsapp_settings": whatsapp_settings,
+            "telegram_settings": telegram_settings,
+            "telegram_chat_display": telegram_chat_display,
         },
     )

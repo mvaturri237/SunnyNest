@@ -15,11 +15,16 @@
     <key>WorkingDirectory</key>
     <string>/Users/mvaturri/Documents/zillow</string>
 
-    <!-- Run daily at 08:00 local time -->
+    <!-- Run daily at 10:00 local time.
+         Shifted from 08:00 → 10:00 on 2026-06-03 because (a) the user
+         doesn't reliably open the laptop by 08:00 and (b) by 10:00 the
+         VPN is reliably up, mitigating the launchd-vs-VPN startup race
+         (L1) that contributed to the May 27 → Jun 3 silent-Telegram
+         incident.  PM run stays at 20:00 — see com.sunnynest.notify-pm.plist. -->
     <key>StartCalendarInterval</key>
     <dict>
         <key>Hour</key>
-        <integer>8</integer>
+        <integer>10</integer>
         <key>Minute</key>
         <integer>0</integer>
     </dict>

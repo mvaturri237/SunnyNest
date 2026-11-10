@@ -84,6 +84,11 @@ class ScraperOrchestrator:
             scraper = next(s for name, s in self._scrapers if name == source_name)
 
             seen_external_ids: list[str] = []
+            # Per-source counter of items filtered by normalize() returning None
+            # (e.g. Zillow status validation — Bug A, 2026-06-04). Logged after
+            # the per-source loop completes so we can verify the filter is
+            # working without spamming per-item logs.
+            normalize_filtered = 0
             logger.info(
                 "Processing %d raw listings from %s …",
                 len(raw_listings),
@@ -93,8 +98,12 @@ class ScraperOrchestrator:
 
             for raw in raw_listings:
                 try:
-                    # 1. Normalize
+                    # 1. Normalize (may return None to signal "skip this item",
+                    #    e.g. Zillow Bug A status guard rejects for-sale rows)
                     normalized = scraper.normalize(raw)
+                    if normalized is None:
+                        normalize_filtered += 1
+                        continue
 
                     # 1b. Filter out $0 / None price listings (bad data)
                     norm_price = normalized.get("price")
@@ -220,6 +229,17 @@ class ScraperOrchestrator:
                         source_name,
                         raw.get("external_id", "unknown"),
                     )
+
+            # Log the normalize() skip-counter once per source (debug level —
+            # turn on logging.DEBUG to see the Bug A status-filter throughput).
+            if normalize_filtered:
+                logger.debug(
+                    "Source=%s: normalize() filtered %d / %d raw items "
+                    "(status/shape validation)",
+                    source_name,
+                    normalize_filtered,
+                    len(raw_listings),
+                )
 
             # 7. Mark listings not seen in this scrape as inactive (with safety threshold)
             if seen_external_ids:

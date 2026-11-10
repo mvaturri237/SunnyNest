@@ -5,6 +5,278 @@
 
 ---
 
+## 2026-06-04
+
+### Zillow stale for-sale → rental bug (Bug A + Bug B), ✅ APPROVED, 4 new P3s → backlog
+
+**Trigger:** User reported [`1525 Bittern Dr`](https://www.zillow.com/homedetails/1525-Bittern-Dr-Sunnyvale-CA-94087/19615280_zpid/) shown as $6,200/mo active rental in the dashboard — but the property is **"Off market"** / for sale at $2.98M on Zillow.com (Rent Zestimate $5,838/mo). One screenshot of the app + one of Zillow.com supplied as evidence.
+
+**Pipeline:** User report → Orchestrator routing (Debug first, per "debug/troubleshoot" keywords) → Debug (`new_task` — read-only RCA, 3 RapidAPI probes consumed = 5→8/500 monthly) → Orchestrator confirmation with user → Code (`new_task` — TDD, 15/15 tests green, atomic Bug A + Bug B + stop-the-bleed) → Code Reviewer (`new_task` ✅ APPROVED 0 P0/P1/P2, 4 P3s) → Orchestrator wiki sync (this entry).
+
+**Root-cause (two layered bugs):**
+
+| # | Bug | Where | Symptom |
+|---|-----|-------|---------|
+| **A** | Trust-the-provider: no response-side status validation | [`src/scrapers/zillow_scraper.py:268`](../../../src/scrapers/zillow_scraper.py:268) `normalize()` — sent `listingStatus=For_Rent` as request param but never re-checked `property.listing.listingStatus` / `marketingStatus` on the response | Off-market for-sale rows the provider mis-indexes pass straight to DB |
+| **B** | Eager `mark_inactive`: deactivates on a single missed scrape | [`src/orchestrator.py:240`](../../../src/orchestrator.py:240) / [`src/database.py:824`](../../../src/database.py:824) `mark_inactive()` | Debug verified the RapidAPI provider's index is non-deterministic — same query returned zpid 19615280 at 04:20 UTC but NOT in three 10:50 UTC retries. One "hit" per scrape was enough to keep the stale row "active" forever. |
+
+Compound symptom: a $2.98M off-market property displayed as a $6,200 rental for an unknown duration (≥ 2 days per `first_seen=2026-06-02`).
+
+**Falsified hypothesis (noted for future readers):** the numerical proximity of $6,200 (DB) ↔ $5,838 (Zillow.com Rent Zestimate today) suggested a "Rent Zestimate field leak" — Debug disproved this. The provider's `price.value` for stale rows is just a cached prior asking price, NOT a Zestimate. `property.homeStatus` is also a dead-end — key is present but value is **always `null`** in our responses.
+
+**Files modified (5 production + 2 tests + 1 ops):**
+
+Production:
+- [`src/scrapers/zillow_scraper.py`](../../../src/scrapers/zillow_scraper.py:268) — Bug A top-of-function status guard in `normalize()`. Signature changed to `dict | None`. Debug log on skip. Docstring names the live zpid + warns `property.homeStatus` is unusable.
+- [`src/scrapers/base.py`](../../../src/scrapers/base.py:81) — `BaseScraper.normalize()` abstract return widened to `dict | None`; docstring documents the skip-signal contract. Non-breaking for Craigslist + Realtor adapters (still return `dict`).
+- [`src/orchestrator.py`](../../../src/orchestrator.py:94) — handles `normalize() is None` with `continue` BEFORE `seen_external_ids.append(...)` (so filtered items don't poison the active-set); per-source `normalize_filtered` debug counter emitted only when > 0.
+- [`src/models.py`](../../../src/models.py:163) — new `consecutive_misses: int = Column(Integer, nullable=False, default=0, server_default="0")` with docstring cross-referencing `MARK_INACTIVE_MISS_THRESHOLD`.
+- [`src/database.py`](../../../src/database.py:166) — (1) new idempotent `_ensure_consecutive_misses_column()` migration in `init_db()` (all 278 existing rows backfill to 0 via `DEFAULT 0` ALTER), (2) added `consecutive_misses` to BOTH upsert exclusion tuples ([`:442`](../../../src/database.py:442), [`:501`](../../../src/database.py:501)) per [Upsert Exclusion Pattern](concepts/upsert-exclusion-pattern.md), (3) rewrote `mark_inactive()` — reset on present (cross-source isolated), increment on absent, flip `is_active=False` + `deactivated_at` only at `consecutive_misses >= MARK_INACTIVE_MISS_THRESHOLD = 3`; `ListingSource.is_active` mirror only on threshold crossing.
+
+Tests (15/15 green, TDD verified RED→GREEN by spot-check):
+- [`scripts/test_zillow_status_filter.py`](../../../scripts/test_zillow_status_filter.py) — 7 cases (forSale rejected / inactive rejected / missing subdict / missing key / case-insensitive happy path / non-string value / valid-forRent-active accepted).
+- [`scripts/test_mark_inactive_counter.py`](../../../scripts/test_mark_inactive_counter.py) — 8 cases (counter reset on present / increment-1-still-active / increment-2-still-active / cross threshold deactivates / re-appearance clears deactivation + counter / cross-source isolation / ListingSource mirror at threshold / ListingSource mirror NOT below threshold).
+
+Ops:
+- [`scripts/deactivate_stale_zillow.py`](../../../scripts/deactivate_stale_zillow.py) — idempotent one-shot for id=327 / zpid 19615280. Dry-run default; `--apply` to commit. Sanity guard on source+external_id refuses to act if row identity drifted. Prints BEFORE/AFTER snapshots + active-zillow counts. **Not auto-run** — user runs it post-merge.
+
+**Runtime verification (zero RapidAPI calls burned during fix; 3 burned during Debug):**
+- Dashboard `curl http://127.0.0.1:8000/` → HTTP 200 (uvicorn left running, no template/CSS touched per AGENTS.md §6 — pure backend change).
+- Schema migration ran in-band via `init_db()` on production [`data/listings.db`](../../../data/listings.db): `PRAGMA table_info` confirms `consecutive_misses INTEGER NOT NULL DEFAULT 0` present on `listings`; 278/278 rows have `consecutive_misses = 0`.
+- Dry-run of [`scripts/deactivate_stale_zillow.py`](../../../scripts/deactivate_stale_zillow.py) confirms target row identity: `id=327, source='zillow', external_id='19615280', address='1525 Bittern Dr, Sunnyvale, CA 94087', price=6200.0, is_active=1, consecutive_misses=0` — matches user-reported symptom exactly.
+- RapidAPI monthly counter: 5 → **8/500** (Debug's 3 probes only; Code mode used no live API).
+
+**4 new P3s** (ZILLOW-STALE-P3-1 through ZILLOW-STALE-P3-4):
+- **ZILLOW-STALE-P3-1** Legacy 30% safety threshold in [`orchestrator.py:225-249`](../../../src/orchestrator.py:225) is now redundant with the new hysteresis counter — pick "delete + comment" or "keep + retune comment" within 1 review cycle so the next reader has a clean story.
+- **ZILLOW-STALE-P3-2** Craigslist + Realtor adapters inherit the new `dict | None` contract but have no equivalent status field to validate today. Log so the next contributor adding a status field doesn't reinvent the Bug A guard pattern.
+- **ZILLOW-STALE-P3-3** `mark_inactive(source, [])` has a defense-in-depth gap — orchestrator's `if seen_external_ids:` guard currently shields it, but the function is module-public. Add an early-return + regression test `test_empty_active_ids_is_noop`.
+- **ZILLOW-STALE-P3-4** Extract `_UPSERT_PRIMARY_EXCLUDE` + `_UPSERT_MERGED_EXCLUDE` module-level constants in `database.py` — both tuples are now 8+11 items long and a future contributor will inevitably forget one. Closes [Upsert Exclusion Pattern](concepts/upsert-exclusion-pattern.md) Rule #6 from "Consider" to "Done".
+
+**Affected entities/concepts** (updated this sync):
+- [`zillow-scraper`](entities/zillow-scraper.md) — new "Response-side status validation (Bug A)" subsection; History entry; signature annotation update.
+- [`orchestrator`](entities/orchestrator.md) — pipeline step 2 docstring; `mark_inactive` semantics rewritten in Architecture; Current State and History entries.
+- [`database-schema`](entities/database-schema.md) — `consecutive_misses` column added to the `listings` table row of the Tables section; History entry.
+- [`silent-failure-pattern`](concepts/silent-failure-pattern.md) — new "Trust-the-provider scraper pattern" sub-pattern; new row in the "Variants" table; pairs with the existing 6 variants.
+- [`p3-backlog`](../p3-backlog.md) — 4 new ZILLOW-STALE-P3-* rows.
+
+**Cost summary:** ~2 hours agent time across Debug (RCA) + Code (TDD fix) + Reviewer (multi-axis review) + Orchestrator (wiki sync). 3 RapidAPI calls. Net DB rows affected: 0 by fix code; user will affect 1 row (id=327) by running the stop-the-bleed script.
+
+**User action required (1 command):** `.venv/bin/python scripts/deactivate_stale_zillow.py --apply`
+
+---
+
+### Featured POI — Ortega Park added (Option A — 36×36 ringed pin + always-shown label), ✅ APPROVED, 5 new P3s → backlog
+
+**Trigger:** User requested adding Ortega Park (Sunnyvale city park) as a new POI on the map with visual differentiation from regular POIs, with future intent of prioritizing nearby listings (ranking deferred to separate plan).
+
+**Decision tree:** Orchestrator presented 3 paths (A regular POI add, B featured-POI subsystem, C hardcoded const) → User picked **B + Later** (featured subsystem now, ranking deferred). UX delivered 3 mockup options in [`docs/temp/mockups/featured-poi-map.html`](../../../docs/temp/mockups/featured-poi-map.html); User picked **Option A** (larger ringed pin + always-shown label) with all 5 sub-question defaults (per-entry `featured: true` flag, user-editable, below price pills, simple hover, no UI for the flag yet).
+
+**Pipeline:** User request → Orchestrator triage (Path B + Later) → UX (`new_task` — 3 mockup options) → User pick (Option A + all defaults) → Code (`new_task`) → Reviewer (`new_task` ✅ APPROVED, 0 P1/P2, 5 P3s) → Orchestrator wiki sync (this entry).
+
+**Files modified:**
+- [`data/interest-points.json`](../../../data/interest-points.json) — appended `poi_ortega_park` entry with `"featured": true` flag. PANW HQ entry unchanged (no `featured` key — missing-is-falsy v1 contract).
+- [`web/static/js/map.js`](../../../web/static/js/map.js:395) — [`createPOIMarker()`](../../../web/static/js/map.js:395) now branches inline on `poi.featured`. Both branches build valid `L.divIcon` (featured 36×36 ringed pin + always-shown label pill; regular 24×24 dot unchanged). `zIndexOffset: -50` on featured only (between schools `-100` and price pills `0`). **Tooltip enriched to `"Name · Category"` for ALL POIs** (intentional consistency — PANW HQ now shows `"Palo Alto Networks HQ · Work"` on hover; Reviewer agreed it would have been worse to differentiate hover-affordance between featured vs regular).
+- [`web/static/css/style.css`](../../../web/static/css/style.css:1445) — new block lines 1445-1517 with `.poi-marker--featured`, `.poi-featured-pin`, `.poi-featured-label`. Faithful port of Option A mockup CSS; `prefers-reduced-motion` override included.
+- [`web/templates/base.html`](../../../web/templates/base.html:19) — `style.css ?v=16 → v=17`; [`map.js`](../../../web/templates/base.html:35) `?v=14 → v=15`.
+
+**🟢 Coordinate correction caught by Code mode:** task brief suggested `37.3496, -122.0184` for Ortega Park; Code mode queried Nominatim directly and used `37.3422, -122.0256` from OSM way `22462667` (~1 km from the suggested coords — different neighborhood). Reviewer independently verified via second Nominatim query (`37.3425911, -122.0247687` for node `764510168` inside the park — ~95m of Code mode's perimeter pin, well within tolerance). Also corrected ZIP `94086 → 94087`. This is the second time this session that Code mode's "verify external suggestions before pasting" discipline saved a user-visible bug (first was the wrong-by-1-3km school coords in the 2026-06-03 cycle).
+
+**Runtime verification (all 6 checks PASSED):** HTTP 200 on `/`; `style.css?v=17` + `map.js?v=15` served; `/api/poi` returns 2 POIs with `featured: ['Ortega Park']`; `featured` keyword in served map.js = 7 (branch + properties); `poi-marker--featured` class in served style.css = 7.
+
+**Out of scope (deliberate, deferred):** "ranking by distance to featured POI" — separate plan. No `featured` field on `POICreate` Pydantic (P3-POI-1). No "★ Feature this POI" toggle button in POI panel (P3-POI-2). No distance-to-listings on hover (P3-POI-3 — pairs with ranking).
+
+**5 new P3s** (POI-P3-1 through POI-P3-5):
+- **POI-P3-1** Add `featured: Optional[bool]` to `POICreate` Pydantic schema (forward-prep for toggle UI)
+- **POI-P3-2** "★ Feature this POI" toggle button in POI list (paired with POI-P3-1)
+- **POI-P3-3** Enrich featured-POI tooltip with distance-to-nearest-listing (requires ranking work)
+- **POI-P3-4** Verify/test `add_poi()` Pydantic passthrough of unknown kwargs (footgun before POI-P3-1 lands)
+- **POI-P3-5** Featured POI label pill can visually overlap nearby price pills at zoom ≥15 (cosmetic — z-order keeps clicks correct)
+
+**Affected entities:** [`map-view`](entities/map-view.md) (new featured-POI variant; createPOIMarker branches; tooltip enriched).
+
+**Cost summary:** ~1.5 hours agent time (Orchestrator triage + UX + Code + Reviewer). Zero production API calls (used Nominatim curl for coord verification).
+
+---
+
+### School-assignment UI disabled via `SCHOOLS_UI_ENABLED` flag (Option C from triage) — wrong data hidden pending NCES boundary refresh
+
+**Trigger:** User reported (with screenshot evidence) that listings displayed wrong school assignments — a Mountain View listing tagged `Cherry Chase Elementary School`, a Sunnyvale listing tagged `Stevens Creek Elem` (a Cupertino school). Bug was upstream — the UI was faithfully showing what `school_districts.py` wrote to the DB; the DB was wrong because the GeoJSON polygons at [`data/school-boundaries/elementary.geojson`](../../../data/school-boundaries/elementary.geojson) are approximate rectangles, not real attendance zones. Combined with the OPEN P2 about [`geocode_address()`](../../../src/geocoder.py:139) silent city-centroid fallback, the chip + green-pill highlight shipped the previous day were misleading users.
+
+**User-picked path (Option C from 4 options):** remove the user-facing surfaces now (honesty), queue an Architect-led data-refresh project for later.
+
+**Pipeline:** User report + screenshot → Orchestrator triage (4 options A/B/C/D presented) → User picked C → Code (`new_task`) → Reviewer (`new_task` ✅ APPROVED 0 P1/P2, recommended SCHOOL-P3-16 NOT be a P3 to avoid premature sweep) → Architect (`new_task`, produced `plans/school-boundaries-nces.md`) → Orchestrator wiki sync (this entry).
+
+**What shipped (the disable):**
+- New module-level constant [`SCHOOLS_UI_ENABLED: bool = False`](../../../web/dependencies.py:107) at [`web/dependencies.py`](../../../web/dependencies.py) with multi-line rationale comment. Registered as Jinja env global at [`web/dependencies.py:168`](../../../web/dependencies.py:168) — flows to every template (including htmx-swapped partials) without per-route wiring.
+- [`web/templates/partials/listing-card.html`](../../../web/templates/partials/listing-card.html) — `fav_school` boolean AND-ed with flag (defense-in-depth), `data-fav-school` attribute and entire `<div class="card-schools">…</div>` block wrapped in `{% if SCHOOLS_UI_ENABLED %}…{% endif %}`. No bare schools text leaks when flag is off.
+- [`web/static/css/style.css`](../../../web/static/css/style.css) — added `/* DISABLED 2026-06-04 — UI hidden via SCHOOLS_UI_ENABLED flag … */` comment markers above [`.school-pill-fav`](../../../web/static/css/style.css:1132) and [`.price-pill-marker.is-fav-school`](../../../web/static/css/style.css:1152). **Rules kept dormant — not deleted** so re-enable is a 1-line flag flip + cache bump.
+- [`web/static/js/map.js`](../../../web/static/js/map.js) — **NOT TOUCHED**. Code mode + Reviewer both verified the natural-disable chain: card emits no `data-fav-school` → JS `card.dataset.favSchool` is `undefined` → `undefined === '1'` is `false` → `is-fav-school` modifier never applied → green pill never fires. No JS edit needed.
+- [`web/templates/base.html`](../../../web/templates/base.html:19) — cache bump `style.css ?v=15 → v=16` (CSS content unchanged but rendered HTML output changed — bump correct).
+
+**Runtime verification (all 9 checks passed):** HTTP 200; `style.css?v=16` in served HTML; `card-schools` count = 0; `school-pill-fav` count = 0; `data-fav-school` count = 0; `🏫` emoji only in the POI filter `<option>` (unrelated, expected); `DISABLED 2026-06-04` grep-able x2; 15-school SCHOOLS const intact (6 favorites); `git diff src/school_districts.py src/orchestrator.py` = empty; **DB row count `WHERE school_elementary IS NOT NULL` = 250 before AND after** (proves no pipeline writes touched — preserved on purpose so new boundaries can be validated against current dataset before cut-over).
+
+**What's NOT touched** (deliberate): the DB enrichment pipeline still writes school assignments to every new listing; the 15 school POI pins on the map (sourced from the static `SCHOOLS` const in `map.js`, NOT the DB) still render correctly with hover tooltips; the `FAVORITE_SCHOOLS` constant, `is_favorite_school` helper, and dormant CSS rules all stay valid — re-enable is a 1-line flip.
+
+**Plan produced for the durable fix:** [`plans/school-boundaries-nces.md`](../../../plans/school-boundaries-nces.md) — Architect-led, 10-section data-refresh project. Recommends **hybrid CUSD ArcGIS pull + manual PDF tracing** (NOT NCES SABS — the federal source is 2021-22 vintage and pre-dates CUSD's 2024 redraw). Total effort 8–18 h. Re-enable flag flip is the last step of Definition-of-Done (intentionally NOT a P3 — Reviewer flagged that a P3-sweep without prerequisite data would re-introduce the same bug). Two architectural risks called out: (1) CUSD ArcGIS endpoint URL unverified at plan-time — Phase 1 first task is probing; (2) geocoder silent-fallback P2 is *necessary-not-sufficient* — recommend sequencing (a) boundary refresh → (b) geocoder fix → (c) re-enable for cleanest UI.
+
+**New P3 added** (from Reviewer nit): **SCHOOL-P3-17** — re-enable doc comment at [`web/dependencies.py:105-106`](../../../web/dependencies.py:105) should mention removing the two `/* DISABLED 2026-06-04 ... */` comment blocks in CSS for completeness. 1-line doc fix.
+
+**Affected entities:** [`listing-card`](entities/listing-card.md) (UI gate added), [`map-view`](entities/map-view.md) (green pill dormant via natural-disable chain), [`school-districts`](entities/school-districts.md) (UI hidden pending data refresh + plan link), [`geocoder`](entities/geocoder.md) (cross-linked from new plan as prerequisite).
+
+**Cost summary:** ~1.5 hours agent time (Orchestrator triage + Code + Reviewer + Architect). Zero production API calls.
+
+**Spinout findings:** SCHOOL-P3-17 added (CSS marker removal in re-enable doc). All prior P2 + P3 items remain OPEN; refer to [`docs/memory/p3-backlog.md`](../p3-backlog.md).
+
+---
+
+## 2026-06-03
+
+### School icons follow-up — 15 schools + 6 green favorites + listing-card highlight (Option C), ✅ ALL APPROVED, 8 new P3s → backlog
+
+Three-part follow-up to the earlier "School icons on map" entry today. All three asks shipped in a single user session.
+
+**Ask #1 + #2 (bundled into one Code task) — 15 schools + 6 green favorites:**
+- **#1 Added 2 schools:** Montclaire Elementary (1160 St. Joseph Ave, Los Altos, CUSD) + Laurelwood Elementary (955 Teal Dr, Santa Clara, SCUSD). Total: 13 → **15**. Bbox in [`scripts/geocode_schools.py`](../../../scripts/geocode_schools.py) widened from Sunnyvale-only to lat 37.32–37.42 / lng -122.12 to -121.95. Schema bumped from `(name, addr)` to `(name, addr, city)` 3-tuple. Both new coordinates verified against OSM ways (`25401662` Montclaire, `241140306` Laurelwood) — sub-meter match.
+- **#2 Marked 6 as favorites with green styling:** Cherry Chase, Cumberland, Stocklmeir, West Valley, Montclaire, Laurelwood. Added `isFavorite: true/false` flag to each `SCHOOLS` entry in [`web/static/js/map.js:50-69`](../../../web/static/js/map.js:50). New CSS modifier `.school-poi-icon--favorite` overrides only `background: #16a34a` (the Design Bible's existing `--color-poi-park` token — no new color invented; logged SCHOOL-P3-8 to formalize a dedicated `--color-poi-school-favorite` token). ★ prefix added to favorite tooltips (`'⭐ ' + name`) + `aria-label` — color-independence per Design Bible "never use color alone" rule.
+- **Pipeline:** Code R1 (one shot) → Reviewer R1 (✅ APPROVED, 0 P1/P2; surfaced SCHOOL-P3-10 = geocoder unavail + SCHOOL-P3-11 = ARIA double-announce). Cache `style.css ?v=13 → v=14`, `map.js ?v=12 → v=13`.
+
+**Ask #3 (separate UX → Code → Review cycle) — highlight listings whose assigned elementary IS a favorite:**
+- **UX:** 3 mockups in [`docs/temp/mockups/favorite-school-highlight.html`](../../../docs/temp/mockups/favorite-school-highlight.html). User picked **Option C** (themed green price-pill + schools-row chip — strongest visual rhyme with the green 🏫 POI pins from ask #2). Constant in [`web/dependencies.py`](../../../web/dependencies.py) confirmed as single source of truth. Elementary-only for v1.
+- **Implementation:**
+  - [`web/dependencies.py:75-134`](../../../web/dependencies.py:75) — new `FAVORITE_SCHOOLS` frozenset + `_normalize_school_name()` helper + `is_favorite_school()` registered as Jinja test+filter. Drift-prevention comment block points at [`map.js SCHOOLS`](../../../web/static/js/map.js:50).
+  - [`web/templates/partials/listing-card.html`](../../../web/templates/partials/listing-card.html) — `fav_school` flag computed once at top of partial; card root gets `is-fav-school` class + `data-fav-school="1"` attr when match; matching school in schools row wrapped in `<span class="school-pill-fav">★ …</span>` (★ is literal U+2605, NOT HTML entity per AGENTS.md §5).
+  - [`web/static/css/style.css:1126-1163`](../../../web/static/css/style.css:1126) — `.school-pill-fav` chip (green-700 on green-100, 4.71:1 AA) + `.price-pill-marker.is-fav-school .price-pill` green-pill variant (green-700 on white, 4.61:1 AA) with `::before "★ "`.
+  - [`web/static/js/map.js:265-281`](../../../web/static/js/map.js:265) — reads `card.dataset.favSchool === '1'`, applies `is-fav-school` to divIcon className. Survives htmx swap via existing marker rebuild at [`map.js:431`](../../../web/static/js/map.js:431).
+- **🔴 Critical discovery during scoping:** DB stores `"Cherry Chase Elementary School"` (with " School" suffix from GeoJSON `school_name`) but canonical UI form is `"Cherry Chase Elementary"`. Naive set-membership would have matched **0 of 247** listings. Fix: `_normalize_school_name()` strips trailing `" School"` only from `" Elementary School"` / `" Middle School"` / `" High School"` suffixes (won't mangle interior occurrences). Reviewer kept this as P3 (SCHOOL-P3-13: move to ingest-time when feature expands beyond elementary) — read-time is right for v1 because no migration risk, preserves DB fidelity, 5 LOC.
+- **Live DB evidence:** SQL on `data/listings.db` → **36 listings** match favorites (Stocklmeir 59, Cherry Chase 31, Cumberland 5, others 0 at present). **3 favorite-matching listings rendered on the homepage** at curl time → all 3 show the green chip + green price pill correctly.
+- **Pipeline:** UX (`new_task`) → User pick + sub-questions → Code (`new_task`) → Reviewer R1 (✅ APPROVED, 0 P1/P2; added SCHOOL-P3-15 = whitespace strip defense). Cache `style.css ?v=14 → v=15`, `map.js ?v=13 → v=14`.
+- **Runtime verification (all 3 asks):** uvicorn restarted, `curl /` → HTTP 200; HTML references `style.css?v=15` + `map.js?v=14`; `.school-pill-fav` count = 3, `data-fav-school="1"` count = 3, ★ literal Unicode count = 3, 0 raw HTML entities found.
+
+**Files modified across the 3 asks:** [`web/dependencies.py`](../../../web/dependencies.py) (+59), [`web/templates/partials/listing-card.html`](../../../web/templates/partials/listing-card.html) (~6 lines), [`web/static/js/map.js`](../../../web/static/js/map.js) (+9 in #3 marker loop + favorites flag changes in #2 + 2 new schools in #1), [`web/static/css/style.css`](../../../web/static/css/style.css) (+38 favorite-highlight + favorite school POI modifier), [`web/templates/base.html`](../../../web/templates/base.html) (2 cache bumps in each ask), [`scripts/geocode_schools.py`](../../../scripts/geocode_schools.py) (bbox + schema).
+
+**P3 backlog deltas:** +8 new (SCHOOL-P3-8 through SCHOOL-P3-15). Open-count 36 → **44**.
+
+**Affected entities:** [Map View](entities/map-view.md) (school count 13→15, favorite POI modifier, price-pill `is-fav-school` variant), [School Districts](entities/school-districts.md) (Montclaire + Laurelwood added; canonical name discrepancy documented), [Listing Card](entities/listing-card.md) (NEW `.school-pill-fav` chip, `is-fav-school` class, `data-fav-school` attr).
+
+**Spinout findings still OPEN for user decision:**
+1. **[P2 from prior cycle]** `geocode_address()` silent city-centroid fallback at [`src/geocoder.py:139`](../../../src/geocoder.py:139) — still open, blocks correct map pinning for unresolvable listings. Documented in [Geocoder entity](entities/geocoder.md) "Known caveat".
+2. **[P3-10, this cycle]** `_do_geocode()` returned "Geocoder service unavailable" during ask #1 — distinct from P2 above. Worked around via direct OSM lookup. Debug-mode candidate.
+
+**Cost summary:** ~3 hours agent time across UX + 2 × Code + 2 × Reviewer + Orchestrator. 0 production API calls (used OSM `curl` for the 2 new schools).
+
+### School icons on map — Option A (Minimal POI pin) shipped, ✅ APPROVED after 2 review rounds, 7 P3s → backlog, 1 new P2 surfaced in geocoder
+
+- **Result:** SHIPPED — 13 public elementary schools (8 SSD + 3 CUSD + 2 SCUSD) now render as static, hover-tooltip-only amber 🏫 POI pins on the dashboard map. Layer is always on at all zooms, no toggle, no click handler. Selected from 3 UX mockup options ([`docs/temp/mockups/school-icons-map.html`](archive/) — kept in `docs/temp/`) — user picked **Option A** (Minimal POI pin) over Option B (district-tinted) and Option C (zoom-adaptive chip).
+- **Pipeline:** User request → Orchestrator (pre-flight + read map-view/school-districts entities + Design Bible) → UX Designer (3 self-contained mockups + recommendation + 4 open questions) → User (chose Option A + all default answers) → Code R1 (`new_task`) → Code Reviewer R1 (✅ code quality, **❌ P2** for 4 wrong-by-1-3km school coords, 6 × P3) → Code R2 (geocoded via new helper) → Code Reviewer R2 (✅ APPROVED, +1 new P3 + 1 escalated P2 about geocode_address) → Orchestrator wiki sync (this entry).
+- **Files modified (production code):**
+  - [`web/static/js/map.js`](../../../web/static/js/map.js:21) — new `SCHOOLS` const (lines 21-57, 13 entries), schools-layer block (~lines 120-150), JSDoc reflecting geocoder provenance. `zIndexOffset: -100` keeps schools beneath price pills.
+  - [`web/static/css/style.css`](../../../web/static/css/style.css:1396) — new `.school-poi-marker` + `.school-poi-icon` (lines 1396-1430): amber `#f59e0b` 24×24 circle, white border, drop shadow, hover scale 1.15, `prefers-reduced-motion` honored.
+  - [`web/templates/base.html`](../../../web/templates/base.html:19) — `style.css ?v=12→v=13`, `map.js ?v=10→v=11→v=12` (two bumps across the 2 review rounds).
+- **Files added:**
+  - [`scripts/geocode_schools.py`](../../../scripts/geocode_schools.py) — one-shot helper, not scheduled. Calls private [`_do_geocode()`](../../../src/geocoder.py:55) directly (not the public wrapper) to avoid the silent city-centroid fallback bug Code mode discovered while building it. Includes Sunnyvale bounding-box validator. Idempotent (LRU cache prevents repeat Nominatim hits).
+- **Coordinate provenance:** 9 schools geocoded via Nominatim, 4 manual fallbacks (Cumberland — Nominatim returned None; Vargas, Braly, Ponderosa — Nominatim returned wrong-street/wrong-city matches caught by visual spot-check against real addresses). All 4 manual entries flagged `// manual` with reason.
+- **Runtime verification:** uvicorn restarted on port 8000; `curl /` → HTTP 200, served `style.css?v=13` + `map.js?v=12`; served map.js contains "Bishop Elementary" + new lat `37.386636` (was `37.3962` pre-geocode).
+- **🆕 Spinout P2 discovered (NOT fixed in this task, OPEN):** [`geocode_address()`](../../../src/geocoder.py:139) silently returns Sunnyvale city centroid when Nominatim misses the street address — affects production scraper at [`src/orchestrator.py:125`](../../../src/orchestrator.py:125) and corrupts both map placement AND downstream school assignment for unresolvable listings. Documented as "Known caveat" in [Geocoder entity](entities/geocoder.md) + linked to [Silent Failure Pattern](concepts/silent-failure-pattern.md). **Needs separate Architect → Code task to fix the public function signature.**
+- **Affected entities:** [Map View](entities/map-view.md) (new school POI overlay section + history entry), [School Districts](entities/school-districts.md) (cross-reference to map visualization + history entry), [Geocoder](entities/geocoder.md) (new "Known caveat" section + history entry + new related link).
+- **P3 backlog deltas:** +7 new P3s in new "School Icons on Map" section (SCHOOL-P3-1 through SCHOOL-P3-7). Open-count 29 → 36.
+- **Cost summary:** ~2 hours of agent time (UX + 2 × Code + 2 × Reviewer + Orchestrator). Live curl verification only — no automated test suite for this feature (P3-3 covers extracting to JSON + endpoint, which would enable testing).
+- **Reopen / extend triggers:** (a) user requests district-colored badges → SCHOOL-P3-2 was specifically designed as the prereq; (b) user requests private/charter schools → SCHOOL-P3-4; (c) Nominatim adds coverage for the 4 manual schools → re-run helper script (SCHOOL-P3-7).
+
+### "Available date" on listing card — feature KILLED after Zillow field-verification probe returned negative
+- **Result:** NOT SHIPPED. User asked for an "available [date]" entry on each listing card (matching Zillow's "Available Sat Aug 1 2026" string). Architect investigation ([`plans/available-date-feature.md`](../../../plans/available-date-feature.md)) proposed 3 mockup options, recommended Option C (dedicated `📅 Available …` row below schools). User picked Option C, requested Zillow field-verification probe first.
+- **The probe killed the premise.** One-shot debug log on [`ZillowScraper.normalize()`](../../../src/scrapers/zillow_scraper.py:268) dumped `prop.keys()` for the first 3 listings of a real scrape: zero matches for `avail|date|move` other than `listingDateTimeOnZillow` (the posted-date duplicate, not the move-in date). `whatIWant` sub-dict doesn't exist; `hdpView` has only `[hdpUrl, listingStatus, price]`. Probe code fully reverted (`git diff src/scrapers/zillow_scraper.py` empty). 1 call of 500/mo budget used (now ~4/500).
+- **Combined verdict across all three sources** (Architect's prior research + this probe):
+  - **Zillow** `/search/byaddress` (current) — ❌ confirmed by probe today
+  - **Zillow** `/property` detail endpoint — ❓ would cost +25 calls per scrape (~750/mo), blows free tier
+  - **Realtor** `/properties/search-rent` — ❌ per Architect (not in sample payload at [`plans/realtor-scraper.md:60-110`](../../../plans/realtor-scraper.md:60))
+  - **Realtor** detail endpoint — ❓ would double API budget (~600/mo of 150/mo limit), blows free tier
+  - **Craigslist** — ⚠️ free-text in `#postingbody` only; fragile regex, ~50% miss rate, ~2-3s per detail-page request
+- **User decision: kill the feature.** Rationale: cheapest viable path requires either paid RapidAPI tier or fragile Craigslist regex with low coverage. Not worth ~$15-25/mo or the maintenance burden for a single card field — especially given 271/271 listings would still show NULL until backfilled.
+- **What was shipped (Orchestrator wiki sync only — no production code):**
+  1. New "Fields NOT exposed by `/search/byaddress`" section in [`zillow-scraper.md`](entities/zillow-scraper.md) — documents the negative probe result, top-level key set actually returned, and the 3 reopen paths. **Single biggest deliverable** — prevents this same investigation from being repeated in 3 months when the request resurfaces.
+  2. [`plans/available-date-feature.md`](../../../plans/available-date-feature.md) status header updated to **KILLED (2026-06-03)** with explicit reopen criteria (re-probe ZLLW Working API quarterly; if a new provider exposes the field; if user opts to pay for detail endpoint).
+  3. Probe findings doc archived to [`docs/memory/wiki/archive/zillow-avail-probe-findings-2026-06-03.md`](archive/zillow-avail-probe-findings-2026-06-03.md) (moved from `docs/temp/` for durability).
+  4. Wiki [`index.md`](index.md) plan table + Zillow Scraper "Last Updated" date refreshed.
+- **Pipeline:** User request → Orchestrator (pre-flight + read scrapers/model/card) → Architect (data-source investigation + 3 mockups + recommendation, [`plans/available-date-feature.md`](../../../plans/available-date-feature.md)) → User (picked Option C) → Code (Zillow field-verification probe, 1 API call, reverted) → User (decision: kill) → Orchestrator (wiki sync — this entry). **No Code-Review cycle** because no production code persists (probe was fully reverted).
+- **Cost summary:** ~1 hour of agent time across Architect + Code + Orchestrator; 1 Zillow API call.
+- **Affected entities:** [Zillow Scraper](entities/zillow-scraper.md) (new "Fields NOT exposed" section + 1 history entry).
+- **Reopen triggers** (documented in plan): (a) Zillow RapidAPI provider extends response schema (re-probe quarterly), (b) different ZLLW wrapper found that includes availability in search response, (c) user opts to pay for detail-endpoint calls, (d) user accepts Craigslist regex with explicit "best-effort" UI treatment.
+
+### Silent-notification prevention — 3-fix bundle (✅ APPROVED, 0 P1/P2 after round 2, 12 P3s → backlog)
+- **Result:** SHIPPED — root-caused and patched a 7-day Telegram silence (May 27 → Jun 3) plus the underlying anti-spam-counts-failures bug that would have re-occurred regardless of channel. **Live evidence captured before the fix:** 2 morning network-failure rows in `notification_log` consumed the 2/day anti-spam cap; deleting the 2 failed rows + manual re-run delivered 9 backlogged listings via Email + Telegram (HTTP 200 both channels). Proved both the root cause AND the user-visible damage in one shot.
+- **3 minimum-viable fixes (L2 + L3b + 10:00 shift), each addressing a distinct silent-failure layer:**
+  1. **L2 (anti-spam fix):** [`get_today_notification_count()`](../../../src/database.py:1463) now filters `success == True` (was counting all attempts). Same change inverted the previous [Silent Failure Pattern](concepts/silent-failure-pattern.md) Rule #3 ("count ALL attempts to prevent failure spam") — that 2026-03-31 generation of the rule turned out to be the *cause* of this regression. Rule #3 now disambiguates by what resource is being rationed (recipient's inbox = count successes; misbehaving channel's bandwidth = count attempts, typically separate circuit-breaker).
+  2. **L3b (silence detector):** Red banner on `/` (dashboard) when (a) no successful notification in 48h AND (b) recent matching unnotified listings exist. New [`web/routes/dashboard.py:_compute_notification_silence_state()`](../../../web/routes/dashboard.py:40) + [`web/templates/dashboard.html:385`](../../../web/templates/dashboard.html:385) + [`web/static/css/style.css:1432`](../../../web/static/css/style.css:1432). CSS cache `?v=11`→`?v=12`. Closes the "operator only notices by visiting admin page" gating mechanism (that's how this incident lasted 7 days).
+  3. **10:00 shift:** [`com.sunnynest.notify-am.plist`](../../../com.sunnynest.notify-am.plist:22) Hour `8`→`10`; [`config.yaml notification_schedule.hours`](../../../config.yaml:61) `[8,20]`→`[10,20]` per AGENTS.md §5 rule #3. Gives VPN/network time to come up reliably before launchd fires the notifier.
+- **Round-2 hardening (added by Code Reviewer):** (a) tz bug — `get_today_notification_count()` previously used `func.date(sent_at) == today` (UTC-day compare) but claimed to be tz-aware; switched to UTC-bounded window translated from IST midnight, removing a now-false docstring claim. (b) extracted [`notifier.load_notification_filters(config)`](../../../src/notifier.py:1345) as single source of truth for filter extraction (used by both `NotificationService.run()` and `_compute_notification_silence_state()` — eliminates copy-paste drift). (c) docstring on [`get_notification_stats()`](../../../src/database.py:1709) rewritten to explain the deliberate decoupling from `get_today_notification_count()`.
+- **Tests:** [`scripts/test_anti_spam_guard.py`](../../../scripts/test_anti_spam_guard.py) added — 5/5 pass, including the new `test_ist_day_boundary_not_utc_day` which would fail against the round-1 code (genuine regression guard, not a softball).
+- **Runtime verification:** dashboard restarted via `launchctl kickstart -k`; `curl http://localhost:8000/` → HTTP 200, 96 768 bytes, `style.css?v=12` in `<head>`, zero `&#x` entities; `launchctl print … notify-am` Hour=10; `grep notification_schedule config.yaml` → `hours: [10, 20]`.
+- **Files modified:** [`src/database.py`](../../../src/database.py) (~150 LOC), [`src/notifier.py`](../../../src/notifier.py) (~45 LOC), [`web/routes/dashboard.py`](../../../web/routes/dashboard.py) (~110 LOC), [`web/templates/dashboard.html`](../../../web/templates/dashboard.html) (+18), [`web/static/css/style.css`](../../../web/static/css/style.css) (+59), [`web/templates/base.html`](../../../web/templates/base.html) (CSS bump), [`com.sunnynest.notify-am.plist`](../../../com.sunnynest.notify-am.plist), [`config.yaml`](../../../config.yaml).
+- **Files added:** [`scripts/test_anti_spam_guard.py`](../../../scripts/test_anti_spam_guard.py) (+228 LOC, 5 tests).
+- **Pipeline:** Orchestrator → Debug (diagnosis, Q1 + Q2) → Orchestrator (manual stop-the-bleed: deleted 2 failed log rows + ran notifier → 9 listings delivered) → Code (R1, ~+352/−24) → Code Reviewer (R1: ❌ 1 P1 + 2 P2) → Code (R2, ~+50/−30, chose Option A for tz fix) → Code Reviewer (R2: ✅ APPROVED) → Orchestrator (wiki sync — this entry).
+- **12 P3s → backlog:** SILENCE-P3-1 through SILENCE-P3-7 (Code R1: 4, Reviewer R1: 3), LAUNCHD-P3-1, ANTISPAM-P3-1, ANTISPAM-P3-2, NOTIF-P3-1, NOTIF-P3-2 (the last 2 from Reviewer R2; NOTIF-P3-2 tagged `[hardens-against-this-bug-class]` — same UTC-day bug in `get_notification_stats()`).
+- **Affected entities:** [Notification System](entities/notification-system.md), [Database Schema](entities/database-schema.md), [Scheduler (launchd)](entities/scheduler-launchd.md), [Config (YAML)](entities/config-yaml.md).
+- **Concepts updated:** [Silent Failure Pattern](concepts/silent-failure-pattern.md) — Rule #3 inverted; new 2026-06-03 row in Variants table; new "Docstring drift as silent failure" sub-rule; new "Duplication as silent failure" sub-pattern.
+- **Q2 (separate question — 20 active listings):** Investigated by Debug. **Verdict: legitimate.** All 20 listings scraped today (~6h ago), zero stale, no dedup failures. Higher count explained by an 8-listing inventory burst on 2026-06-02 (typical baseline 1–4/day). No fix needed. Bonus finding: 28 legacy pre-2026-04-06 rows have `is_active=0 AND deactivated_at IS NULL` — doesn't affect the dashboard (filters on `is_active`) but is a latent inconsistency, **not** logged as a P3 because it predates the current issue tracking.
+- **Action items:**
+  1. **User (queued):** trigger cloud scheduler implementation per [`plans/cloud-scheduler.md`](../../../../plans/cloud-scheduler.md) Option 1 — only real fix for laptop-asleep-on-weekends gap. 10:00 shift mitigates the network-race but not the laptop-asleep case. ~2 hour Code task.
+  2. **P3 sweep:** trigger "fix all open P3s" or scoped variants whenever ready.
+
+---
+
+## 2026-05-14
+
+### Default price filter raised from $5K–$6.5K to $5K–$7.5K (✅ APPROVED, 0 P1/P2 after fix cycle)
+- **Result:** `config.yaml` `filters.max_price` changed `6500` → `7500`; `_DROPDOWN_DEFAULTS["filter_price_max"]` in `web/routes/dashboard.py` updated to `"7500"`; quick-range radio in `web/templates/dashboard.html` updated to `value="5000-7500"` / `$5,000 – $7,500`. Scrapers (`zillow_scraper.py`, `realtor_scraper.py`) and notifier (`notifier.py`) pick up the new value automatically from `config.yaml`. Runtime verified: HTTP 200, `7500` present in live HTML.
+- **P2 fix (round 2):** `app.py` Streamlit `_price_options` dict was missing `"$5K-$7.5K": (5000, 7500)` — the loop-with-fallback silently defaulted to `"$5K-$6.5K"`. Fixed: entry added, fallback default updated `6500`→`7500`, sentinel updated `"$5K-$6.5K"`→`"$5K-$7.5K"`. Re-reviewed and ✅ APPROVED.
+- **4 P3s → backlog:** stale `6500` fallback in `zillow_scraper.py` + `realtor_scraper.py`; stale docstring examples in `listings.py` + `routes/__init__.py`. See `PRICE-P3-1` through `PRICE-P3-4` in [`p3-backlog.md`](../../p3-backlog.md).
+- **Agents:** Orchestrator → Code (impl) → Code Reviewer (P2 found) → Code (P2 fix) → Code Reviewer (✅ APPROVED) → Orchestrator (wiki sync)
+- **Affected entities:** [Config (YAML)](entities/config-yaml.md), [Filter Bar](entities/filter-bar.md), [Notification System](entities/notification-system.md), [Zillow Scraper](entities/zillow-scraper.md), [Realtor Scraper](entities/realtor-scraper.md)
+
+## 2026-05-10
+
+### Telegram notification channel — implemented and approved (✅ APPROVED, 0 P1/P2)
+- **Result:** SHIPPED — `TelegramChannel(BaseNotificationChannel)` (~330 LOC) added to [`src/notifier.py`](../../../src/notifier.py:870), inert until user provides `TELEGRAM_BOT_TOKEN` + `TELEGRAM_CHAT_ID` in `.env` and flips `telegram.enabled: true`. WhatsApp simultaneously disabled (`whatsapp.enabled: false`) — code remains for future re-enable. Code Reviewer: ✅ APPROVED, **0 P1, 0 P2**, 4 P3s logged to [`docs/memory/p3-backlog.md`](../../p3-backlog.md). No round-2 fix cycle required.
+- **Agents:** Architect (spec) → Code (impl) → Code Reviewer (review) → Orchestrator (wiki sync — this entry)
+- **Trigger:** WhatsApp notifications had been silently failing due to (a) Meta Test Number 24h `WHATSAPP_API_TOKEN` expiry requiring daily manual regen, and (b) Test Number recipient allowlist silently dropping messages to non-allowlisted numbers (Meta returns HTTP 200 + valid `wamid` even when nothing is delivered). User asked: "is it the 24h token? if yes, simple way to generate one for few months? if not, let's try Telegram." Answer: yes the token IS one issue, but even with a long-lived token the allowlist problem persists; long-lived tokens require Meta Business Verification (days–weeks). Telegram has neither problem.
+- **Implementation summary** (mirrors [`WhatsAppChannel`](../../../src/notifier.py:440) 1:1):
+  - **Code:** Plain `httpx` POST to `https://api.telegram.org/bot<token>/sendMessage` with `parse_mode=HTML`. Same `SendResult` contract, same PANW root CA SSL pattern, same 4096-char body truncation (4000-char budget for safety headroom). HTML-escapes title/address/source via `html.escape()`. Reuses existing `error_category` taxonomy — **zero new categories**: 401 → `auth`, 403 "blocked by user" / 400 "chat not found" → `recipient_refused`, 429 → `rate_limited`, network → `network`, other → `api_error`. **No `token_expired` equivalent** because Telegram bot tokens never auto-expire (closes the WhatsApp variant of [Silent Failure Pattern](concepts/silent-failure-pattern.md) at the source).
+  - **Startup probe:** `TelegramChannel.validate_token()` via `GET /bot<token>/getMe` (cheap, no quota cost) added to [`web/main.py`](../../../web/main.py:131), gated by `telegram.enabled`.
+  - **Admin UI:** Telegram credential warning banner + auth-failure red banner (BotFather regen instructions) + generic warning banner + per-row "💬 Telegram failure" badge on `/admin/notifications`. Telegram status row + masked `chat_id` (last 4) on `/admin/settings`. CSS cache bumped `?v=8` → `?v=9` (cache flush only — no new rules).
+  - **Config:** `telegram:` section added (`enabled: false`, `parse_mode: "HTML"`); `whatsapp.enabled` flipped `true` → `false`. `TELEGRAM_BOT_TOKEN` + `TELEGRAM_CHAT_ID` added to `.env.example` as placeholders. `chat_id` is intentionally env-only (co-secret with bot token) — not writable from Settings UI.
+  - **Tests:** [`scripts/test_telegram_classification.py`](../../../scripts/test_telegram_classification.py) (6/6 mock cases passing), [`scripts/test_telegram_validate_token.py`](../../../scripts/test_telegram_validate_token.py) (2/2 passing), [`scripts/test_telegram_notification.py`](../../../scripts/test_telegram_notification.py) (`--preview` works; `--send` skipped pending user-side bot setup).
+  - **Runtime verification:** dashboard restarted via launchd; `GET /admin/notifications` HTTP 200 with Telegram banner present, 0 raw `&#x` entities; `GET /admin/settings` HTTP 200 with Telegram status row + masked chat_id, 0 raw `&#x` entities.
+- **Code Reviewer findings (4 P3s, all → backlog):**
+  1. **TELEGRAM-P3-1** — single oversized listing line silently drops the entire body (truncation at 4000 chars happens before listing #1 is appended in extreme cases).
+  2. **TELEGRAM-P3-2** — unnecessary lazy import of `sqft_to_sqm` with misleading "circular" comment (no actual circular dep — `src.utils` already imported at module top).
+  3. **TELEGRAM-P3-3** — broad `except Exception` in `validate_token` mislabels programming bugs as `error_category="network"`; same anti-pattern in WhatsApp's `validate_token`.
+  4. **TELEGRAM-P3-4** — defence-in-depth: scrub bot token from URL-bearing exception messages (Telegram forces token into URL path; current `httpx` exception types most likely don't embed URL in `str(exc)` but a future `raise_for_status()` would silently exfiltrate the token to `notification_log.error_message`).
+- **Files modified:** [`src/notifier.py`](../../../src/notifier.py), [`src/utils.py`](../../../src/utils.py), [`scripts/run-notify.py`](../../../scripts/run-notify.py), [`web/main.py`](../../../web/main.py), [`web/routes/admin.py`](../../../web/routes/admin.py), [`web/templates/admin/notifications.html`](../../../web/templates/admin/notifications.html), [`web/templates/admin/settings.html`](../../../web/templates/admin/settings.html), [`web/templates/admin/base.html`](../../../web/templates/admin/base.html), [`config.yaml`](../../../config.yaml), [`.env.example`](../../../.env.example).
+- **Files created:** [`scripts/test_telegram_notification.py`](../../../scripts/test_telegram_notification.py), [`scripts/test_telegram_classification.py`](../../../scripts/test_telegram_classification.py), [`scripts/test_telegram_validate_token.py`](../../../scripts/test_telegram_validate_token.py).
+- **Entities updated:** [Notification System](entities/notification-system.md), [Config (YAML)](entities/config-yaml.md), [Admin Dashboard](entities/admin-dashboard.md).
+- **Concepts updated:** [Silent Failure Pattern](concepts/silent-failure-pattern.md) — new "2026-05-10 Telegram" row in Variants table noting the failure mode is **closed at the source** (no auto-expiring tokens, no recipient allowlist).
+- **Plans updated:** [`plans/telegram-channel.md`](../../../plans/telegram-channel.md) status flipped `PLANNED` → `IMPLEMENTED` in [index.md](index.md) Plans table.
+- **Action items:**
+  1. **User:** create Telegram bot via [@BotFather](https://t.me/BotFather) → `/newbot` → save bot token. Send `/start` to your bot from Telegram, then `curl https://api.telegram.org/bot<TOKEN>/getUpdates` to capture your `chat_id`. Add `TELEGRAM_BOT_TOKEN=...` and `TELEGRAM_CHAT_ID=...` to `.env`, flip `telegram.enabled: true` in `config.yaml`, restart the dashboard. Telegram notifications will then ship at the next 08:00/20:00 launchd run (or trigger immediately via `python scripts/run-notify.py`).
+  2. **P3 sweep:** trigger *"fix all open Telegram P3s"* whenever the user is ready (4 items in backlog).
+
+### Spec'd Telegram notification channel — replacing WhatsApp as primary push channel
+- **Result:** SPEC ONLY (no code changes) — [`plans/telegram-channel.md`](../../../plans/telegram-channel.md) authored, ready for Code mode delegation.
+- **Agent:** Architect
+- **Trigger:** WhatsApp via Meta Cloud API has two operationally fatal issues: (1) Test Number `WHATSAPP_API_TOKEN` expires every ~24 h requiring daily manual regen, (2) Test Number recipient allowlist silently drops messages to non-allowlisted numbers (HTTP 200 + valid `wamid` returned, never delivered). User opted to add Telegram as a new channel rather than migrate WhatsApp Test Number → Production. WhatsApp code stays in place; only `whatsapp.enabled: false` in `config.yaml` once Telegram is live.
+- **Spec scope:** New `TelegramChannel(BaseNotificationChannel)` mirroring [`WhatsAppChannel`](../../../src/notifier.py:440) 1:1 — same `SendResult` contract, same SSL/PANW root CA pattern, same ~4096 char body truncation, same anti-spam guard. Bot token via env (`TELEGRAM_BOT_TOKEN`); recipient `chat_id` also via env (`TELEGRAM_CHAT_ID`) — intentionally NOT in `config.yaml` since it's tightly coupled to the bot token. Reuses existing `error_category` taxonomy: HTTP 401 → `auth`, 403 "bot was blocked" / 400 "chat not found" → `recipient_refused`, 429 → `rate_limited`, network → `network`, other → `api_error`. No `token_expired` equivalent — Telegram bot tokens don't auto-expire (positive design property closing the WhatsApp variant of [Silent Failure Pattern](concepts/silent-failure-pattern.md)).
+- **Files identified for impl:** 8 modified + 2 added (full list in spec §5). Includes new `validate_token()` startup probe (cheap `getMe` call), Telegram credential warning banner + per-row "💬 Telegram failure" badge in `/admin/notifications` (mirroring 2026-05-08 WhatsApp work), and `update_telegram_settings()` helper in `src/utils.py`. **No DB migration** — `notification_log.error_category`/`error_message` columns added 2026-05-08 already cover Telegram.
+- **Out of scope (explicitly):** WhatsApp removal, MarkdownV2, inline keyboards, multi-recipient broadcast, group chats, photo/media, `_build_ssl_context` refactor to module level (deferred — accepted duplication for now per spec §7).
+- **Negative consequences flagged in spec:** ~250 LOC added to [`src/notifier.py`](../../../src/notifier.py); PANW root CA SSL pattern duplicated (technical debt); `chat_id`-in-env vs WhatsApp's `recipient_phone`-in-config inconsistency intentional but documented.
+- **Entities to update (post-impl, NOT now):** [Notification System](entities/notification-system.md), [Config (YAML)](entities/config-yaml.md), [Admin Dashboard](entities/admin-dashboard.md). Concept: [Silent Failure Pattern](concepts/silent-failure-pattern.md) — add Telegram row to "Variants" table noting the failure mode is closed at the source.
+- **Files modified (this task):** [`plans/telegram-channel.md`](../../../plans/telegram-channel.md) (new); [`docs/memory/wiki/log.md`](log.md) + [`docs/memory/wiki/index.md`](index.md) (this entry).
+- **Action items:**
+  1. **User triggers** Code mode (or Orchestrator → Code) to implement per spec.
+  2. After Code → Review APPROVED, Architect or Code mode runs the wiki-impact updates listed above.
+  3. User performs the manual end-to-end checklist in spec §6b (BotFather setup → flip `telegram.enabled: true` → flip `whatsapp.enabled: false`).
+
+---
+
 ## 2026-05-08
 
 ### Cross-source dedup IntegrityError silent no-op — fixed

@@ -251,14 +251,45 @@ def _merge_duplicate(
         canonical: The existing canonical ``Listing`` to merge into.
         duplicate_data: Normalized data dict from the duplicate listing.
     """
-    # 1. Add source record
-    new_source = ListingSource(
-        listing_id=canonical.id,
-        source=duplicate_data["source"],
-        external_id=duplicate_data["external_id"],
-        url=duplicate_data.get("url", ""),
+    # 1. Reassign the duplicate's existing ListingSource row to the canonical
+    #    listing instead of inserting a new one. ``upsert_listing()`` (in
+    #    ``src/database.py``) already inserted a ``ListingSource(source,
+    #    external_id, listing_id=duplicate.id)`` row when the duplicate
+    #    listing was first created. Inserting another row with the same
+    #    ``(source, external_id)`` pair would violate the
+    #    ``uq_ls_source_external_id`` unique constraint and raise
+    #    ``IntegrityError`` — the bug this code path used to swallow as a
+    #    "possible race condition".
+    existing_source = (
+        session.query(ListingSource)
+        .filter_by(
+            source=duplicate_data["source"],
+            external_id=duplicate_data["external_id"],
+        )
+        .first()
     )
-    session.add(new_source)
+    if existing_source is not None:
+        # Reassign the existing source row to point at the canonical listing
+        existing_source.listing_id = canonical.id
+        existing_source.last_seen = datetime.now(timezone.utc)
+        existing_source.is_active = True
+    else:
+        # Defensive fallback: backfill / out-of-band insertion path where
+        # no ListingSource row exists yet (e.g. records migrated before the
+        # listing_sources table was introduced).
+        new_source = ListingSource(
+            listing_id=canonical.id,
+            source=duplicate_data["source"],
+            external_id=duplicate_data["external_id"],
+            url=duplicate_data.get("url", ""),
+            first_seen=datetime.now(timezone.utc),
+            last_seen=datetime.now(timezone.utc),
+            is_active=True,
+        )
+        session.add(new_source)
+    # Make the FK reassignment visible to subsequent queries in this txn
+    # (in particular the ``dup.sources`` reload in ``find_and_merge_duplicate``).
+    session.flush()
 
     # 2. Fill NULL fields from duplicate (gap-filling)
     for field in _GAP_FILL_FIELDS:
@@ -388,18 +419,29 @@ def find_and_merge_duplicate(
                 # Keep the existing snapshot, remove the duplicate's
                 session.delete(ph)
 
-        # Delete the newly-inserted duplicate listing row
-        # Also delete any ListingSource records that were created for the dup
+        # Delete the newly-inserted duplicate listing row.
+        # After Fix A reassigned the dup's ListingSource row to the canonical
+        # listing, ``dup.sources`` should be empty — but the SQLAlchemy
+        # session's identity map may still hold a stale reference.  Refresh
+        # to reload from the DB, then defensively delete any stragglers
+        # (the FK ``listing_sources.listing_id`` has no ``ON DELETE CASCADE``,
+        # so an orphan row would block ``session.delete(dup)`` with an
+        # IntegrityError on commit).
+        session.flush()
+        session.refresh(dup)
         for src_record in list(dup.sources):
+            # Should be empty after Fix A reassignment, but defensive.
             session.delete(src_record)
         session.delete(dup)
 
     except IntegrityError:
-        # Handle race condition gracefully — another session may have
-        # already merged or deleted this listing (P1-2 fix)
+        # Hard failure — investigate.  The previous "possible race condition"
+        # message masked a real bug for ~6 weeks (cross-source dedup never
+        # actually merged anything).  Use ``logger.exception`` so the
+        # traceback is in the logs and the failure is loud.
         session.rollback()
-        logger.warning(
-            "IntegrityError during dedup merge for %s/%s — possible race condition, skipping.",
+        logger.exception(
+            "IntegrityError during dedup merge for %s/%s — investigate",
             listing_data.get("source"),
             listing_data.get("external_id"),
         )

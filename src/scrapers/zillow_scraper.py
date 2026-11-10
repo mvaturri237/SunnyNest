@@ -22,7 +22,7 @@ import httpx
 
 from src.database import log_api_call, get_api_call_count
 from src.scrapers.base import BaseScraper
-from src.utils import load_config
+from src.utils import load_config, resolve_cities
 
 logger = logging.getLogger("rental_finder.scrapers.zillow")
 
@@ -86,10 +86,12 @@ class ZillowScraper(BaseScraper):
         filters_cfg = config.get("filters", {})
         search_cfg = config.get("search", {})
 
-        self.location: str = (
-            f"{search_cfg.get('city', 'Sunnyvale')}, "
-            f"{search_cfg.get('state', 'CA')}"
-        )
+        # Scrape territory: resolve the (possibly multi-city) list from config.
+        # Backward-compatible with the legacy scalar ``search.city``.
+        self.state: str = search_cfg.get("state", "CA")
+        self.cities: list[str] = resolve_cities(search_cfg)
+        # One "City, State" location string per configured city.
+        self._locations: list[str] = [f"{c}, {self.state}" for c in self.cities]
         self.min_price: int = filters_cfg.get("min_price", 5000)
         self.max_price: int = filters_cfg.get("max_price", 6500)
         self.min_beds: int = filters_cfg.get("min_bedrooms", 3)
@@ -116,9 +118,9 @@ class ZillowScraper(BaseScraper):
             return []
 
         # --- Budget guard: skip if near monthly API limit ---
-        api_count = get_api_call_count("zillow")
         api_limit = 500
         budget_threshold = 450  # 90% of limit
+        api_count = get_api_call_count("zillow")
         if api_count >= budget_threshold:
             logger.warning(
                 "⚠️ Zillow API budget guard: %d/%d calls used this month "
@@ -134,7 +136,7 @@ class ZillowScraper(BaseScraper):
         effective_max_pages = min(self.max_pages, remaining_budget)
         if effective_max_pages < self.max_pages:
             logger.info(
-                "Zillow API budget: %d calls remaining, limiting to %d pages.",
+                "Zillow API budget: %d calls remaining, limiting to %d pages per city.",
                 remaining_budget,
                 effective_max_pages,
             )
@@ -156,100 +158,139 @@ class ZillowScraper(BaseScraper):
                 timeout=30.0,
                 verify=ssl_ctx,
             ) as client:
-                for page_num in range(1, effective_max_pages + 1):
-                    params: dict[str, str] = {
-                        "location": self.location,
-                        "page": str(page_num),
-                        "sortOrder": "Rental_Priority_Score",
-                        "listingStatus": "For_Rent",
-                        "monthlyPayment": monthly_payment,
-                        "bed_min": str(self.min_beds),
-                        "bed_max": str(self.max_beds),
-                        "bathrooms": "Any",
-                        "homeType": "Houses",
-                    }
-
+                # --- Outer loop: one page loop per configured city ---
+                for location in self._locations:
                     logger.info(
-                        "Zillow API request page %d: location=%s, price=%d-%d, beds=%d-%d",
-                        page_num,
-                        self.location,
-                        self.min_price,
-                        self.max_price,
-                        self.min_beds,
-                        self.max_beds,
+                        "Zillow scrape starting for location=%s (%d configured cit%s)",
+                        location,
+                        len(self._locations),
+                        "y" if len(self._locations) == 1 else "ies",
                     )
+                    for page_num in range(1, effective_max_pages + 1):
+                        # Per-API-call budget guard: re-check the live monthly
+                        # count so a multi-city run halts pagination the moment
+                        # the threshold is hit, regardless of how many cities
+                        # remain. (ADR-002: reuse the existing guard per call
+                        # rather than partitioning the budget across cities.)
+                        current_count = get_api_call_count("zillow")
+                        if current_count >= budget_threshold:
+                            logger.warning(
+                                "⚠️ Zillow API budget guard tripped mid-run "
+                                "(%d/%d, threshold %d) at location=%s page %d "
+                                "— stopping all remaining requests.",
+                                current_count,
+                                api_limit,
+                                budget_threshold,
+                                location,
+                                page_num,
+                            )
+                            return all_listings
 
-                    try:
-                        response = await client.get(
-                            _SEARCH_URL, headers=headers, params=params
-                        )
-                        # Log the API call
-                        log_api_call("zillow", endpoint=_SEARCH_URL, status_code=response.status_code)
-                        response.raise_for_status()
-                    except httpx.HTTPStatusError as exc:
-                        log_api_call("zillow", endpoint=_SEARCH_URL, status_code=exc.response.status_code)
-                        logger.error(
-                            "Zillow API HTTP %d on page %d: %s",
-                            exc.response.status_code,
-                            page_num,
-                            exc,
-                        )
-                        if exc.response.status_code == 429:
-                            logger.warning("Rate limited — stopping pagination.")
-                        break
-                    except httpx.RequestError as exc:
-                        log_api_call("zillow", endpoint=_SEARCH_URL, status_code=None)
-                        logger.error(
-                            "Zillow API request error on page %d: %s",
-                            page_num,
-                            exc,
-                        )
-                        break
+                        params: dict[str, str] = {
+                            "location": location,
+                            "page": str(page_num),
+                            "sortOrder": "Rental_Priority_Score",
+                            "listingStatus": "For_Rent",
+                            "monthlyPayment": monthly_payment,
+                            "bed_min": str(self.min_beds),
+                            "bed_max": str(self.max_beds),
+                            "bathrooms": "Any",
+                            "homeType": "Houses",
+                        }
 
-                    try:
-                        data = response.json()
-                    except Exception:
-                        logger.error(
-                            "Failed to parse Zillow API JSON on page %d",
-                            page_num,
-                        )
-                        break
-
-                    # Check for API-level errors
-                    if data.get("message") != "200":
-                        logger.error(
-                            "Zillow API returned non-200 message: %s",
-                            data.get("message"),
-                        )
-                        break
-
-                    # Extract search results
-                    search_results = data.get("searchResults", [])
-                    if not search_results:
                         logger.info(
-                            "No more results on page %d — stopping.", page_num
+                            "Zillow API request page %d: location=%s, price=%d-%d, beds=%d-%d",
+                            page_num,
+                            location,
+                            self.min_price,
+                            self.max_price,
+                            self.min_beds,
+                            self.max_beds,
                         )
-                        break
 
-                    all_listings.extend(search_results)
-                    logger.info(
-                        "Zillow API page %d: %d listings (total so far: %d)",
-                        page_num,
-                        len(search_results),
-                        len(all_listings),
-                    )
+                        try:
+                            response = await client.get(
+                                _SEARCH_URL, headers=headers, params=params
+                            )
+                            # Log the API call
+                            log_api_call("zillow", endpoint=_SEARCH_URL, status_code=response.status_code)
+                            response.raise_for_status()
+                        except httpx.HTTPStatusError as exc:
+                            log_api_call("zillow", endpoint=_SEARCH_URL, status_code=exc.response.status_code)
+                            logger.error(
+                                "Zillow API HTTP %d on page %d (location=%s): %s",
+                                exc.response.status_code,
+                                page_num,
+                                location,
+                                exc,
+                            )
+                            if exc.response.status_code == 429:
+                                logger.warning("Rate limited — stopping pagination.")
+                            break
+                        except httpx.RequestError as exc:
+                            log_api_call("zillow", endpoint=_SEARCH_URL, status_code=None)
+                            logger.error(
+                                "Zillow API request error on page %d (location=%s): %s",
+                                page_num,
+                                location,
+                                exc,
+                            )
+                            break
 
-                    # Check if there are more pages
-                    pages_info = data.get("pagesInfo", {})
-                    total_pages = pages_info.get("totalPages", 1)
-                    if page_num >= total_pages:
-                        logger.info("Reached last page (%d).", total_pages)
-                        break
+                        try:
+                            data = response.json()
+                        except Exception:
+                            logger.error(
+                                "Failed to parse Zillow API JSON on page %d (location=%s)",
+                                page_num,
+                                location,
+                            )
+                            break
 
-                    # Random delay between API calls (matching Craigslist pattern)
-                    delay = random.uniform(self.delay_min, self.delay_max)
-                    logger.debug("Sleeping %.1f s before next Zillow API page", delay)
-                    await asyncio.sleep(delay)
+                        # Check for API-level errors
+                        if data.get("message") != "200":
+                            logger.error(
+                                "Zillow API returned non-200 message: %s",
+                                data.get("message"),
+                            )
+                            break
+
+                        # Extract search results
+                        search_results = data.get("searchResults", [])
+                        if not search_results:
+                            logger.info(
+                                "No more results on page %d (location=%s) — "
+                                "moving to next city.",
+                                page_num,
+                                location,
+                            )
+                            break
+
+                        all_listings.extend(search_results)
+                        logger.info(
+                            "Zillow API page %d (location=%s): %d listings "
+                            "(total so far: %d)",
+                            page_num,
+                            location,
+                            len(search_results),
+                            len(all_listings),
+                        )
+
+                        # Check if there are more pages
+                        pages_info = data.get("pagesInfo", {})
+                        total_pages = pages_info.get("totalPages", 1)
+                        if page_num >= total_pages:
+                            logger.info(
+                                "Reached last page (%d) for location=%s.",
+                                total_pages,
+                                location,
+                            )
+                            break
+
+                        # Random delay between API calls (matching Craigslist pattern)
+                        delay = random.uniform(self.delay_min, self.delay_max)
+                        logger.debug("Sleeping %.1f s before next Zillow API page", delay)
+                        await asyncio.sleep(delay)
 
         except Exception:
             logger.exception("Fatal error during Zillow API scrape")
@@ -265,20 +306,78 @@ class ZillowScraper(BaseScraper):
         # allowing users to dynamically adjust the price range via the slider.
         return all_listings
 
-    def normalize(self, raw: dict) -> dict:
+    def normalize(self, raw: dict) -> dict | None:
         """Map a raw ZLLW Working API listing dict to Listing model fields.
 
         Handles both ``resultType: "property"`` (single listing) and
         ``resultType: "propertyGroup"`` (apartment complex with units).
 
+        Defensive status validation (Bug A fix, 2026-06-04):
+        Even though we send ``listingStatus=For_Rent`` as a request
+        parameter, the RapidAPI provider's filter is flaky and
+        occasionally returns off-market / for-sale rows (e.g. zpid
+        19615280 / 1525 Bittern Dr leaked through as a $6,200 "rental"
+        when it was actually for-sale at $2.98M). We therefore re-check
+        the response status fields:
+
+          - ``property.listing.listingStatus`` must equal ``"forRent"``
+            (case-insensitive). ``"forSale"``, ``"sold"``, etc. → reject.
+          - ``property.listing.marketingStatus`` must equal ``"active"``
+            (case-insensitive). ``"inactive"``, off-market, etc. → reject.
+
+        NOTE: ``property.homeStatus`` is ALWAYS ``null`` from this
+        provider — do not rely on it. The ``listing`` subdict is the
+        only canonical source. If ``property.listing`` is missing
+        entirely, we also reject (defensive — shape changes upstream
+        should not become silent "for-sale-as-rental" leaks).
+
         Args:
             raw: A single item from the ``searchResults`` array.
 
         Returns:
-            A dictionary whose keys correspond to Listing column names.
+            A dictionary whose keys correspond to Listing column names,
+            OR ``None`` to signal the caller (orchestrator) to skip this
+            listing entirely.
         """
         prop = raw.get("property", {})
         result_type = raw.get("resultType", "property")
+
+        # --- Status guard (Bug A) -----------------------------------------
+        # MUST run before any other extraction so we never emit a stale
+        # for-sale row downstream. See class docstring for the rationale.
+        listing_sub = prop.get("listing")
+        zpid_for_log = prop.get("zpid", "unknown")
+        if not isinstance(listing_sub, dict):
+            logger.debug(
+                "Zillow normalize: skipping zpid=%s — property.listing missing or "
+                "not a dict (got %s)",
+                zpid_for_log,
+                type(listing_sub).__name__,
+            )
+            return None
+
+        listing_status_raw = listing_sub.get("listingStatus")
+        marketing_status_raw = listing_sub.get("marketingStatus")
+        listing_status = (
+            listing_status_raw.lower()
+            if isinstance(listing_status_raw, str)
+            else None
+        )
+        marketing_status = (
+            marketing_status_raw.lower()
+            if isinstance(marketing_status_raw, str)
+            else None
+        )
+
+        if listing_status != "forrent" or marketing_status != "active":
+            logger.debug(
+                "Zillow normalize: skipping zpid=%s — status mismatch "
+                "(listingStatus=%r, marketingStatus=%r)",
+                zpid_for_log,
+                listing_status_raw,
+                marketing_status_raw,
+            )
+            return None
 
         # --- Identification -----------------------------------------------
         zpid = str(prop.get("zpid", ""))

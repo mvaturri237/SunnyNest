@@ -160,6 +160,19 @@ class Listing(Base):
     days_on_market: int | None = Column(Integer, nullable=True)
     deactivated_at: datetime | None = Column(DateTime, nullable=True)
 
+    # --- Lifecycle hysteresis (Bug B fix, 2026-06-04) ---
+    # ``consecutive_misses`` counts how many scrapes in a row this
+    # listing was absent from the source's results. Incremented by
+    # :func:`src.database.mark_inactive` when absent, reset to 0 when
+    # present. When the counter reaches
+    # ``src.database.MARK_INACTIVE_MISS_THRESHOLD`` (= 3 by default,
+    # ≈ 3 daily scrapes since the scraper runs once per day), the
+    # listing is flipped to ``is_active=False`` and ``deactivated_at``
+    # is set. This guards against the non-deterministic RapidAPI Zillow
+    # index that was observed dropping zpids on individual scrapes
+    # (see [`docs/memory/wiki/entities/zillow-scraper.md`](docs/memory/wiki/entities/zillow-scraper.md)).
+    consecutive_misses: int = Column(Integer, nullable=False, default=0, server_default="0")
+
     # --- Status flags ---
     is_active: bool = Column(Boolean, nullable=False, default=True)
     notified: bool = Column(Boolean, nullable=False, default=False)
@@ -253,6 +266,9 @@ class NotificationLog(Base):
 
     Each row represents a single notification dispatch (regardless of
     channel).  The ``success`` flag indicates whether the send succeeded.
+    When ``success`` is ``False``, ``error_category`` and
+    ``error_message`` provide structured diagnostics so the admin UI can
+    surface specific failures (e.g. expired WhatsApp OAuth tokens).
 
     Attributes:
         id: Auto-increment primary key.
@@ -261,6 +277,11 @@ class NotificationLog(Base):
         listing_count: Number of listings included in this notification.
         recipient: The recipient identifier (email address, phone, etc.).
         success: Whether the send was successful.
+        error_category: Short machine-readable failure tag (nullable).
+            Known values: ``"token_expired"``, ``"auth"``, ``"rate_limited"``,
+            ``"network"``, ``"api_error"``, ``"missing_credentials"``,
+            ``"unexpected"``.
+        error_message: Human-readable failure description (nullable).
     """
 
     __tablename__ = "notification_log"
@@ -271,6 +292,8 @@ class NotificationLog(Base):
     listing_count: int = Column(Integer, nullable=False)
     recipient: str = Column(Text, nullable=False)
     success: bool = Column(Boolean, nullable=False, default=True)
+    error_category: str | None = Column(Text, nullable=True)
+    error_message: str | None = Column(Text, nullable=True)
 
     def __repr__(self) -> str:
         return (

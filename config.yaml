@@ -1,17 +1,27 @@
 # Search parameters
 search:
-  city: Sunnyvale
+  # Scrape territory. `cities` (list) is the current source of truth; the
+  # legacy scalar `city:` is still accepted for backward compatibility
+  # (see resolve_cities() in src/utils.py). All 3 scrapers loop over this list.
+  cities:
+    - "Sunnyvale"
+    - "Los Altos"
   state: CA
+  # NOTE: `zip_codes` is documentation-only — it is NOT consumed by any
+  # scraper today (scrapers query by city name, not ZIP). Kept in sync with
+  # `cities` for reference: 94024 = Los Altos (Loyola Corners / Montclaire
+  # Elementary); the 9408x block = Sunnyvale.
   zip_codes:
     - "94085"
     - "94086"
     - "94087"
     - "94089"
+    - "94024"
 
 # Default filters
 filters:
   min_price: 5000
-  max_price: 6500
+  max_price: 7500
   min_bedrooms: 3
   max_bedrooms: 4
   property_types:
@@ -36,20 +46,41 @@ email:
   dashboard_url: "http://sunnynest:8000"
 
 # WhatsApp notifications (Meta Business Cloud API)
+# Disabled 2026-05-10 — Meta Test Number tokens expire every ~24 h and the
+# recipient allowlist silently drops messages to non-allowlisted numbers.
+# Telegram (below) replaces it as the primary push channel.  Re-enable by
+# flipping ``enabled: true`` if you migrate to a production WhatsApp number.
 whatsapp:
-  enabled: true
+  enabled: false
   recipient_phone: ""  # Set via WHATSAPP_RECIPIENT_PHONE env var (format: country code + number, e.g. 972501234567)
 
-# Notification schedule (cron-based, used by ScrapeScheduler)
+# Telegram notifications (Bot API)
+# Setup (one-time):
+#   1. DM @BotFather on Telegram → /newbot → pick a name + username
+#   2. Save the bot token to .env as TELEGRAM_BOT_TOKEN
+#   3. DM your new bot once (any message) to "open" the chat
+#   4. Visit https://api.telegram.org/bot<token>/getUpdates → copy
+#      result[0].message.chat.id → save as TELEGRAM_CHAT_ID in .env
+#   5. Flip ``enabled: true`` below
+# TELEGRAM_CHAT_ID lives in .env (not here) so it pairs atomically with the
+# bot token; see plans/telegram-channel.md §2 for rationale.
+telegram:
+  enabled: true
+  parse_mode: "HTML"  # "HTML" or "MarkdownV2" — HTML strongly preferred (escape rules are simpler)
+
+# Notification schedule (cron-based; canonical source is the launchd plists
+# com.sunnynest.notify-am.plist / com.sunnynest.notify-pm.plist — this entry
+# is documentation only, kept in sync per AGENTS.md §5 rule #3).
+# 2026-06-03: AM shifted 08 → 10 to give the VPN time to come up reliably.
 notification_schedule:
-  hours: [8, 20]
+  hours: [10, 20]
   timezone: "Asia/Jerusalem"
 
 # Scraper settings
 scraper:
   request_delay_min: 3
   request_delay_max: 8
-  max_pages: 1
+  max_pages: 3
   scrape_detail_pages: true  # Visit each Craigslist listing page to extract street addresses (slower but more accurate)
 
 # Zillow API (RapidAPI — ZLLW Working API)

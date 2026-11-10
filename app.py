@@ -618,6 +618,7 @@ _price_options: dict[str, tuple[int, int]] = {
     "$5K-$6K": (5000, 6000),
     "$5K-$6.5K": (5000, 6500),
     "$5K-$7K": (5000, 7000),
+    "$5K-$7.5K": (5000, 7500),
     "$6K-$7K": (6000, 7000),
     "$6K-$8K": (6000, 8000),
     "$7K-$10K": (7000, 10000),
@@ -627,8 +628,8 @@ _price_option_keys = list(_price_options.keys()) + ["Custom Range"]
 
 # Determine default price key from config
 _cfg_min_price = int(_filter_cfg.get("min_price", 5000))
-_cfg_max_price = int(_filter_cfg.get("max_price", 6500))
-_price_default_key = "$5K-$6.5K"
+_cfg_max_price = int(_filter_cfg.get("max_price", 7500))
+_price_default_key = "$5K-$7.5K"
 for _pk, _pv in _price_options.items():
     if _pv == (_cfg_min_price, _cfg_max_price):
         _price_default_key = _pk

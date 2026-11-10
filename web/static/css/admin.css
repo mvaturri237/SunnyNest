@@ -1351,6 +1351,20 @@ html, body {
     border-color: var(--admin-warning);
 }
 
+.info-banner--error {
+    background: var(--admin-danger-bg);
+    border-color: var(--admin-danger);
+    color: var(--admin-danger);
+}
+
+.info-banner--error strong {
+    color: var(--admin-danger);
+}
+
+.info-banner--error code {
+    background: #fee2e2;
+}
+
 .info-icon {
     font-size: 18px;
     flex-shrink: 0;

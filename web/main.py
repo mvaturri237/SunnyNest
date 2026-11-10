@@ -88,6 +88,94 @@ def _validate_environment() -> None:
             "recipient_email in config.yaml."
         )
 
+    # --- WhatsApp token live-probe ---
+    # Performs a single non-quota-consuming GET against the Meta Graph
+    # API to detect expired/invalid tokens at startup.  Only runs when
+    # WhatsApp is enabled AND both env vars are present (avoids noise).
+    try:
+        config = load_config()
+        whatsapp_enabled = config.get("whatsapp", {}).get("enabled", False)
+    except FileNotFoundError:
+        whatsapp_enabled = False
+
+    wa_token = os.environ.get("WHATSAPP_API_TOKEN", "").strip()
+    wa_phone_id = os.environ.get("WHATSAPP_PHONE_NUMBER_ID", "").strip()
+    if whatsapp_enabled and wa_token and wa_phone_id:
+        try:
+            from src.notifier import WhatsAppChannel
+
+            result = WhatsAppChannel.validate_token(timeout=5.0)
+            if result.success:
+                logger.info("✅ WhatsApp token validated successfully.")
+            elif result.error_category == "token_expired":
+                logger.warning(
+                    "⚠️  WhatsApp token check failed: TOKEN EXPIRED OR INVALID. "
+                    "Regenerate it at developers.facebook.com → your App → "
+                    "WhatsApp → API Setup, then update WHATSAPP_API_TOKEN in .env. "
+                    "Detail: %s",
+                    result.error_message,
+                )
+                has_warnings = True
+            else:
+                logger.warning(
+                    "⚠️  WhatsApp token check inconclusive (%s): %s",
+                    result.error_category,
+                    result.error_message,
+                )
+                has_warnings = True
+        except Exception:
+            # Never let an advisory probe crash startup.
+            logger.exception(
+                "WhatsApp token startup probe raised an exception — continuing."
+            )
+
+    # --- Telegram token live-probe ---
+    # Performs a single non-quota-consuming GET against the Telegram Bot
+    # API (``getMe``) to detect invalid tokens at startup.  Only runs
+    # when Telegram is enabled AND the bot token is present.
+    try:
+        config = load_config()
+        telegram_enabled = config.get("telegram", {}).get("enabled", False)
+    except FileNotFoundError:
+        telegram_enabled = False
+
+    tg_token = os.environ.get("TELEGRAM_BOT_TOKEN", "").strip()
+    tg_chat_id = os.environ.get("TELEGRAM_CHAT_ID", "").strip()
+    if telegram_enabled and tg_token:
+        try:
+            from src.notifier import TelegramChannel
+
+            result = TelegramChannel.validate_token(timeout=5.0)
+            if result.success:
+                if not tg_chat_id:
+                    logger.warning(
+                        "⚠️  Telegram bot token validated, but TELEGRAM_CHAT_ID "
+                        "is not set — sends will fail with missing_credentials."
+                    )
+                    has_warnings = True
+                else:
+                    logger.info("✅ Telegram bot token validated successfully.")
+            elif result.error_category == "auth":
+                logger.warning(
+                    "⚠️  Telegram bot token check failed: TOKEN INVALID. "
+                    "Check TELEGRAM_BOT_TOKEN in .env, or regenerate via "
+                    "@BotFather → /revoke → /token. Detail: %s",
+                    result.error_message,
+                )
+                has_warnings = True
+            else:
+                logger.warning(
+                    "⚠️  Telegram token check inconclusive (%s): %s",
+                    result.error_category,
+                    result.error_message,
+                )
+                has_warnings = True
+        except Exception:
+            # Never let an advisory probe crash startup.
+            logger.exception(
+                "Telegram token startup probe raised an exception — continuing."
+            )
+
     if not has_warnings:
         logger.info(
             "✅ Environment validation passed — all credentials configured."
@@ -143,3 +231,4 @@ app.include_router(listings.router)
 app.include_router(api.router)
 app.include_router(actions.router)
 app.include_router(admin.router)
+

@@ -8,6 +8,25 @@
       "latitude": 37.38404,
       "longitude": -121.983974,
       "created_at": "2026-03-31T00:00:00Z"
+    },
+    {
+      "id": "poi_ortega_park",
+      "category": "park",
+      "featured": true,
+      "name": "Ortega Park",
+      "address": "636 Harrow Way, Sunnyvale, CA 94087",
+      "latitude": 37.3422,
+      "longitude": -122.0256,
+      "created_at": "2026-06-04T00:00:00Z"
+    },
+    {
+      "id": "poi_d09589b31c64",
+      "category": "custom",
+      "name": "Dani's Daycare",
+      "address": "649 E Homestead Rd, Sunnyvale, CA 94087",
+      "latitude": 37.3379549,
+      "longitude": -122.0234613,
+      "created_at": "2026-06-10T11:24:00.666102+00:00"
     }
   ]
 }

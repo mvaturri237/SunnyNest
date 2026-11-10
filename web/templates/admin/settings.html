@@ -36,6 +36,18 @@
             <span class="status-label">WhatsApp Recipient</span>
             <span class="status-value">{{ whatsapp_settings.recipient_phone or "Not configured" }}</span>
         </div>
+        <div class="status-row" style="margin-top: 12px; padding-top: 12px; border-top: 1px solid #e5e7eb;">
+            <span class="status-label">Telegram Notifications</span>
+            {% if telegram_settings.enabled %}
+            <span class="status-badge status-green">Enabled</span>
+            {% else %}
+            <span class="status-badge status-gray">Disabled</span>
+            {% endif %}
+        </div>
+        <div class="status-row">
+            <span class="status-label">Telegram Chat ID (last 4)</span>
+            <span class="status-value">{{ telegram_chat_display }}</span>
+        </div>
     </div>
 </div>
 
@@ -59,8 +71,11 @@
     <div class="info-banner">
         <span class="info-icon">🔒</span>
         <span class="info-text">
-            SMTP password, WhatsApp API token, and API keys are managed via environment variables
-            (<code>SMTP_PASSWORD</code>, <code>WHATSAPP_API_TOKEN</code>, <code>RAPIDAPI_KEY</code>).
+            SMTP password, WhatsApp API token, Telegram bot token + chat ID, and API keys are
+            managed via environment variables
+            (<code>SMTP_PASSWORD</code>, <code>WHATSAPP_API_TOKEN</code>,
+            <code>TELEGRAM_BOT_TOKEN</code>, <code>TELEGRAM_CHAT_ID</code>,
+            <code>RAPIDAPI_KEY</code>).
             They are not displayed here for security.
         </span>
     </div>

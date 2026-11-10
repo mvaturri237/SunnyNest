@@ -1,0 +1,1190 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>SunnyNest — Favorite-School Highlight (3 Options)</title>
+
+<!-- Inter font, matching the Design Bible -->
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link
+  href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap"
+  rel="stylesheet"
+/>
+
+<style>
+  /* ============================================================
+     Design tokens (light theme — Design Bible §2)
+     ============================================================ */
+  :root {
+    --bg-primary: #ffffff;
+    --bg-secondary: #f8f9fa;
+    --bg-card: #ffffff;
+    --border-card: #e2e8f0;
+    --text-primary: #1a202c;
+    --text-secondary: #4a5568;
+    --text-muted: #718096;
+    --accent-blue: #2563eb;
+    --shadow-card: 0 1px 3px rgba(0, 0, 0, 0.08);
+    --shadow-card-hover: 0 4px 12px rgba(59, 130, 246, 0.12);
+
+    /* POI palette */
+    --color-poi-school: #f59e0b;     /* amber */
+    --color-poi-park:   #16a34a;     /* green — reused for "favorite school" signal */
+    --color-fav-school: #16a34a;     /* alias — semantic name */
+    --color-fav-school-tint: rgba(22, 163, 74, 0.10);
+    --color-fav-school-border: rgba(22, 163, 74, 0.35);
+    --color-fav-school-dark: #15803d; /* darker for hover / dark pill bg AA contrast */
+  }
+
+  * { box-sizing: border-box; }
+
+  html, body {
+    margin: 0;
+    padding: 0;
+    font-family: 'Inter', system-ui, -apple-system, sans-serif;
+    color: var(--text-primary);
+    background: var(--bg-secondary);
+    line-height: 1.5;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  /* ============================================================
+     Page header
+     ============================================================ */
+  .page-header {
+    padding: 24px 32px 18px;
+    background: var(--bg-primary);
+    border-bottom: 1px solid var(--border-card);
+  }
+  .page-header h1 {
+    margin: 0 0 6px;
+    font-size: 22px;
+    font-weight: 800;
+    letter-spacing: -0.01em;
+  }
+  .page-header p {
+    margin: 0;
+    color: var(--text-secondary);
+    font-size: 14px;
+    max-width: 920px;
+  }
+  .page-header .meta {
+    margin-top: 10px;
+    font-size: 12px;
+    color: var(--text-muted);
+  }
+  .page-header .fav-list {
+    display: inline-flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    margin-top: 8px;
+  }
+  .page-header .fav-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    background: var(--color-fav-school-tint);
+    color: var(--color-fav-school-dark);
+    border: 1px solid var(--color-fav-school-border);
+    padding: 2px 8px;
+    border-radius: 10px;
+    font-size: 11px;
+    font-weight: 600;
+  }
+
+  /* ============================================================
+     Option section
+     ============================================================ */
+  .option {
+    padding: 28px 32px 40px;
+    border-bottom: 1px solid var(--border-card);
+  }
+  .option:last-of-type { border-bottom: 0; }
+
+  .option-header {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    gap: 12px;
+    margin-bottom: 6px;
+  }
+  .option-header h2 {
+    margin: 0;
+    font-size: 18px;
+    font-weight: 700;
+  }
+  .option-header .tag {
+    display: inline-flex;
+    align-items: center;
+    padding: 2px 8px;
+    background: rgba(37, 99, 235, 0.08);
+    color: var(--accent-blue);
+    border-radius: 10px;
+    font-size: 11px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+  }
+  .option-header .tag.rec {
+    background: rgba(22, 163, 74, 0.12);
+    color: var(--color-fav-school-dark);
+  }
+
+  .rationale {
+    margin: 0 0 18px;
+    color: var(--text-secondary);
+    font-size: 14px;
+    max-width: 920px;
+  }
+
+  /* ============================================================
+     Two-column layout: cards (left) + map preview (right) + info
+     ============================================================ */
+  .demo-grid {
+    display: grid;
+    grid-template-columns: 440px minmax(0, 1fr) 280px;
+    gap: 18px;
+    align-items: start;
+  }
+  @media (max-width: 1280px) {
+    .demo-grid {
+      grid-template-columns: 1fr 1fr;
+    }
+    .demo-grid > .info-panel { grid-column: 1 / -1; }
+  }
+  @media (max-width: 880px) {
+    .demo-grid { grid-template-columns: 1fr; }
+  }
+
+  .demo-section-label {
+    font-size: 11px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: var(--text-muted);
+    margin: 0 0 8px;
+  }
+
+  /* ============================================================
+     Listing card — replicates production .listing-card markup
+     ============================================================ */
+  .cards-stack {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+  }
+
+  .listing-card {
+    position: relative;
+    display: flex;
+    background: var(--bg-card);
+    border: 1px solid var(--border-card);
+    border-radius: 12px;
+    box-shadow: var(--shadow-card);
+    overflow: hidden;
+    min-height: 140px;
+  }
+
+  .card-image {
+    flex: 0 0 140px;
+    height: 140px;
+    background: #e2e8f0;
+    position: relative;
+    overflow: hidden;
+  }
+  .card-image .placeholder-img {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 100%;
+    height: 100%;
+    font-size: 38px;
+    color: #94a3b8;
+    background: linear-gradient(135deg, #f1f5f9 0%, #e2e8f0 100%);
+  }
+  .card-image img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    display: block;
+  }
+  .card-action-buttons {
+    position: absolute;
+    top: 6px;
+    right: 6px;
+    display: flex;
+    gap: 4px;
+  }
+  .fav-btn {
+    background: rgba(255, 255, 255, 0.92);
+    border: none;
+    border-radius: 50%;
+    width: 28px; height: 28px;
+    font-size: 14px;
+    cursor: pointer;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.15);
+  }
+  .fav-btn.active { color: #dc2626; }
+
+  .card-details {
+    flex: 1;
+    padding: 10px 14px;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    min-width: 0;
+  }
+  .card-price-row {
+    display: flex;
+    align-items: baseline;
+    gap: 8px;
+    flex-wrap: wrap;
+  }
+  .card-price {
+    font-size: 20px;
+    font-weight: 800;
+    color: var(--text-primary);
+    letter-spacing: -0.01em;
+  }
+  .card-title {
+    font-size: 13px;
+    color: var(--text-secondary);
+    font-weight: 500;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    min-width: 0;
+  }
+  .card-specs {
+    font-size: 13px;
+    color: var(--text-secondary);
+    font-weight: 500;
+  }
+  .card-tag-row {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 5px;
+    margin-top: 2px;
+  }
+  .card-tag {
+    display: inline-flex;
+    align-items: center;
+    padding: 2px 7px;
+    border-radius: 10px;
+    font-size: 11px;
+    font-weight: 600;
+  }
+  .tag-new    { background: rgba(34,197,94,0.10);  color: #16a34a; border: 1px solid rgba(34,197,94,0.3); }
+  .tag-fresh  { background: rgba(67,160,71,0.10);  color: #2e7d32; border: 1px solid rgba(67,160,71,0.3); }
+  .tag-aging  { background: rgba(249,168,37,0.10); color: #b45309; border: 1px solid rgba(249,168,37,0.3); }
+  .tag-pet    { background: rgba(25,118,210,0.10); color: #1565c0; border: 1px solid rgba(25,118,210,0.3); }
+  .source-pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 2px 7px;
+    border-radius: 10px;
+    font-size: 11px;
+    font-weight: 600;
+    color: var(--text-secondary);
+    background: var(--bg-secondary);
+    border: 1px solid var(--border-card);
+    text-decoration: none;
+  }
+  .source-pill .src-fav {
+    width: 11px; height: 11px;
+    background: #1565c0;
+    border-radius: 2px;
+    display: inline-block;
+  }
+  .source-pill.zillow .src-fav { background: #006aff; }
+  .source-pill.craigslist .src-fav { background: #551a8b; }
+  .card-schools {
+    font-size: 12px;
+    color: var(--text-muted);
+    margin-top: 2px;
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    flex-wrap: wrap;
+  }
+
+  /* ============================================================
+     Map preview — fake/static map for mockup (no Leaflet needed)
+     ============================================================ */
+  .map-card {
+    background: var(--bg-primary);
+    border: 1px solid var(--border-card);
+    border-radius: 12px;
+    box-shadow: var(--shadow-card);
+    overflow: hidden;
+  }
+  .map-preview {
+    position: relative;
+    width: 100%;
+    height: 380px;
+    background:
+      radial-gradient(circle at 20% 30%, rgba(22, 163, 74, 0.18) 0%, transparent 12%),
+      radial-gradient(circle at 75% 65%, rgba(22, 163, 74, 0.15) 0%, transparent 10%),
+      radial-gradient(circle at 50% 80%, rgba(14, 165, 233, 0.20) 0%, transparent 14%),
+      linear-gradient(135deg, #eef2f5 0%, #e2e8ef 100%);
+    overflow: hidden;
+  }
+  /* Fake street grid */
+  .map-preview::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background-image:
+      linear-gradient(rgba(160,170,180,0.18) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(160,170,180,0.18) 1px, transparent 1px);
+    background-size: 64px 64px;
+  }
+  .map-preview::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background:
+      linear-gradient(115deg, transparent 47%, rgba(180,190,200,0.35) 47.6%, rgba(180,190,200,0.35) 48.4%, transparent 49%),
+      linear-gradient(25deg, transparent 62%, rgba(180,190,200,0.30) 62.6%, rgba(180,190,200,0.30) 63.4%, transparent 64%);
+  }
+  .map-marker {
+    position: absolute;
+    transform: translate(-50%, -50%);
+    z-index: 10;
+  }
+
+  /* School POI pin (matches production school-icons design) */
+  .school-pin {
+    width: 24px;
+    height: 24px;
+    border-radius: 50%;
+    background: var(--color-poi-school); /* amber by default */
+    border: 2px solid #fff;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.3);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 13px;
+    line-height: 1;
+    cursor: pointer;
+  }
+  .school-pin.is-fav { background: var(--color-fav-school); } /* green for the 6 favorites */
+
+  /* Base price-pill (matches production .price-pill) */
+  .price-pill {
+    background: #ffffff;
+    color: var(--text-primary);
+    font-size: 12px;
+    font-weight: 700;
+    border: 1.5px solid rgba(59, 130, 246, 0.4);
+    border-radius: 12px;
+    padding: 4px 9px;
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.15);
+    white-space: nowrap;
+    text-align: center;
+    line-height: 1.2;
+    cursor: pointer;
+    position: relative;
+  }
+
+  /* ============================================================
+     Info panel (pros / cons / accessibility / impl)
+     ============================================================ */
+  .info-panel {
+    background: var(--bg-primary);
+    border: 1px solid var(--border-card);
+    border-radius: 12px;
+    box-shadow: var(--shadow-card);
+    padding: 14px;
+    font-size: 13px;
+  }
+  .info-panel h3 {
+    margin: 0 0 6px;
+    font-size: 11px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: var(--text-muted);
+  }
+  .info-panel ul {
+    margin: 0 0 12px;
+    padding-left: 18px;
+    color: var(--text-secondary);
+  }
+  .info-panel ul li { margin-bottom: 3px; line-height: 1.4; }
+  .info-panel ul.pros li::marker { color: #16a34a; }
+  .info-panel ul.cons li::marker { color: #dc2626; }
+  .info-panel ul.a11y li::marker { color: var(--accent-blue); }
+  .info-panel .impl {
+    background: var(--bg-secondary);
+    border: 1px solid var(--border-card);
+    border-radius: 6px;
+    padding: 8px 10px;
+    margin-top: 6px;
+    font-family: 'SF Mono', Menlo, Consolas, monospace;
+    font-size: 11.5px;
+    color: var(--text-secondary);
+    line-height: 1.5;
+  }
+  .info-panel .impl strong {
+    color: var(--text-primary);
+    font-family: 'Inter', sans-serif;
+    font-weight: 700;
+    display: block;
+    margin-bottom: 4px;
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+  }
+
+  /* ============================================================
+     OPTION A — Subtle accent (left-border bar + price-pill ring)
+     ============================================================ */
+  .a-listing-card.is-fav-school {
+    border-left: 4px solid var(--color-fav-school);
+    padding-left: 0;                    /* compensated by border */
+  }
+  .a-listing-card.is-fav-school .card-image {
+    /* no change to image */
+  }
+  /* Tiny green dot inline with the schools row — non-color signal helper */
+  .a-listing-card.is-fav-school .card-schools::before {
+    content: '★';
+    color: var(--color-fav-school);
+    font-size: 12px;
+    font-weight: 700;
+    margin-right: 2px;
+  }
+  .a-price-pill.is-fav-school {
+    border: 2.5px solid var(--color-fav-school);
+    box-shadow:
+      0 0 0 2px rgba(22, 163, 74, 0.18),
+      0 2px 6px rgba(0, 0, 0, 0.15);
+  }
+
+  /* ============================================================
+     OPTION B — Star badge / chip
+     ============================================================ */
+  .b-listing-card.is-fav-school .card-image::after {
+    content: '★ Top school';
+    position: absolute;
+    top: 6px;
+    left: 6px;
+    background: var(--color-fav-school);
+    color: #ffffff;
+    font-size: 10px;
+    font-weight: 700;
+    padding: 3px 7px;
+    border-radius: 8px;
+    line-height: 1;
+    letter-spacing: 0.02em;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.25);
+    z-index: 2;
+  }
+  .b-price-pill {
+    /* small star dot anchored to top-right of pill */
+  }
+  .b-price-pill.is-fav-school::after {
+    content: '★';
+    position: absolute;
+    top: -6px;
+    right: -6px;
+    background: var(--color-fav-school);
+    color: #ffffff;
+    width: 16px;
+    height: 16px;
+    border-radius: 50%;
+    border: 1.5px solid #fff;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 9px;
+    font-weight: 700;
+    line-height: 1;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.25);
+  }
+
+  /* ============================================================
+     OPTION C — Green-tinted price pill + schools-row chip
+     ============================================================ */
+  .c-price-pill.is-fav-school {
+    background: var(--color-fav-school-dark); /* #15803d — AA contrast on white text */
+    color: #ffffff;
+    border-color: var(--color-fav-school-dark);
+    /* add subtle ★ prefix so we never rely on color alone */
+    padding-left: 6px;
+  }
+  .c-price-pill.is-fav-school::before {
+    content: '★';
+    margin-right: 3px;
+    font-size: 11px;
+  }
+  .c-listing-card.is-fav-school .school-pill-fav {
+    display: inline-flex;
+    align-items: center;
+    gap: 3px;
+    background: var(--color-fav-school-tint);
+    color: var(--color-fav-school-dark);
+    border: 1px solid var(--color-fav-school-border);
+    padding: 1px 6px;
+    border-radius: 10px;
+    font-size: 12px;
+    font-weight: 600;
+  }
+  .c-listing-card.is-fav-school .school-pill-fav .star {
+    font-size: 11px;
+  }
+  /* Non-matching schools in the same row stay neutral */
+  .c-listing-card .card-schools .school-other {
+    color: var(--text-muted);
+  }
+
+  /* ============================================================
+     Annotation label (small arrow callouts on the demo)
+     ============================================================ */
+  .callout {
+    position: absolute;
+    background: #1a202c;
+    color: #fff;
+    font-size: 10.5px;
+    font-weight: 600;
+    padding: 3px 7px;
+    border-radius: 6px;
+    white-space: nowrap;
+    z-index: 20;
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.25);
+  }
+  .callout::after {
+    content: '';
+    position: absolute;
+    border: 5px solid transparent;
+  }
+  .callout.left::after {
+    right: -10px; top: 50%;
+    transform: translateY(-50%);
+    border-left-color: #1a202c;
+  }
+  .callout.right::after {
+    left: -10px; top: 50%;
+    transform: translateY(-50%);
+    border-right-color: #1a202c;
+  }
+  .callout.top::after {
+    bottom: -10px; left: 50%;
+    transform: translateX(-50%);
+    border-top-color: #1a202c;
+  }
+
+  /* ============================================================
+     Final summary section
+     ============================================================ */
+  .summary {
+    padding: 28px 32px 48px;
+    background: var(--bg-primary);
+    border-top: 2px solid var(--border-card);
+  }
+  .summary h2 {
+    margin: 0 0 12px;
+    font-size: 18px;
+    font-weight: 700;
+  }
+  .summary p {
+    margin: 0 0 12px;
+    color: var(--text-secondary);
+    font-size: 14px;
+    max-width: 920px;
+    line-height: 1.6;
+  }
+  .summary .rec-box {
+    background: rgba(22, 163, 74, 0.06);
+    border: 1px solid rgba(22, 163, 74, 0.3);
+    border-left: 4px solid var(--color-fav-school);
+    padding: 14px 18px;
+    border-radius: 8px;
+    margin: 14px 0 18px;
+    max-width: 920px;
+  }
+  .summary .rec-box strong { color: var(--color-fav-school-dark); }
+  .summary ol {
+    color: var(--text-secondary);
+    font-size: 14px;
+    max-width: 920px;
+    line-height: 1.6;
+  }
+  .summary ol li { margin-bottom: 8px; }
+  .summary code {
+    background: var(--bg-secondary);
+    border: 1px solid var(--border-card);
+    padding: 1px 5px;
+    border-radius: 4px;
+    font-size: 12.5px;
+    font-family: 'SF Mono', Menlo, Consolas, monospace;
+  }
+</style>
+</head>
+<body>
+
+<!-- ============================================================
+     Page header
+     ============================================================ -->
+<header class="page-header">
+  <h1>Favorite-School Highlight — 3 Mockup Options</h1>
+  <p>
+    The 6 schools below are the user's favorites. When a listing's <code style="font-family:monospace;font-size:12.5px;background:#f1f5f9;padding:1px 4px;border-radius:3px">school_elementary</code>
+    matches one of these names, the listing card and its map price-pill should be visually highlighted so the user can scan
+    for "good school" listings instantly. The match reuses the existing DB column populated by the point-in-polygon
+    school-districts lookup — no distance math, no geocoder calls.
+  </p>
+  <div class="fav-list">
+    <span class="fav-chip">🏫 Cherry Chase Elementary</span>
+    <span class="fav-chip">🏫 Cumberland Elementary</span>
+    <span class="fav-chip">🏫 Louis E. Stocklmeir Elementary</span>
+    <span class="fav-chip">🏫 West Valley Elementary</span>
+    <span class="fav-chip">🏫 Montclaire Elementary</span>
+    <span class="fav-chip">🏫 Laurelwood Elementary</span>
+  </div>
+  <div class="meta">Reuses POI park-green token (<code style="background:#f1f5f9;padding:1px 4px;border-radius:3px;font-size:11px">#16a34a</code>) so the highlight visually rhymes with the green 🏫 pins already on the map.</div>
+</header>
+
+
+<!-- ============================================================
+     OPTION A — Subtle accent (left border + ringed pill)
+     ============================================================ -->
+<section class="option">
+  <div class="option-header">
+    <h2>Option A — Subtle Accent</h2>
+    <span class="tag">Low visual noise</span>
+  </div>
+  <p class="rationale">
+    A 4px green left-border on the listing card + a 2.5px green ring around matching price-pills. The schools row gets a
+    small leading <strong>★</strong> glyph as a non-color signal. The original schools text stays unchanged — the row itself
+    tells the user <em>which</em> school matched. Lowest noise of the three; closest to the production look.
+  </p>
+
+  <div class="demo-grid">
+    <!-- LEFT: cards stack -->
+    <div>
+      <div class="demo-section-label">Listing column (4 cards, 3 are favorite-school matches)</div>
+      <div class="cards-stack">
+
+        <!-- Card 1: FAVORITE — Cherry Chase -->
+        <div class="listing-card a-listing-card is-fav-school" aria-label="Favorite school match: Cherry Chase Elementary">
+          <div class="card-image">
+            <div class="placeholder-img">🏠</div>
+            <div class="card-action-buttons"><button class="fav-btn">☆</button></div>
+          </div>
+          <div class="card-details">
+            <div class="card-price-row">
+              <span class="card-price">$4,850/mo</span>
+              <span class="card-title">812 W Iowa Ave, Sunnyvale</span>
+            </div>
+            <div class="card-specs">3 bed · 2 bath · 1,420 sqft (132 m²)</div>
+            <div class="card-tag-row">
+              <span class="card-tag tag-new">New</span>
+              <span class="card-tag tag-fresh">2d ago</span>
+              <a class="source-pill zillow" href="#" onclick="return false;"><span class="src-fav"></span>Zillow</a>
+            </div>
+            <div class="card-schools">🏫 Cherry Chase Elem · Columbia Middle · Fremont HS</div>
+          </div>
+        </div>
+
+        <!-- Card 2: NO MATCH -->
+        <div class="listing-card a-listing-card">
+          <div class="card-image">
+            <div class="placeholder-img">🏢</div>
+            <div class="card-action-buttons"><button class="fav-btn">☆</button></div>
+          </div>
+          <div class="card-details">
+            <div class="card-price-row">
+              <span class="card-price">$3,200/mo</span>
+              <span class="card-title">1247 N Wolfe Rd #204, Sunnyvale</span>
+            </div>
+            <div class="card-specs">2 bed · 1 bath · 980 sqft (91 m²)</div>
+            <div class="card-tag-row">
+              <span class="card-tag tag-fresh">4d ago</span>
+              <span class="card-tag tag-pet">🐕 Pets</span>
+              <a class="source-pill craigslist" href="#" onclick="return false;"><span class="src-fav"></span>Craigslist</a>
+            </div>
+            <div class="card-schools">🏫 Vargas Elem · Sunnyvale Middle · Homestead HS</div>
+          </div>
+        </div>
+
+        <!-- Card 3: FAVORITE — Cumberland -->
+        <div class="listing-card a-listing-card is-fav-school">
+          <div class="card-image">
+            <div class="placeholder-img">🏠</div>
+            <div class="card-action-buttons"><button class="fav-btn active">★</button></div>
+          </div>
+          <div class="card-details">
+            <div class="card-price-row">
+              <span class="card-price">$5,500/mo</span>
+              <span class="card-title">425 Roosevelt Way, Sunnyvale</span>
+            </div>
+            <div class="card-specs">4 bed · 2 bath · 1,683 sqft (156 m²)</div>
+            <div class="card-tag-row">
+              <span class="card-tag tag-aging">9d ago</span>
+              <a class="source-pill zillow" href="#" onclick="return false;"><span class="src-fav"></span>Zillow</a>
+            </div>
+            <div class="card-schools">🏫 Cumberland Elem · Sunnyvale Middle · Homestead HS</div>
+          </div>
+        </div>
+
+        <!-- Card 4: FAVORITE — Stocklmeir -->
+        <div class="listing-card a-listing-card is-fav-school">
+          <div class="card-image">
+            <div class="placeholder-img">🏠</div>
+            <div class="card-action-buttons"><button class="fav-btn">☆</button></div>
+          </div>
+          <div class="card-details">
+            <div class="card-price-row">
+              <span class="card-price">$6,200/mo</span>
+              <span class="card-title">1108 Lakehaven Dr, Sunnyvale</span>
+            </div>
+            <div class="card-specs">4 bed · 2.5 bath · 1,920 sqft (178 m²)</div>
+            <div class="card-tag-row">
+              <span class="card-tag tag-fresh">1d ago</span>
+              <a class="source-pill zillow" href="#" onclick="return false;"><span class="src-fav"></span>Zillow</a>
+            </div>
+            <div class="card-schools">🏫 Louis E. Stocklmeir Elem · Sunnyvale Middle · Homestead HS</div>
+          </div>
+        </div>
+
+      </div>
+    </div>
+
+    <!-- CENTER: map preview -->
+    <div class="map-card">
+      <div class="map-preview">
+        <!-- school pins (green = fav, amber = non-fav) -->
+        <span class="map-marker school-pin is-fav" style="left:25%;top:32%;" title="Cherry Chase Elementary (★ favorite)">🏫</span>
+        <span class="map-marker school-pin is-fav" style="left:62%;top:46%;" title="Cumberland Elementary (★ favorite)">🏫</span>
+        <span class="map-marker school-pin is-fav" style="left:42%;top:72%;" title="Louis E. Stocklmeir Elementary (★ favorite)">🏫</span>
+        <span class="map-marker school-pin" style="left:80%;top:20%;" title="Vargas Elementary">🏫</span>
+
+        <!-- price pills — 3 highlighted, 1 not -->
+        <span class="map-marker price-pill a-price-pill is-fav-school" style="left:28%;top:42%;">$4,850</span>
+        <span class="map-marker price-pill a-price-pill is-fav-school" style="left:58%;top:56%;">$5,500</span>
+        <span class="map-marker price-pill a-price-pill is-fav-school" style="left:46%;top:80%;">$6,200</span>
+        <span class="map-marker price-pill a-price-pill" style="left:78%;top:32%;">$3,200</span>
+
+        <!-- callouts -->
+        <span class="callout left" style="left:35%;top:42%;">Green ring = fav school</span>
+        <span class="callout left" style="left:85%;top:32%;">No ring</span>
+      </div>
+      <div style="padding:10px 14px; border-top:1px solid var(--border-card); background:var(--bg-secondary); font-size:12px; color:var(--text-muted);">
+        Schools (🏫): green = one of the user's 6 favorites · amber = other schools nearby.
+      </div>
+    </div>
+
+    <!-- RIGHT: info panel -->
+    <div class="info-panel">
+      <h3>Pros</h3>
+      <ul class="pros">
+        <li>Lowest visual noise — production look preserved</li>
+        <li>Reads as "premium" without shouting</li>
+        <li>Schools row already tells user <em>which</em> school matched</li>
+      </ul>
+      <h3>Cons</h3>
+      <ul class="cons">
+        <li>Easy to miss on quick scroll</li>
+        <li>Ring on the price-pill is small (~2.5px)</li>
+        <li>Not as discoverable for first-time users</li>
+      </ul>
+      <h3>Accessibility (color-independence)</h3>
+      <ul class="a11y">
+        <li><strong>★</strong> glyph prefixes the schools row</li>
+        <li>Card <code>aria-label="Favorite school match: …"</code></li>
+        <li>Pill ring is 2.5px (border thickness ≠ color alone)</li>
+      </ul>
+      <div class="impl">
+        <strong>Impl. note</strong>
+        Pure CSS. Server emits<br>
+        <code>class="listing-card is-fav-school"</code><br>
+        and<br>
+        <code>class="price-pill is-fav-school"</code><br>
+        when <code>listing.school_elementary</code><br>
+        is in the favorites set.
+      </div>
+    </div>
+  </div>
+</section>
+
+
+<!-- ============================================================
+     OPTION B — Star badge / chip
+     ============================================================ -->
+<section class="option">
+  <div class="option-header">
+    <h2>Option B — Star Badge</h2>
+    <span class="tag">Most discoverable</span>
+  </div>
+  <p class="rationale">
+    A small <strong>"★ Top school"</strong> green pill sits in the top-left corner of the card's image, and a matching
+    <strong>★</strong> dot anchors to the top-right of the price-pill on the map. The badge text itself ("Top school") makes the
+    meaning unambiguous — even before the user notices the green. Strongest discoverability, but adds a new UI element on
+    cards that are already dense.
+  </p>
+
+  <div class="demo-grid">
+    <!-- LEFT: cards stack -->
+    <div>
+      <div class="demo-section-label">Listing column</div>
+      <div class="cards-stack">
+
+        <div class="listing-card b-listing-card is-fav-school" aria-label="Favorite school match: Cherry Chase Elementary">
+          <div class="card-image">
+            <div class="placeholder-img">🏠</div>
+            <div class="card-action-buttons"><button class="fav-btn">☆</button></div>
+          </div>
+          <div class="card-details">
+            <div class="card-price-row">
+              <span class="card-price">$4,850/mo</span>
+              <span class="card-title">812 W Iowa Ave, Sunnyvale</span>
+            </div>
+            <div class="card-specs">3 bed · 2 bath · 1,420 sqft (132 m²)</div>
+            <div class="card-tag-row">
+              <span class="card-tag tag-new">New</span>
+              <span class="card-tag tag-fresh">2d ago</span>
+              <a class="source-pill zillow" href="#" onclick="return false;"><span class="src-fav"></span>Zillow</a>
+            </div>
+            <div class="card-schools">🏫 Cherry Chase Elem · Columbia Middle · Fremont HS</div>
+          </div>
+        </div>
+
+        <div class="listing-card b-listing-card">
+          <div class="card-image">
+            <div class="placeholder-img">🏢</div>
+            <div class="card-action-buttons"><button class="fav-btn">☆</button></div>
+          </div>
+          <div class="card-details">
+            <div class="card-price-row">
+              <span class="card-price">$3,200/mo</span>
+              <span class="card-title">1247 N Wolfe Rd #204, Sunnyvale</span>
+            </div>
+            <div class="card-specs">2 bed · 1 bath · 980 sqft (91 m²)</div>
+            <div class="card-tag-row">
+              <span class="card-tag tag-fresh">4d ago</span>
+              <span class="card-tag tag-pet">🐕 Pets</span>
+              <a class="source-pill craigslist" href="#" onclick="return false;"><span class="src-fav"></span>Craigslist</a>
+            </div>
+            <div class="card-schools">🏫 Vargas Elem · Sunnyvale Middle · Homestead HS</div>
+          </div>
+        </div>
+
+        <div class="listing-card b-listing-card is-fav-school">
+          <div class="card-image">
+            <div class="placeholder-img">🏠</div>
+            <div class="card-action-buttons"><button class="fav-btn active">★</button></div>
+          </div>
+          <div class="card-details">
+            <div class="card-price-row">
+              <span class="card-price">$5,500/mo</span>
+              <span class="card-title">425 Roosevelt Way, Sunnyvale</span>
+            </div>
+            <div class="card-specs">4 bed · 2 bath · 1,683 sqft (156 m²)</div>
+            <div class="card-tag-row">
+              <span class="card-tag tag-aging">9d ago</span>
+              <a class="source-pill zillow" href="#" onclick="return false;"><span class="src-fav"></span>Zillow</a>
+            </div>
+            <div class="card-schools">🏫 Cumberland Elem · Sunnyvale Middle · Homestead HS</div>
+          </div>
+        </div>
+
+        <div class="listing-card b-listing-card is-fav-school">
+          <div class="card-image">
+            <div class="placeholder-img">🏠</div>
+            <div class="card-action-buttons"><button class="fav-btn">☆</button></div>
+          </div>
+          <div class="card-details">
+            <div class="card-price-row">
+              <span class="card-price">$6,200/mo</span>
+              <span class="card-title">1108 Lakehaven Dr, Sunnyvale</span>
+            </div>
+            <div class="card-specs">4 bed · 2.5 bath · 1,920 sqft (178 m²)</div>
+            <div class="card-tag-row">
+              <span class="card-tag tag-fresh">1d ago</span>
+              <a class="source-pill zillow" href="#" onclick="return false;"><span class="src-fav"></span>Zillow</a>
+            </div>
+            <div class="card-schools">🏫 Louis E. Stocklmeir Elem · Sunnyvale Middle · Homestead HS</div>
+          </div>
+        </div>
+
+      </div>
+    </div>
+
+    <!-- CENTER: map -->
+    <div class="map-card">
+      <div class="map-preview">
+        <span class="map-marker school-pin is-fav" style="left:25%;top:32%;" title="Cherry Chase Elementary (★)">🏫</span>
+        <span class="map-marker school-pin is-fav" style="left:62%;top:46%;" title="Cumberland Elementary (★)">🏫</span>
+        <span class="map-marker school-pin is-fav" style="left:42%;top:72%;" title="Stocklmeir Elementary (★)">🏫</span>
+        <span class="map-marker school-pin" style="left:80%;top:20%;" title="Vargas Elementary">🏫</span>
+
+        <span class="map-marker price-pill b-price-pill is-fav-school" style="left:28%;top:42%;">$4,850</span>
+        <span class="map-marker price-pill b-price-pill is-fav-school" style="left:58%;top:56%;">$5,500</span>
+        <span class="map-marker price-pill b-price-pill is-fav-school" style="left:46%;top:80%;">$6,200</span>
+        <span class="map-marker price-pill b-price-pill" style="left:78%;top:32%;">$3,200</span>
+
+        <span class="callout left" style="left:36%;top:38%;">★ corner badge</span>
+      </div>
+      <div style="padding:10px 14px; border-top:1px solid var(--border-card); background:var(--bg-secondary); font-size:12px; color:var(--text-muted);">
+        Each highlighted pill carries a small ★ dot on its top-right.
+      </div>
+    </div>
+
+    <div class="info-panel">
+      <h3>Pros</h3>
+      <ul class="pros">
+        <li><strong>Most discoverable</strong> — label is self-explanatory</li>
+        <li>"Top school" wording sells the value to first-time users</li>
+        <li>Map ★ is a strong, instantly-recognized signal</li>
+      </ul>
+      <h3>Cons</h3>
+      <ul class="cons">
+        <li>Adds a 4th badge type to an already-dense card</li>
+        <li>"Top school" is editorial — implies ranking we don't actually have</li>
+        <li>Image-overlay badge competes with the fav (heart) button</li>
+      </ul>
+      <h3>Accessibility (color-independence)</h3>
+      <ul class="a11y">
+        <li>Badge text ("Top school") is the primary signal</li>
+        <li>★ glyph on map pill is shape, not color</li>
+        <li>Green is decorative; AA contrast (white on #16a34a = 3.96:1 — large text only — bold 10px is borderline; use #15803d for 4.6:1)</li>
+      </ul>
+      <div class="impl">
+        <strong>Impl. note</strong>
+        Pure CSS, same class hook as Option A. Wording change ("Top school" vs "Favorite school")<br>
+        is a product/copy decision — flag for user.
+      </div>
+    </div>
+  </div>
+</section>
+
+
+<!-- ============================================================
+     OPTION C — Green-tinted price pill + schools-row chip
+     ============================================================ -->
+<section class="option">
+  <div class="option-header">
+    <h2>Option C — Themed Green Pill + Schools-Row Chip</h2>
+    <span class="tag rec">⭐ Recommended</span>
+  </div>
+  <p class="rationale">
+    The price-pill flips from white-with-blue-border to <strong>dark green with white text</strong> (and a ★ prefix), and the
+    matching school in the card's schools row is wrapped in a green chip <code style="font-size:12px">🏫 [Cherry Chase Elem]</code>.
+    Strongest visual connection to the green 🏫 pins already on the map — the user immediately sees: "green schools → green pills →
+    green chip on the card." Highest cohesion with the POI overlay that just shipped.
+  </p>
+
+  <div class="demo-grid">
+    <div>
+      <div class="demo-section-label">Listing column</div>
+      <div class="cards-stack">
+
+        <div class="listing-card c-listing-card is-fav-school" aria-label="Favorite school match: Cherry Chase Elementary">
+          <div class="card-image">
+            <div class="placeholder-img">🏠</div>
+            <div class="card-action-buttons"><button class="fav-btn">☆</button></div>
+          </div>
+          <div class="card-details">
+            <div class="card-price-row">
+              <span class="card-price">$4,850/mo</span>
+              <span class="card-title">812 W Iowa Ave, Sunnyvale</span>
+            </div>
+            <div class="card-specs">3 bed · 2 bath · 1,420 sqft (132 m²)</div>
+            <div class="card-tag-row">
+              <span class="card-tag tag-new">New</span>
+              <span class="card-tag tag-fresh">2d ago</span>
+              <a class="source-pill zillow" href="#" onclick="return false;"><span class="src-fav"></span>Zillow</a>
+            </div>
+            <div class="card-schools">
+              <span class="school-pill-fav"><span class="star">★</span>🏫 Cherry Chase Elem</span>
+              <span class="school-other">· Columbia Middle · Fremont HS</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="listing-card c-listing-card">
+          <div class="card-image">
+            <div class="placeholder-img">🏢</div>
+            <div class="card-action-buttons"><button class="fav-btn">☆</button></div>
+          </div>
+          <div class="card-details">
+            <div class="card-price-row">
+              <span class="card-price">$3,200/mo</span>
+              <span class="card-title">1247 N Wolfe Rd #204, Sunnyvale</span>
+            </div>
+            <div class="card-specs">2 bed · 1 bath · 980 sqft (91 m²)</div>
+            <div class="card-tag-row">
+              <span class="card-tag tag-fresh">4d ago</span>
+              <span class="card-tag tag-pet">🐕 Pets</span>
+              <a class="source-pill craigslist" href="#" onclick="return false;"><span class="src-fav"></span>Craigslist</a>
+            </div>
+            <div class="card-schools">🏫 Vargas Elem · Sunnyvale Middle · Homestead HS</div>
+          </div>
+        </div>
+
+        <div class="listing-card c-listing-card is-fav-school">
+          <div class="card-image">
+            <div class="placeholder-img">🏠</div>
+            <div class="card-action-buttons"><button class="fav-btn active">★</button></div>
+          </div>
+          <div class="card-details">
+            <div class="card-price-row">
+              <span class="card-price">$5,500/mo</span>
+              <span class="card-title">425 Roosevelt Way, Sunnyvale</span>
+            </div>
+            <div class="card-specs">4 bed · 2 bath · 1,683 sqft (156 m²)</div>
+            <div class="card-tag-row">
+              <span class="card-tag tag-aging">9d ago</span>
+              <a class="source-pill zillow" href="#" onclick="return false;"><span class="src-fav"></span>Zillow</a>
+            </div>
+            <div class="card-schools">
+              <span class="school-pill-fav"><span class="star">★</span>🏫 Cumberland Elem</span>
+              <span class="school-other">· Sunnyvale Middle · Homestead HS</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="listing-card c-listing-card is-fav-school">
+          <div class="card-image">
+            <div class="placeholder-img">🏠</div>
+            <div class="card-action-buttons"><button class="fav-btn">☆</button></div>
+          </div>
+          <div class="card-details">
+            <div class="card-price-row">
+              <span class="card-price">$6,200/mo</span>
+              <span class="card-title">1108 Lakehaven Dr, Sunnyvale</span>
+            </div>
+            <div class="card-specs">4 bed · 2.5 bath · 1,920 sqft (178 m²)</div>
+            <div class="card-tag-row">
+              <span class="card-tag tag-fresh">1d ago</span>
+              <a class="source-pill zillow" href="#" onclick="return false;"><span class="src-fav"></span>Zillow</a>
+            </div>
+            <div class="card-schools">
+              <span class="school-pill-fav"><span class="star">★</span>🏫 Louis E. Stocklmeir Elem</span>
+              <span class="school-other">· Sunnyvale Middle · Homestead HS</span>
+            </div>
+          </div>
+        </div>
+
+      </div>
+    </div>
+
+    <div class="map-card">
+      <div class="map-preview">
+        <span class="map-marker school-pin is-fav" style="left:25%;top:32%;" title="Cherry Chase Elementary (★)">🏫</span>
+        <span class="map-marker school-pin is-fav" style="left:62%;top:46%;" title="Cumberland Elementary (★)">🏫</span>
+        <span class="map-marker school-pin is-fav" style="left:42%;top:72%;" title="Stocklmeir Elementary (★)">🏫</span>
+        <span class="map-marker school-pin" style="left:80%;top:20%;" title="Vargas Elementary">🏫</span>
+
+        <span class="map-marker price-pill c-price-pill is-fav-school" style="left:28%;top:42%;">$4,850</span>
+        <span class="map-marker price-pill c-price-pill is-fav-school" style="left:58%;top:56%;">$5,500</span>
+        <span class="map-marker price-pill c-price-pill is-fav-school" style="left:46%;top:80%;">$6,200</span>
+        <span class="map-marker price-pill c-price-pill" style="left:78%;top:32%;">$3,200</span>
+
+        <span class="callout top" style="left:28%;top:32%;">Green pin → green pill</span>
+      </div>
+      <div style="padding:10px 14px; border-top:1px solid var(--border-card); background:var(--bg-secondary); font-size:12px; color:var(--text-muted);">
+        Green pill on map ↔ green school chip on card ↔ green 🏫 pin — one consistent visual story.
+      </div>
+    </div>
+
+    <div class="info-panel">
+      <h3>Pros</h3>
+      <ul class="pros">
+        <li><strong>Strongest map↔card cohesion</strong> with the POI overlay</li>
+        <li>Tells user <em>which</em> of the 3 schools matched</li>
+        <li>Map highlight reads at a glance even when zoomed out</li>
+      </ul>
+      <h3>Cons</h3>
+      <ul class="cons">
+        <li>Green price-pill can be misread as "good price" (false signal)</li>
+        <li>Bigger departure from current pill style</li>
+        <li>Schools row needs Jinja template change (not just a class toggle)</li>
+      </ul>
+      <h3>Accessibility (color-independence)</h3>
+      <ul class="a11y">
+        <li>★ prefix on the pill — shape, not color</li>
+        <li>School chip has 🏫 + name in <strong>bold</strong> green</li>
+        <li>#15803d on white text = <strong>4.61:1</strong> → AA compliant</li>
+      </ul>
+      <div class="impl">
+        <strong>Impl. note</strong>
+        CSS class on pill + Jinja change in<br>
+        listing-card.html schools loop:<br>
+        wrap matching school in<br>
+        <code>&lt;span class="school-pill-fav"&gt;</code>.<br>
+        Needs favorites-set in Jinja context.
+      </div>
+    </div>
+  </div>
+</section>
+
+
+<!-- ============================================================
+     Summary & Recommendation
+     ============================================================ -->
+<section class="summary">
+  <h2>Summary &amp; Recommendation</h2>
+
+  <p>
+    All three options reuse the existing park-green token <code>#16a34a</code> (with darker <code>#15803d</code> when bg-on-white-text
+    AA contrast is needed) and pair color with a non-color signal (★ glyph, badge text, or border thickness) per the Design Bible
+    "never use color alone" rule. The difference is <strong>discoverability vs. visual noise</strong>:
+  </p>
+  <ul style="color:var(--text-secondary); font-size:14px; line-height:1.6; max-width:920px;">
+    <li><strong>Option A (Subtle Accent)</strong> — closest to production, lowest noise, easiest to miss.</li>
+    <li><strong>Option B (Star Badge)</strong> — most discoverable, but adds another badge to an already-dense card and the wording "Top school" is editorial.</li>
+    <li><strong>Option C (Themed Green Pill + Chip)</strong> — strongest cohesion with the green 🏫 POI pins that just shipped; the green-pill / green-chip / green-pin trio tells one consistent visual story.</li>
+  </ul>
+
+  <div class="rec-box">
+    <strong>Recommendation: Option C.</strong> The school POI overlay is the freshly-shipped context this feature builds on — making the
+    highlight green visually closes the loop: green pin on the map → green price-pill → green school chip on the card. The user
+    learns "green means favorite school" once and applies it everywhere. The two cons (green-pill could read as "good price";
+    requires a Jinja template change) are addressable: the ★ prefix on the pill disambiguates "star = school, not price," and the
+    template change is small (~6 lines in [`listing-card.html`](web/templates/partials/listing-card.html:163)).
+    If the false-signal risk worries the user, a strong fallback is <strong>Option A + Option C's schools-row chip</strong> (subtle
+    accent on the card, keep the white pill, but chip the matching school in the schools row) — call it Option C-lite.
+  </div>
+
+  <h2 style="margin-top:24px;">Open Questions for the User</h2>
+  <ol>
+    <li>
+      <strong>Full-name vs. abbreviated-name matching.</strong> The DB stores
+      <code>"Cherry Chase Elementary"</code>; the [`abbreviate_school`](web/dependencies.py) filter shortens it to
+      <code>"Cherry Chase Elem"</code> for display. The match logic <strong>must compare against the full DB name</strong>, not the
+      display string. Three implementation options for the favorites source-of-truth:
+      <ul>
+        <li><strong>(a) Python constant</strong> in [`web/dependencies.py`](web/dependencies.py) — <code>FAVORITE_SCHOOLS = {"Cherry Chase Elementary", …}</code>. Simplest, server-rendered, zero JS. <strong>UX Designer's pick</strong> for this iteration.</li>
+        <li><strong>(b) Jinja context</strong> passed from the route — flexible if favorites become per-user later.</li>
+        <li><strong>(c) API endpoint</strong> + client-side compare in <code>map.js</code> — needed only if favorites can be edited live without reload.</li>
+      </ul>
+      The 6 favorites are currently hardcoded in the POI layer too — recommend matching that pattern (a) until per-user favorites become a real feature.
+    </li>
+    <li>
+      <strong>Middle / High school favorites.</strong> Should the highlight escalate (stronger color, second chip) when middle or
+      high school is <em>also</em> a favorite? Or treat elementary as the only signal (current task scope)? Recommend: <strong>elementary only for v1</strong>; revisit if/when middle/high favorites are introduced.
+    </li>
+    <li>
+      <strong>Badge wording (Option B only).</strong> "★ Top school" is editorial — implies a ranking we don't have. Alternatives:
+      "★ Favorite school", "★ Saved school", or just "★ School". Skip if you go with A or C.
+    </li>
+    <li>
+      <strong>Hover / selected-state interaction.</strong> The price-pill already has <code>.highlighted</code> (card↔map sync) and
+      <code>.selected</code> (click) states. Should <code>.is-fav-school + .highlighted</code> intensify (e.g., bigger ring, deeper
+      green) or just additively apply both? Recommend additive — Code mode can implement and the UX Designer will spot-check.
+    </li>
+  </ol>
+
+  <p style="margin-top:20px; color:var(--text-muted); font-size:12px;">
+    <strong>Wiki Entities Affected:</strong> listing-card, map-view (price-pill-marker subsection), school-districts (favorites consumer).
+  </p>
+</section>
+
+</body>
+</html>

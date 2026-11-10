@@ -87,7 +87,7 @@
                                 <input type="radio" name="price_quick" value="4000-5000"> $4,000 – $5,000
                             </label>
                             <label class="filter-radio">
-                                <input type="radio" name="price_quick" value="5000-6500"> $5,000 – $6,500
+                                <input type="radio" name="price_quick" value="5000-7500"> $5,000 – $7,500
                             </label>
                             <label class="filter-radio">
                                 <input type="radio" name="price_quick" value="6500-8000"> $6,500 – $8,000
@@ -381,6 +381,24 @@
         <a href="/admin/" class="admin-link" title="Open Admin Panel">Admin →</a>
     </div>
 </header>
+
+{% if notification_silence %}
+<!--
+  Silence-detector banner — visible only when both:
+    (a) no successful notification in the last 48 h, AND
+    (b) recent matching listings exist that would have been sent.
+  Driven by web/routes/dashboard.py::_compute_notification_silence_state()
+  to prevent another 7-day silent-Telegram incident (2026-06-03).
+-->
+<div class="silence-banner" role="alert" aria-live="polite">
+    <span class="silence-banner-icon" aria-hidden="true">⚠️</span>
+    <div class="silence-banner-text">
+        <strong>No notifications sent in the last {{ notification_silence.hours_silent }} hours</strong>,
+        but {{ notification_silence.unnotified_count }} new matching listing{{ '' if notification_silence.unnotified_count == 1 else 's' }} {{ 'was' if notification_silence.unnotified_count == 1 else 'were' }} found.
+        <a href="/admin/notifications" class="silence-banner-link">Open admin →</a>
+    </div>
+</div>
+{% endif %}
 
 <!-- Split Panel -->
 <div class="split">

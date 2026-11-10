@@ -1,0 +1,976 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>SunnyNest — School Icons on Map (3 Options)</title>
+
+<!-- Leaflet (same CDN the production dashboard uses) -->
+<link
+  rel="stylesheet"
+  href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
+/>
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+
+<!-- Inter font, matching the Design Bible -->
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link
+  href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap"
+  rel="stylesheet"
+/>
+
+<style>
+  /* ---------- Design tokens (light theme, from Design Bible) ---------- */
+  :root {
+    --bg-primary: #ffffff;
+    --bg-secondary: #f8f9fa;
+    --border-card: #e2e8f0;
+    --text-primary: #1a202c;
+    --text-secondary: #4a5568;
+    --text-muted: #718096;
+    --accent-blue: #2563eb;
+    --accent-blue-light: #3b82f6;
+    --shadow-card: 0 1px 3px rgba(0, 0, 0, 0.08);
+    --shadow-card-hover: 0 4px 12px rgba(59, 130, 246, 0.12);
+
+    /* POI school color from Design Bible */
+    --color-poi-school: #f59e0b;
+
+    /* District colors — distinct hues, AA contrast on white text */
+    --district-ssd: #0ea5e9;   /* cyan-500 — Sunnyvale SD */
+    --district-cusd: #8b5cf6;  /* violet-500 — Cupertino USD */
+    --district-scusd: #ec4899; /* pink-500 — Santa Clara USD */
+  }
+
+  * { box-sizing: border-box; }
+
+  html, body {
+    margin: 0;
+    padding: 0;
+    font-family: 'Inter', system-ui, -apple-system, sans-serif;
+    color: var(--text-primary);
+    background: var(--bg-secondary);
+    line-height: 1.5;
+  }
+
+  /* ---------- Page header ---------- */
+  .page-header {
+    padding: 24px 32px 16px;
+    background: var(--bg-primary);
+    border-bottom: 1px solid var(--border-card);
+  }
+  .page-header h1 {
+    margin: 0 0 6px;
+    font-size: 22px;
+    font-weight: 800;
+    letter-spacing: -0.01em;
+  }
+  .page-header p {
+    margin: 0;
+    color: var(--text-secondary);
+    font-size: 14px;
+    max-width: 880px;
+  }
+  .page-header .meta {
+    margin-top: 10px;
+    font-size: 12px;
+    color: var(--text-muted);
+  }
+
+  /* ---------- Option section ---------- */
+  .option {
+    padding: 28px 32px 40px;
+    border-bottom: 1px solid var(--border-card);
+  }
+  .option:last-of-type { border-bottom: 0; }
+
+  .option-header {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    gap: 12px;
+    margin-bottom: 6px;
+  }
+  .option-header h2 {
+    margin: 0;
+    font-size: 18px;
+    font-weight: 700;
+  }
+  .option-header .tag {
+    display: inline-flex;
+    align-items: center;
+    padding: 2px 8px;
+    background: rgba(37, 99, 235, 0.08);
+    color: var(--accent-blue);
+    border-radius: 10px;
+    font-size: 11px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+  }
+  .option-header .tag.rec {
+    background: rgba(22, 163, 74, 0.1);
+    color: #16a34a;
+  }
+
+  .rationale {
+    margin: 0 0 18px;
+    color: var(--text-secondary);
+    font-size: 14px;
+    max-width: 880px;
+  }
+
+  /* ---------- Map + side info layout ---------- */
+  .map-and-info {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) 320px;
+    gap: 20px;
+    align-items: start;
+  }
+  @media (max-width: 1024px) {
+    .map-and-info { grid-template-columns: 1fr; }
+  }
+
+  .map-card {
+    background: var(--bg-primary);
+    border: 1px solid var(--border-card);
+    border-radius: 12px;
+    box-shadow: var(--shadow-card);
+    overflow: hidden;
+  }
+  .map-container {
+    width: 100%;
+    height: 460px;
+    position: relative;
+  }
+
+  .map-caption {
+    padding: 10px 14px;
+    border-top: 1px solid var(--border-card);
+    background: var(--bg-secondary);
+    font-size: 12px;
+    color: var(--text-muted);
+    display: flex;
+    justify-content: space-between;
+    gap: 12px;
+    flex-wrap: wrap;
+  }
+
+  /* ---------- Pros / Cons panel ---------- */
+  .info-panel {
+    background: var(--bg-primary);
+    border: 1px solid var(--border-card);
+    border-radius: 12px;
+    box-shadow: var(--shadow-card);
+    padding: 16px;
+    font-size: 13px;
+  }
+  .info-panel h3 {
+    margin: 0 0 8px;
+    font-size: 12px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: var(--text-muted);
+  }
+  .info-panel ul {
+    margin: 0 0 14px;
+    padding-left: 18px;
+    color: var(--text-secondary);
+  }
+  .info-panel ul li { margin-bottom: 4px; }
+  .info-panel ul.pros li::marker { color: #16a34a; }
+  .info-panel ul.cons li::marker { color: #dc2626; }
+  .info-panel ul.trade li::marker { color: var(--accent-blue); }
+
+  /* ---------- Shared Leaflet overrides ---------- */
+  .leaflet-container {
+    font-family: 'Inter', system-ui, sans-serif;
+    background: #f1f5f9;
+  }
+  .leaflet-control-attribution {
+    font-size: 10px;
+  }
+
+  /* ---------- Price pill markers (replicates production styling) ---------- */
+  .price-pill {
+    background: #ffffff;
+    color: var(--text-primary);
+    font-size: 12px;
+    font-weight: 700;
+    border: 1.5px solid rgba(59, 130, 246, 0.4);
+    border-radius: 12px;
+    padding: 4px 9px;
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.15);
+    white-space: nowrap;
+    text-align: center;
+    line-height: 1.2;
+  }
+
+  /* ========================================================
+     OPTION A — Minimal POI pin (amber circle + 🏫, hover tooltip)
+     Extends the existing POI marker spec from the Design Bible.
+     ======================================================== */
+  .school-a {
+    width: 24px;
+    height: 24px;
+    border-radius: 50%;
+    background: var(--color-poi-school);
+    border: 2px solid #ffffff;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 13px;
+    line-height: 1;
+    cursor: pointer;
+    transition: transform 120ms ease;
+  }
+  .school-a:hover,
+  .school-a.is-hovered {
+    transform: scale(1.15);
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.35);
+  }
+  .school-a:focus-visible {
+    outline: 2px solid var(--accent-blue);
+    outline-offset: 2px;
+  }
+
+  /* Tooltip — appears on hover, hidden by default */
+  .school-a-tooltip {
+    position: absolute;
+    bottom: calc(100% + 8px);
+    left: 50%;
+    transform: translateX(-50%);
+    background: #1a202c;
+    color: #ffffff;
+    padding: 5px 9px;
+    border-radius: 6px;
+    font-size: 12px;
+    font-weight: 500;
+    white-space: nowrap;
+    pointer-events: none;
+    opacity: 0;
+    transition: opacity 120ms ease;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+    z-index: 1000;
+  }
+  .school-a-tooltip::after {
+    content: '';
+    position: absolute;
+    top: 100%;
+    left: 50%;
+    transform: translateX(-50%);
+    border: 4px solid transparent;
+    border-top-color: #1a202c;
+  }
+  .school-a:hover .school-a-tooltip,
+  .school-a.is-hovered .school-a-tooltip {
+    opacity: 1;
+  }
+
+  /* ========================================================
+     OPTION B — District-tinted badge with shape variation
+     Three color+shape pairs for color-blind safety + corner legend.
+     ======================================================== */
+  .school-b {
+    width: 22px;
+    height: 22px;
+    background: var(--district-ssd);
+    border: 2px solid #ffffff;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.35);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 12px;
+    line-height: 1;
+    color: #ffffff;
+    cursor: pointer;
+    position: relative;
+    transition: transform 120ms ease;
+  }
+  /* SSD = circle (default) */
+  .school-b.district-ssd { background: var(--district-ssd); border-radius: 50%; }
+  /* CUSD = square (rounded corners) */
+  .school-b.district-cusd { background: var(--district-cusd); border-radius: 4px; }
+  /* SCUSD = diamond (rotated square, text counter-rotated) */
+  .school-b.district-scusd {
+    background: var(--district-scusd);
+    border-radius: 3px;
+    transform: rotate(45deg);
+  }
+  .school-b.district-scusd > .school-b-icon { transform: rotate(-45deg); }
+  .school-b.district-scusd:hover,
+  .school-b.district-scusd.is-hovered {
+    transform: rotate(45deg) scale(1.15);
+  }
+  .school-b:hover,
+  .school-b.is-hovered {
+    transform: scale(1.15);
+    z-index: 600;
+  }
+  .school-b:focus-visible {
+    outline: 2px solid var(--accent-blue);
+    outline-offset: 2px;
+  }
+
+  .school-b-tooltip {
+    position: absolute;
+    bottom: calc(100% + 10px);
+    left: 50%;
+    transform: translateX(-50%);
+    background: #1a202c;
+    color: #ffffff;
+    padding: 6px 10px;
+    border-radius: 6px;
+    font-size: 12px;
+    white-space: nowrap;
+    pointer-events: none;
+    opacity: 0;
+    transition: opacity 120ms ease;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+    z-index: 1000;
+    text-align: left;
+    line-height: 1.35;
+  }
+  .school-b-tooltip strong { font-weight: 600; }
+  .school-b-tooltip small {
+    display: block;
+    font-size: 11px;
+    opacity: 0.75;
+    font-weight: 500;
+    margin-top: 1px;
+  }
+  .school-b-tooltip::after {
+    content: '';
+    position: absolute;
+    top: 100%;
+    left: 50%;
+    transform: translateX(-50%);
+    border: 4px solid transparent;
+    border-top-color: #1a202c;
+  }
+  /* Counter-rotate the tooltip for diamond-shaped scusd markers */
+  .school-b.district-scusd .school-b-tooltip {
+    transform: translateX(-50%) rotate(-45deg);
+    transform-origin: bottom center;
+    bottom: calc(100% + 14px);
+  }
+  .school-b:hover .school-b-tooltip,
+  .school-b.is-hovered .school-b-tooltip {
+    opacity: 1;
+  }
+
+  /* Legend for Option B */
+  .legend {
+    position: absolute;
+    bottom: 14px;
+    right: 14px;
+    background: rgba(255, 255, 255, 0.96);
+    border: 1px solid var(--border-card);
+    border-radius: 8px;
+    padding: 10px 12px;
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.1);
+    font-size: 12px;
+    z-index: 500;
+    backdrop-filter: blur(4px);
+  }
+  .legend h4 {
+    margin: 0 0 6px;
+    font-size: 11px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    color: var(--text-muted);
+  }
+  .legend-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin: 4px 0;
+    color: var(--text-secondary);
+    font-weight: 500;
+  }
+  .legend-swatch {
+    width: 14px;
+    height: 14px;
+    flex-shrink: 0;
+  }
+  .legend-swatch.circle { border-radius: 50%; background: var(--district-ssd); }
+  .legend-swatch.square { border-radius: 3px; background: var(--district-cusd); }
+  .legend-swatch.diamond {
+    background: var(--district-scusd);
+    transform: rotate(45deg);
+    width: 11px;
+    height: 11px;
+    margin: 1px 2px;
+  }
+
+  /* ========================================================
+     OPTION C — Zoom-adaptive label chip
+     Pin only at zoom ≤13; full chip with name at zoom ≥14.
+     We simulate by showing TWO map instances (one zoomed out, one zoomed in)
+     stacked, so the reviewer can see both states at once.
+     ======================================================== */
+  .dual-map {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 10px;
+  }
+  @media (max-width: 760px) {
+    .dual-map { grid-template-columns: 1fr; }
+  }
+  .dual-map .map-container { height: 380px; }
+  .dual-map .zoom-label {
+    position: absolute;
+    top: 10px;
+    left: 10px;
+    background: rgba(26, 32, 44, 0.9);
+    color: #ffffff;
+    padding: 4px 10px;
+    border-radius: 12px;
+    font-size: 11px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    z-index: 500;
+    pointer-events: none;
+  }
+
+  /* Compact pin (zoom ≤13) */
+  .school-c-pin {
+    width: 20px;
+    height: 20px;
+    border-radius: 50%;
+    background: var(--color-poi-school);
+    border: 2px solid #ffffff;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 11px;
+    line-height: 1;
+    cursor: pointer;
+  }
+  .school-c-pin:hover { transform: scale(1.15); }
+
+  /* Expanded chip (zoom ≥14) */
+  .school-c-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    background: #ffffff;
+    border: 1.5px solid var(--color-poi-school);
+    color: var(--text-primary);
+    padding: 3px 8px 3px 5px;
+    border-radius: 12px;
+    font-size: 11px;
+    font-weight: 600;
+    white-space: nowrap;
+    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.15);
+    cursor: pointer;
+    line-height: 1.2;
+    transition: all 120ms ease;
+    position: relative;
+  }
+  .school-c-chip .chip-icon {
+    width: 16px;
+    height: 16px;
+    border-radius: 50%;
+    background: var(--color-poi-school);
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 10px;
+    color: #ffffff;
+    flex-shrink: 0;
+  }
+  .school-c-chip:hover,
+  .school-c-chip.is-hovered {
+    border-color: var(--accent-blue);
+    box-shadow: 0 3px 8px rgba(37, 99, 235, 0.25);
+    z-index: 600;
+  }
+
+  /* Expanded tooltip on hover for chip (full name + address) */
+  .school-c-tooltip {
+    position: absolute;
+    bottom: calc(100% + 8px);
+    left: 50%;
+    transform: translateX(-50%);
+    background: #1a202c;
+    color: #ffffff;
+    padding: 6px 10px;
+    border-radius: 6px;
+    font-size: 12px;
+    white-space: nowrap;
+    pointer-events: none;
+    opacity: 0;
+    transition: opacity 120ms ease;
+    z-index: 1000;
+    line-height: 1.4;
+    text-align: left;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+  }
+  .school-c-tooltip strong { font-weight: 600; }
+  .school-c-tooltip small {
+    display: block;
+    opacity: 0.75;
+    font-size: 11px;
+    font-weight: 500;
+    margin-top: 1px;
+  }
+  .school-c-tooltip::after {
+    content: '';
+    position: absolute;
+    top: 100%;
+    left: 50%;
+    transform: translateX(-50%);
+    border: 4px solid transparent;
+    border-top-color: #1a202c;
+  }
+  .school-c-chip:hover .school-c-tooltip,
+  .school-c-chip.is-hovered .school-c-tooltip {
+    opacity: 1;
+  }
+
+  /* ---------- Hover annotation badge ---------- */
+  .annotation {
+    position: absolute;
+    background: var(--accent-blue);
+    color: #ffffff;
+    font-size: 11px;
+    font-weight: 600;
+    padding: 4px 9px;
+    border-radius: 12px;
+    z-index: 999;
+    pointer-events: none;
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.25);
+  }
+  .annotation::before {
+    content: '←';
+    margin-right: 4px;
+    font-weight: 700;
+  }
+
+  /* ---------- Recommendation footer ---------- */
+  .recommendation {
+    margin: 0 32px 32px;
+    padding: 20px 24px;
+    background: linear-gradient(135deg, rgba(37, 99, 235, 0.05), rgba(37, 99, 235, 0.02));
+    border: 1px solid rgba(37, 99, 235, 0.2);
+    border-radius: 12px;
+  }
+  .recommendation h2 {
+    margin: 0 0 8px;
+    font-size: 16px;
+    font-weight: 700;
+    color: var(--accent-blue);
+  }
+  .recommendation p { margin: 0 0 10px; font-size: 14px; color: var(--text-secondary); }
+  .recommendation p:last-child { margin-bottom: 0; }
+  .recommendation strong { color: var(--text-primary); }
+
+  /* Make sure leaflet overlay panes don't clip our tooltips */
+  .leaflet-marker-icon { overflow: visible !important; }
+</style>
+</head>
+<body>
+
+<header class="page-header">
+  <h1>School Icons on Map — 3 Design Options</h1>
+  <p>
+    13 public elementary schools (Sunnyvale SD, Cupertino USD, Santa Clara USD) shown
+    as icons over the existing rental map. Each option coexists with 5 sample price
+    pill markers and the Sunnyvale boundary so we can judge visual weight. One
+    school per map starts in the <em>hover state</em> so the tooltip is visible.
+  </p>
+  <div class="meta">
+    Map: Leaflet 1.9.4 · OpenStreetMap tiles · Default zoom 12 · Font: Inter ·
+    Tokens from <code>docs/design/design-bible.md</code>
+  </div>
+</header>
+
+<!-- ====================================================================
+     OPTION A — Minimal POI pin (recommended)
+     ==================================================================== -->
+<section class="option">
+  <div class="option-header">
+    <h2>Option A — Minimal POI pin</h2>
+    <span class="tag rec">★ Recommended</span>
+    <span class="tag">Extends existing POI pattern</span>
+  </div>
+  <p class="rationale">
+    A small 24×24px amber circle with a 🏫 emoji — exactly the POI marker spec
+    already in the Design Bible (school color <code>#f59e0b</code>, white
+    border, drop shadow, hover tooltip). The school stays visually quieter than
+    the white price pills, which preserves <em>price-as-primary-signal</em>.
+    Zero new design vocabulary to introduce.
+  </p>
+
+  <div class="map-and-info">
+    <div class="map-card">
+      <div class="map-container" id="map-a">
+        <div class="annotation" style="top: 90px; left: 305px;">hover state shown</div>
+      </div>
+      <div class="map-caption">
+        <span>13 schools · 5 sample listings · Sunnyvale boundary on</span>
+        <span>Zoom 12 (default)</span>
+      </div>
+    </div>
+
+    <aside class="info-panel" aria-label="Option A pros and cons">
+      <h3>Pros</h3>
+      <ul class="pros">
+        <li>Reuses the existing POI marker pattern — no new design tokens needed.</li>
+        <li>Visually subordinate to price pills (smaller footprint, no text).</li>
+        <li>Stays legible from zoom 10 → 18 with no adjustments.</li>
+        <li>Trivial Leaflet implementation: <code>L.divIcon</code> + one CSS class.</li>
+        <li>WCAG AA — pairs amber color with 🏫 shape; tooltip has 4.5:1+ contrast.</li>
+      </ul>
+      <h3>Cons</h3>
+      <ul class="cons">
+        <li>District is not visible without hovering (single color).</li>
+        <li>Identifying a specific school requires hovering each pin.</li>
+      </ul>
+      <h3>Tradeoffs</h3>
+      <ul class="trade">
+        <li>Lowest visual weight ↔ lowest information density. Best fit for a map where listings (not schools) are the primary task.</li>
+      </ul>
+    </aside>
+  </div>
+</section>
+
+<!-- ====================================================================
+     OPTION B — District-tinted badge with shape variation
+     ==================================================================== -->
+<section class="option">
+  <div class="option-header">
+    <h2>Option B — District-tinted badge (color + shape)</h2>
+    <span class="tag">Adds district at a glance</span>
+  </div>
+  <p class="rationale">
+    Same hover-tooltip behavior, but the marker encodes the school's district
+    via both <strong>color</strong> (cyan/violet/pink) AND <strong>shape</strong>
+    (circle/square/diamond) — color-blind safe per WCAG. A corner legend
+    explains the encoding. Optional: very subtle district polygon tinting could
+    pair with this to reinforce zone boundaries (call out below).
+  </p>
+
+  <div class="map-and-info">
+    <div class="map-card">
+      <div class="map-container" id="map-b">
+        <div class="annotation" style="top: 70px; left: 240px;">hover state shown</div>
+      </div>
+      <div class="map-caption">
+        <span>Color-blind safe: shape encodes district independently of hue</span>
+        <span>+ optional 8% district polygon tint (not shown)</span>
+      </div>
+    </div>
+
+    <aside class="info-panel" aria-label="Option B pros and cons">
+      <h3>Pros</h3>
+      <ul class="pros">
+        <li>District is visible at a glance — useful for shoppers comparing zones.</li>
+        <li>Color + shape = passes WCAG "color independence" rule cleanly.</li>
+        <li>Legend gives a teaching moment about the 3-district reality of Sunnyvale.</li>
+      </ul>
+      <h3>Cons</h3>
+      <ul class="cons">
+        <li>Introduces 3 new color tokens that aren't in the Design Bible today.</li>
+        <li>More visual weight — three saturated hues compete with price pills.</li>
+        <li>Legend takes corner real estate (collides with Leaflet zoom buttons unless repositioned).</li>
+        <li>Diamond marker requires rotation hack — tooltip needs counter-rotation (extra CSS).</li>
+      </ul>
+      <h3>Tradeoffs</h3>
+      <ul class="trade">
+        <li>Best when district choice is a known user goal. Overkill if users mostly filter by price/beds and treat schools as background context.</li>
+      </ul>
+    </aside>
+  </div>
+</section>
+
+<!-- ====================================================================
+     OPTION C — Zoom-adaptive label chip
+     ==================================================================== -->
+<section class="option">
+  <div class="option-header">
+    <h2>Option C — Zoom-adaptive label chip</h2>
+    <span class="tag">Progressive disclosure</span>
+  </div>
+  <p class="rationale">
+    Small pin at zoom ≤ 13 (city-wide view); when the user zooms to 14+
+    (neighborhood view), each pin expands into a chip with the school's name
+    inline. Hover on either state reveals the full name + address. Shown
+    side-by-side below: left = default zoom 12, right = zoomed-in 14.
+  </p>
+
+  <div class="map-and-info">
+    <div class="map-card">
+      <div class="dual-map">
+        <div class="map-container" id="map-c-out" style="position: relative;">
+          <span class="zoom-label">Zoom 12 · pin only</span>
+        </div>
+        <div class="map-container" id="map-c-in" style="position: relative;">
+          <span class="zoom-label">Zoom 14 · label chips</span>
+          <div class="annotation" style="top: 130px; left: 120px;">hover shows address</div>
+        </div>
+      </div>
+      <div class="map-caption">
+        <span>Map switches representations at zoom threshold 14</span>
+        <span>Implementation: <code>map.on('zoomend', ...)</code> swaps icon class</span>
+      </div>
+    </div>
+
+    <aside class="info-panel" aria-label="Option C pros and cons">
+      <h3>Pros</h3>
+      <ul class="pros">
+        <li>No hover required for primary info once user is at neighborhood zoom.</li>
+        <li>Stays quiet at city zoom — won't clutter the default view.</li>
+        <li>Matches a known UX pattern (Google Maps POIs, Mapbox labels).</li>
+      </ul>
+      <h3>Cons</h3>
+      <ul class="cons">
+        <li>Chips can overlap each other and price pills when schools cluster (e.g., Bishop + Cherry Chase are ~600m apart).</li>
+        <li>Most complex to implement — needs zoom listener + icon swap + label collision handling (or accept overlap).</li>
+        <li>Adds horizontal text — competes with price pills' typographic weight.</li>
+        <li>Doesn't help users who never zoom in (many keep default zoom).</li>
+      </ul>
+      <h3>Tradeoffs</h3>
+      <ul class="trade">
+        <li>Highest information density at zoom ≥ 14 ↔ highest implementation cost. Best if school identity is critical (e.g., a "School Finder" mode).</li>
+      </ul>
+    </aside>
+  </div>
+</section>
+
+<!-- ====================================================================
+     Recommendation
+     ==================================================================== -->
+<section class="recommendation">
+  <h2>Recommendation: Option A</h2>
+  <p>
+    The user's stated need is <em>"display schools as icons, show name on hover"</em>
+    — Option A delivers exactly that with the cheapest implementation, the
+    smallest visual footprint, and zero new tokens. It also already exists in
+    the Design Bible as the POI marker spec (school = amber circle + 🏫), so
+    we'd just be activating an unused pattern. <strong>If district information
+    later becomes important</strong>, Option B can be layered on as a v2
+    (swap the icon class) without breaking anything.
+  </p>
+  <p>
+    <strong>Open questions to confirm before implementation:</strong>
+    (1) Should the school layer be ON by default, or off behind a layer toggle?
+    (2) Should icons stay visible at all zoom levels, or hide at very wide zoom (≤ 10)?
+    (3) Should the popup ever include district / address, or is the name-only
+    tooltip the final spec?
+  </p>
+</section>
+
+<script>
+  /* ============================================================
+     Shared data — 13 schools across Sunnyvale
+     Coordinates approximated to the real addresses.
+     ============================================================ */
+  const SCHOOLS = [
+    // Sunnyvale School District (SSD) — 8 schools
+    { name: 'Bishop Elementary',          addr: '450 N. Sunnyvale Ave',  district: 'ssd',   districtName: 'Sunnyvale SD',     lat: 37.3962, lng: -122.0260 },
+    { name: 'Cherry Chase Elementary',    addr: '1138 Heatherstone Way', district: 'ssd',   districtName: 'Sunnyvale SD',     lat: 37.3724, lng: -122.0407 },
+    { name: 'Cumberland Elementary',      addr: '824 Cumberland Dr',     district: 'ssd',   districtName: 'Sunnyvale SD',     lat: 37.3614, lng: -122.0382 },
+    { name: 'Ellis Elementary',           addr: '550 E. Olive Ave',      district: 'ssd',   districtName: 'Sunnyvale SD',     lat: 37.3854, lng: -122.0220 },
+    { name: 'Fairwood Explorer',          addr: '1110 Fairwood Ave',     district: 'ssd',   districtName: 'Sunnyvale SD',     lat: 37.3683, lng: -122.0190 },
+    { name: 'Lakewood Elementary',        addr: '750 Lakechime Dr',      district: 'ssd',   districtName: 'Sunnyvale SD',     lat: 37.4029, lng: -122.0125 },
+    { name: 'San Miguel Elementary',      addr: '777 San Miguel Ave',    district: 'ssd',   districtName: 'Sunnyvale SD',     lat: 37.3804, lng: -122.0090 },
+    { name: 'Vargas Elementary',          addr: '1054 Carson Dr',        district: 'ssd',   districtName: 'Sunnyvale SD',     lat: 37.3934, lng: -122.0040 },
+
+    // Cupertino Union School District (CUSD) — 3 schools
+    { name: 'Nimitz Elementary',          addr: '545 E. Cheyenne Dr',    district: 'cusd',  districtName: 'Cupertino USD',    lat: 37.3486, lng: -122.0271 },
+    { name: 'Stocklmeir Elementary',      addr: '592 Dunholme Way',      district: 'cusd',  districtName: 'Cupertino USD',    lat: 37.3445, lng: -122.0345 },
+    { name: 'West Valley Elementary',     addr: '1635 Belleville Way',   district: 'cusd',  districtName: 'Cupertino USD',    lat: 37.3530, lng: -122.0490 },
+
+    // Santa Clara Unified School District (SCUSD) — 2 schools
+    { name: 'Braly Elementary',           addr: '675 Gail Ave',          district: 'scusd', districtName: 'Santa Clara USD',  lat: 37.3697, lng: -121.9963 },
+    { name: 'Ponderosa Elementary',       addr: '804 Ponderosa Ave',     district: 'scusd', districtName: 'Santa Clara USD',  lat: 37.3784, lng: -121.9988 },
+  ];
+
+  // 5 sample price pills (realistic Bay Area prices) — spread across Sunnyvale
+  const LISTINGS = [
+    { price: '$3,500', lat: 37.3791, lng: -122.0307 },
+    { price: '$5,200', lat: 37.3697, lng: -122.0228 },
+    { price: '$4,150', lat: 37.3835, lng: -122.0153 },
+    { price: '$2,850', lat: 37.3621, lng: -122.0451 },
+    { price: '$6,400', lat: 37.3489, lng: -122.0398 },
+  ];
+
+  // Sunnyvale center + a rough boundary polygon (visual approximation — production uses real GeoJSON)
+  const SUNNYVALE_CENTER = [37.3712, -122.0264];
+  const SUNNYVALE_BOUNDARY = [
+    [37.412, -122.055], [37.412, -121.985], [37.395, -121.975],
+    [37.350, -121.985], [37.340, -122.020], [37.340, -122.050],
+    [37.360, -122.065], [37.390, -122.065], [37.412, -122.055]
+  ];
+
+  // OSM tile config (matches production)
+  const OSM_URL = 'https://{s}.tile.openstreetmap.org/{z}/{y}/{x}.png'.replace('{y}/{x}', '{z}/{x}/{y}');
+  // Use the standard pattern (fix the swap above)
+  const OSM_TILE = 'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png';
+  const OSM_ATTR = '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>';
+
+  function addBaseLayer(map) {
+    L.tileLayer(OSM_TILE, {
+      attribution: OSM_ATTR,
+      maxZoom: 19,
+    }).addTo(map);
+
+    // Sunnyvale boundary overlay (subtle, matches production)
+    L.polygon(SUNNYVALE_BOUNDARY, {
+      color: '#2563eb',
+      weight: 1.5,
+      opacity: 0.5,
+      fillColor: '#2563eb',
+      fillOpacity: 0.04,
+      interactive: false,
+    }).addTo(map);
+  }
+
+  function addPriceMarkers(map) {
+    LISTINGS.forEach((listing) => {
+      const icon = L.divIcon({
+        className: '',
+        html: `<div class="price-pill">${listing.price}</div>`,
+        iconSize: [60, 22],
+        iconAnchor: [30, 11],
+      });
+      L.marker([listing.lat, listing.lng], { icon }).addTo(map);
+    });
+  }
+
+  /* ---------- Option A: minimal POI pin ---------- */
+  const mapA = L.map('map-a', {
+    center: SUNNYVALE_CENTER,
+    zoom: 12,
+    scrollWheelZoom: false,
+    zoomControl: true,
+  });
+  addBaseLayer(mapA);
+  addPriceMarkers(mapA);
+
+  SCHOOLS.forEach((s, i) => {
+    // Show first school in persistent hover state for the screenshot
+    const hoverClass = i === 0 ? ' is-hovered' : '';
+    const icon = L.divIcon({
+      className: '',
+      html: `
+        <div class="school-a${hoverClass}" tabindex="0" role="button"
+             aria-label="${s.name}">
+          🏫
+          <span class="school-a-tooltip">${s.name}</span>
+        </div>`,
+      iconSize: [24, 24],
+      iconAnchor: [12, 12],
+    });
+    L.marker([s.lat, s.lng], { icon, zIndexOffset: 100 }).addTo(mapA);
+  });
+
+  /* ---------- Option B: district-tinted badge with shape variation ---------- */
+  const mapB = L.map('map-b', {
+    center: SUNNYVALE_CENTER,
+    zoom: 12,
+    scrollWheelZoom: false,
+    zoomControl: true,
+  });
+  addBaseLayer(mapB);
+  addPriceMarkers(mapB);
+
+  SCHOOLS.forEach((s, i) => {
+    // Show one school (Cherry Chase, index 1) in hover state
+    const hoverClass = i === 1 ? ' is-hovered' : '';
+    const icon = L.divIcon({
+      className: '',
+      html: `
+        <div class="school-b district-${s.district}${hoverClass}"
+             tabindex="0" role="button"
+             aria-label="${s.name}, ${s.districtName}">
+          <span class="school-b-icon">🏫</span>
+          <span class="school-b-tooltip">
+            <strong>${s.name}</strong>
+            <small>${s.districtName}</small>
+          </span>
+        </div>`,
+      iconSize: [22, 22],
+      iconAnchor: [11, 11],
+    });
+    L.marker([s.lat, s.lng], { icon, zIndexOffset: 100 }).addTo(mapB);
+  });
+
+  // Legend overlay (HTML in map container)
+  const legendB = L.control({ position: 'bottomright' });
+  legendB.onAdd = () => {
+    const div = L.DomUtil.create('div', 'legend');
+    div.innerHTML = `
+      <h4>School district</h4>
+      <div class="legend-row"><span class="legend-swatch circle"></span>Sunnyvale SD</div>
+      <div class="legend-row"><span class="legend-swatch square"></span>Cupertino USD</div>
+      <div class="legend-row"><span class="legend-swatch diamond"></span>Santa Clara USD</div>
+    `;
+    return div;
+  };
+  legendB.addTo(mapB);
+
+  /* ---------- Option C: zoom-adaptive label chip (shown as two maps) ---------- */
+  // Zoomed-out version (zoom 12) — small pins
+  const mapCOut = L.map('map-c-out', {
+    center: SUNNYVALE_CENTER,
+    zoom: 12,
+    scrollWheelZoom: false,
+    zoomControl: false,
+  });
+  addBaseLayer(mapCOut);
+  addPriceMarkers(mapCOut);
+
+  SCHOOLS.forEach((s) => {
+    const icon = L.divIcon({
+      className: '',
+      html: `<div class="school-c-pin" aria-label="${s.name}">🏫</div>`,
+      iconSize: [20, 20],
+      iconAnchor: [10, 10],
+    });
+    L.marker([s.lat, s.lng], { icon, zIndexOffset: 100 }).addTo(mapCOut);
+  });
+
+  // Zoomed-in version (zoom 14) — chips with name; center on a school-dense area
+  const mapCIn = L.map('map-c-in', {
+    center: [37.3724, -122.0307], // Cherry Chase + Cumberland area
+    zoom: 14,
+    scrollWheelZoom: false,
+    zoomControl: false,
+  });
+  addBaseLayer(mapCIn);
+  addPriceMarkers(mapCIn);
+
+  SCHOOLS.forEach((s, i) => {
+    // Highlight Cherry Chase (i === 1) in hover state for the in-zoom map
+    const hoverClass = i === 1 ? ' is-hovered' : '';
+    // Use shorter display names for chip
+    const shortName = s.name.replace(' Elementary', '').replace('Explorer', 'Fairwood');
+    const icon = L.divIcon({
+      className: '',
+      html: `
+        <div class="school-c-chip${hoverClass}" tabindex="0" role="button"
+             aria-label="${s.name}">
+          <span class="chip-icon">🏫</span>${shortName}
+          <span class="school-c-tooltip">
+            <strong>${s.name}</strong>
+            <small>${s.addr}</small>
+          </span>
+        </div>`,
+      iconSize: [110, 22],
+      iconAnchor: [55, 11],
+    });
+    L.marker([s.lat, s.lng], { icon, zIndexOffset: 100 }).addTo(mapCIn);
+  });
+</script>
+
+</body>
+</html>

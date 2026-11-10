@@ -1124,6 +1124,55 @@ html, body {
 }
 
 /* ============================================================
+   Favorite-school highlight (Option C)
+   See docs/temp/mockups/favorite-school-highlight.html
+   Match logic lives in web/dependencies.py is_favorite_school().
+   ============================================================ */
+
+/* DISABLED 2026-06-04 — UI hidden via SCHOOLS_UI_ENABLED flag in
+   web/dependencies.py. The listing-card template no longer emits the
+   .school-pill-fav element, so this rule is dormant (kept intact so
+   re-enabling is a one-line flag flip). Re-enable when NCES SABS
+   attendance-boundary data lands (see plans/school-boundaries-nces.md TBD). */
+/* Schools-row chip inside the listing card */
+.school-pill-fav {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.2em;
+    padding: 0 0.4em;
+    background: #dcfce7;          /* green-100 — light fill */
+    color: #15803d;               /* green-700 — 4.71:1 on green-100 = AA */
+    border-radius: 4px;
+    font-weight: 600;
+    line-height: 1.4;
+    /* ★ prefix lives in the template, not CSS, so screen readers
+       announce it as part of the text content. */
+}
+
+/* DISABLED 2026-06-04 — UI hidden via SCHOOLS_UI_ENABLED flag in
+   web/dependencies.py. The listing-card template no longer emits
+   data-fav-school="1", so map.js never adds the .is-fav-school modifier
+   class — these rules are dormant (kept intact so re-enabling is a
+   one-line flag flip). Re-enable when NCES SABS attendance-boundary
+   data lands (see plans/school-boundaries-nces.md TBD). */
+/* Map price pill — green variant when listing's assigned elementary
+   is a favorite. Wins over the base .price-pill styles via higher
+   specificity (.price-pill-marker.is-fav-school .price-pill) without
+   needing !important. */
+.price-pill-marker.is-fav-school .price-pill {
+    background: #15803d;          /* green-700 — 4.61:1 on white = AA */
+    color: #ffffff;
+    border-color: #166534;        /* green-800 */
+}
+.price-pill-marker.is-fav-school .price-pill::before {
+    content: "★ ";                /* literal U+2605 — color-independent signal */
+    font-weight: 700;
+}
+/* Keep hover/highlighted/selected states blue-overriding-green so the
+   interaction signal stays consistent — handled by existing rules with
+   !important. No extra overrides needed here. */
+
+/* ============================================================
    Marker Cluster Icons (1.1)
    ============================================================ */
 .cluster-icon {
@@ -1394,6 +1443,116 @@ html, body {
 @media (prefers-reduced-motion: reduce) { .poi-circle { transition: none; } }
 
 /* ============================================================
+   Featured POI Markers — Option A (larger ringed pin + persistent label)
+   Per-entry `featured: true` boolean on a POI in
+   data/interest-points.json upgrades a regular 24×24 .poi-circle to
+   this 36×36 ringed treatment. Same category color/emoji (a featured
+   park stays green; a featured workplace would stay indigo).
+   The persistent label pill anchored below removes the need to hover
+   to identify the POI — Ortega Park's name is always visible at any
+   zoom level where the layer is on.
+   Z-order is handled in JS via zIndexOffset: -50 (below price pills,
+   above schools), so price pills always win overlap (Design Bible).
+   CSS values copied verbatim from
+   docs/temp/mockups/featured-poi-map.html — the "Option A" block.
+   ============================================================ */
+.poi-marker--featured {
+    overflow: visible !important;
+    position: relative;
+}
+.poi-featured-pin {
+    width: 36px;
+    height: 36px;
+    border-radius: 50%;
+    border: 3px solid #1a202c;
+    box-shadow:
+        0 0 0 2px #ffffff,
+        0 4px 10px rgba(0, 0, 0, 0.28);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 18px;
+    line-height: 1;
+    cursor: pointer;
+    transition: transform 120ms ease, box-shadow 120ms ease;
+}
+.poi-featured-pin:hover {
+    transform: scale(1.08);
+    box-shadow:
+        0 0 0 2px #ffffff,
+        0 6px 14px rgba(0, 0, 0, 0.35);
+}
+.poi-featured-pin:focus-visible {
+    outline: 2px solid #2563eb;
+    outline-offset: 3px;
+}
+.poi-featured-label {
+    position: absolute;
+    top: calc(100% + 4px);
+    left: 50%;
+    transform: translateX(-50%);
+    background: #ffffff;
+    color: #1a202c;
+    border: 1.5px solid #1a202c;
+    border-radius: 10px;
+    padding: 2px 8px;
+    font-size: 11px;
+    font-weight: 700;
+    font-family: 'Inter', sans-serif;
+    white-space: nowrap;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.18);
+    pointer-events: none;
+    line-height: 1.3;
+}
+@media (prefers-reduced-motion: reduce) {
+    .poi-featured-pin { transition: none; }
+    .poi-featured-pin:hover { transform: none; }
+}
+
+/* ============================================================
+   School POI Markers (static layer — 15 public elementary schools)
+   Mirrors POI marker spec from Design Bible (school = amber circle + 🏫).
+   Hover-only tooltip is provided by Leaflet's native bindTooltip().
+   z-index sits BELOW price pills so a listing always wins overlap.
+   Favorite-school modifier (--favorite) overrides only the background
+   to the Design Bible's existing --color-poi-park green (#16a34a); all
+   sizing/shadow/hover behavior inherits from the base class. Distinct
+   from parks because the 🏫 icon (not 🌳) carries the semantic.
+   See P3-SCHOOL-FAVORITES-TOKEN in docs/memory/p3-backlog.md for the
+   proposed dedicated --color-poi-school-favorite token.
+   ============================================================ */
+.school-poi-marker {
+    background: transparent !important;
+    border: none !important;
+}
+.school-poi-icon {
+    width: 24px;
+    height: 24px;
+    border-radius: 50%;
+    background: #f59e0b;            /* --color-poi-school from Design Bible */
+    border: 2px solid #ffffff;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 13px;
+    line-height: 1;
+    cursor: default;
+    transition: transform 120ms ease;
+}
+.school-poi-icon--favorite {
+    background: #16a34a;            /* --color-poi-park from Design Bible (reused; white border keeps WCAG contrast) */
+}
+.school-poi-icon:hover {
+    transform: scale(1.15);
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.35);
+}
+@media (prefers-reduced-motion: reduce) {
+    .school-poi-icon { transition: none; }
+    .school-poi-icon:hover { transform: none; }
+}
+
+/* ============================================================
    POI Management Panel (2.4)
    ============================================================ */
 .poi-panel { padding: 8px 12px; border-top: 1px solid var(--border-card); }
@@ -1428,4 +1587,63 @@ html, body {
 .admin-link:hover {
     color: var(--accent-blue);
     background: rgba(37, 99, 235, 0.08);
+}
+
+/* ============================================================
+   Notification Silence Banner
+   Displayed at the top of the dashboard when notifications appear
+   to have silently stopped (no success in >48 h AND recent matching
+   listings exist).  Driven by web/routes/dashboard.py.
+   ============================================================ */
+.silence-banner {
+    display: flex;
+    align-items: flex-start;
+    gap: 12px;
+    margin: 12px 24px 0;
+    padding: 14px 16px;
+    background: #fef2f2;                /* red-50 — matches admin --admin-danger-bg */
+    border: 1px solid var(--color-danger);
+    border-left: 4px solid var(--color-danger);
+    border-radius: var(--radius-button);
+    color: #7f1d1d;                     /* red-900 — high contrast for WCAG AA */
+    font-size: 14px;
+    line-height: 1.5;
+}
+
+.silence-banner-icon {
+    font-size: 18px;
+    flex-shrink: 0;
+    line-height: 1.4;
+}
+
+.silence-banner-text {
+    flex: 1;
+    min-width: 0;
+}
+
+.silence-banner-text strong {
+    color: var(--color-danger);
+    font-weight: 600;
+}
+
+.silence-banner-link {
+    color: var(--color-danger);
+    font-weight: 600;
+    text-decoration: underline;
+    margin-left: 4px;
+    white-space: nowrap;
+}
+
+.silence-banner-link:hover,
+.silence-banner-link:focus-visible {
+    color: #991b1b;                     /* red-800 — slightly darker on hover */
+    text-decoration: none;
+}
+
+@media (max-width: 480px) {
+    .silence-banner {
+        margin: 8px 12px 0;
+        padding: 12px;
+        font-size: 13px;
+    }
 }

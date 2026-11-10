@@ -11,7 +11,12 @@ from dotenv import load_dotenv
 load_dotenv(Path(__file__).resolve().parent.parent / ".env")
 
 from src.database import init_db
-from src.notifier import EmailChannel, WhatsAppChannel, NotificationService
+from src.notifier import (
+    EmailChannel,
+    NotificationService,
+    TelegramChannel,
+    WhatsAppChannel,
+)
 
 logging.basicConfig(
     level=logging.INFO,
@@ -24,7 +29,9 @@ logger = logging.getLogger("sunnynest.notify-job")
 def main() -> int:
     logger.info("=== Notification check at %s ===", datetime.now(timezone.utc).isoformat())
     init_db()
-    service = NotificationService(channels=[EmailChannel(), WhatsAppChannel()])
+    service = NotificationService(
+        channels=[EmailChannel(), WhatsAppChannel(), TelegramChannel()]
+    )
     try:
         result = service.run()
         logger.info("Notification result: %s", result)

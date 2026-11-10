@@ -1,0 +1,1327 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>SunnyNest — Featured POI Treatment (3 Options)</title>
+
+<!-- Leaflet (same CDN the production dashboard uses) -->
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+
+<!-- Inter font, matching the Design Bible -->
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+
+<style>
+  /* ---------- Design tokens (light theme, from Design Bible) ---------- */
+  :root {
+    --bg-primary: #ffffff;
+    --bg-secondary: #f8f9fa;
+    --border-card: #e2e8f0;
+    --text-primary: #1a202c;
+    --text-secondary: #4a5568;
+    --text-muted: #718096;
+    --accent-blue: #2563eb;
+    --accent-blue-light: #3b82f6;
+    --shadow-card: 0 1px 3px rgba(0, 0, 0, 0.08);
+    --shadow-card-hover: 0 4px 12px rgba(59, 130, 246, 0.12);
+
+    /* POI category colors (from map.js POI_CATEGORIES) */
+    --color-poi-work: #6366f1;
+    --color-poi-school: #f59e0b;
+    --color-poi-park: #16a34a;
+    --color-poi-transit: #8b5cf6;
+    --color-poi-shopping: #ec4899;
+    --color-poi-custom: #64748b;
+
+    /* Featured-POI accent — a separate token so it doesn't read as "just another park" */
+    --color-featured-ring: #1a202c;          /* dark gray — high contrast against any category color */
+    --color-featured-accent: #2563eb;         /* accent blue — used for star + chip border */
+  }
+
+  * { box-sizing: border-box; }
+
+  html, body {
+    margin: 0;
+    padding: 0;
+    font-family: 'Inter', system-ui, -apple-system, sans-serif;
+    color: var(--text-primary);
+    background: var(--bg-secondary);
+    line-height: 1.5;
+  }
+
+  /* ---------- Page header ---------- */
+  .page-header {
+    padding: 24px 32px 16px;
+    background: var(--bg-primary);
+    border-bottom: 1px solid var(--border-card);
+  }
+  .page-header h1 {
+    margin: 0 0 6px;
+    font-size: 22px;
+    font-weight: 800;
+    letter-spacing: -0.01em;
+  }
+  .page-header p {
+    margin: 0;
+    color: var(--text-secondary);
+    font-size: 14px;
+    max-width: 920px;
+  }
+  .page-header .meta {
+    margin-top: 10px;
+    font-size: 12px;
+    color: var(--text-muted);
+  }
+
+  /* ---------- Option section ---------- */
+  .option {
+    padding: 28px 32px 40px;
+    border-bottom: 1px solid var(--border-card);
+  }
+  .option:last-of-type { border-bottom: 0; }
+
+  .option-header {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    gap: 12px;
+    margin-bottom: 6px;
+  }
+  .option-header h2 {
+    margin: 0;
+    font-size: 18px;
+    font-weight: 700;
+  }
+  .option-header .tag {
+    display: inline-flex;
+    align-items: center;
+    padding: 2px 8px;
+    background: rgba(37, 99, 235, 0.08);
+    color: var(--accent-blue);
+    border-radius: 10px;
+    font-size: 11px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+  }
+  .option-header .tag.rec {
+    background: rgba(22, 163, 74, 0.12);
+    color: #16a34a;
+  }
+  .option-header .tag.warn {
+    background: rgba(217, 119, 6, 0.12);
+    color: #b45309;
+  }
+
+  .rationale {
+    margin: 0 0 18px;
+    color: var(--text-secondary);
+    font-size: 14px;
+    max-width: 920px;
+  }
+
+  /* ---------- Map + side info layout ---------- */
+  .map-and-info {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) 340px;
+    gap: 20px;
+    align-items: start;
+  }
+  @media (max-width: 1024px) {
+    .map-and-info { grid-template-columns: 1fr; }
+  }
+
+  .map-card {
+    background: var(--bg-primary);
+    border: 1px solid var(--border-card);
+    border-radius: 12px;
+    box-shadow: var(--shadow-card);
+    overflow: hidden;
+  }
+  .map-container {
+    width: 100%;
+    height: 460px;
+    position: relative;
+  }
+  .map-container.compact { height: 320px; }
+
+  .map-caption {
+    padding: 10px 14px;
+    border-top: 1px solid var(--border-card);
+    background: var(--bg-secondary);
+    font-size: 12px;
+    color: var(--text-muted);
+    display: flex;
+    justify-content: space-between;
+    gap: 12px;
+    flex-wrap: wrap;
+  }
+
+  /* ---------- Two-map row (for "single featured" vs "two featured" comparison) ---------- */
+  .map-row {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 12px;
+    padding: 12px;
+    background: var(--bg-secondary);
+  }
+  @media (max-width: 900px) {
+    .map-row { grid-template-columns: 1fr; }
+  }
+  .map-row .submap {
+    background: var(--bg-primary);
+    border: 1px solid var(--border-card);
+    border-radius: 8px;
+    overflow: hidden;
+  }
+  .submap-label {
+    padding: 8px 12px;
+    font-size: 11px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    color: var(--text-muted);
+    background: var(--bg-secondary);
+    border-bottom: 1px solid var(--border-card);
+  }
+
+  /* ---------- Pros / Cons panel ---------- */
+  .info-panel {
+    background: var(--bg-primary);
+    border: 1px solid var(--border-card);
+    border-radius: 12px;
+    box-shadow: var(--shadow-card);
+    padding: 16px;
+    font-size: 13px;
+  }
+  .info-panel h3 {
+    margin: 0 0 8px;
+    font-size: 12px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: var(--text-muted);
+  }
+  .info-panel ul {
+    margin: 0 0 14px;
+    padding-left: 18px;
+    color: var(--text-secondary);
+  }
+  .info-panel ul li { margin-bottom: 4px; }
+  .info-panel ul.pros li::marker { color: #16a34a; }
+  .info-panel ul.cons li::marker { color: #dc2626; }
+  .info-panel ul.trade li::marker { color: var(--accent-blue); }
+  .info-panel ul.access li::marker { color: var(--accent-blue); }
+  .info-panel .spec-row {
+    display: flex;
+    justify-content: space-between;
+    gap: 8px;
+    padding: 4px 0;
+    border-bottom: 1px dashed var(--border-card);
+    font-size: 12px;
+  }
+  .info-panel .spec-row:last-child { border-bottom: 0; }
+  .info-panel .spec-row .k { color: var(--text-muted); }
+  .info-panel .spec-row .v { color: var(--text-primary); font-weight: 600; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; }
+
+  /* ---------- Shared Leaflet overrides ---------- */
+  .leaflet-container {
+    font-family: 'Inter', system-ui, sans-serif;
+    background: #f1f5f9;
+  }
+  .leaflet-control-attribution { font-size: 10px; }
+  /* Don't clip our custom markers/labels */
+  .leaflet-marker-icon { overflow: visible !important; }
+
+  /* ---------- Price pill markers (replicates production styling) ---------- */
+  .price-pill {
+    background: #ffffff;
+    color: var(--text-primary);
+    font-size: 12px;
+    font-weight: 700;
+    border: 1.5px solid rgba(59, 130, 246, 0.4);
+    border-radius: 12px;
+    padding: 4px 9px;
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.15);
+    white-space: nowrap;
+    text-align: center;
+    line-height: 1.2;
+  }
+
+  /* ---------- Regular POI marker (current production spec) ---------- */
+  .poi-circle {
+    width: 24px;
+    height: 24px;
+    border-radius: 50%;
+    border: 2px solid #ffffff;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 13px;
+    line-height: 1;
+    cursor: pointer;
+    transition: transform 120ms ease;
+  }
+  .poi-circle:hover { transform: scale(1.12); }
+  .poi-circle.work     { background: var(--color-poi-work); }
+  .poi-circle.school   { background: var(--color-poi-school); }
+  .poi-circle.park     { background: var(--color-poi-park); }
+  .poi-circle.transit  { background: var(--color-poi-transit); }
+  .poi-circle.shopping { background: var(--color-poi-shopping); }
+
+  /* Default hover tooltip (matches production .leaflet-tooltip style enough for review) */
+  .poi-tooltip-default {
+    position: absolute;
+    bottom: calc(100% + 8px);
+    left: 50%;
+    transform: translateX(-50%);
+    background: #1a202c;
+    color: #ffffff;
+    padding: 4px 8px;
+    border-radius: 4px;
+    font-size: 11px;
+    font-weight: 500;
+    white-space: nowrap;
+    pointer-events: none;
+    opacity: 0;
+    transition: opacity 120ms ease;
+    z-index: 1000;
+  }
+  .poi-circle:hover .poi-tooltip-default,
+  .poi-circle.is-hovered .poi-tooltip-default { opacity: 1; }
+
+  /* ============================================================
+     OPTION A — Larger ringed pin + always-shown label
+     Same category color, bigger, dark ring, drop shadow, persistent text
+     ============================================================ */
+  .featured-a {
+    position: relative;
+    width: 36px;
+    height: 36px;
+  }
+  .featured-a .pin {
+    width: 36px;
+    height: 36px;
+    border-radius: 50%;
+    background: var(--color-poi-park); /* uses category color */
+    border: 3px solid var(--color-featured-ring);
+    box-shadow:
+      0 0 0 2px #ffffff,                       /* white separator between ring and outside */
+      0 4px 10px rgba(0, 0, 0, 0.28);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 18px;
+    line-height: 1;
+    cursor: pointer;
+    transition: transform 120ms ease, box-shadow 120ms ease;
+  }
+  .featured-a .pin:hover,
+  .featured-a.is-hovered .pin {
+    transform: scale(1.08);
+    box-shadow:
+      0 0 0 2px #ffffff,
+      0 6px 14px rgba(0, 0, 0, 0.35);
+  }
+  .featured-a .pin:focus-visible {
+    outline: 2px solid var(--accent-blue);
+    outline-offset: 3px;
+  }
+  /* Always-shown label below pin */
+  .featured-a .label {
+    position: absolute;
+    top: calc(100% + 4px);
+    left: 50%;
+    transform: translateX(-50%);
+    background: #ffffff;
+    color: var(--text-primary);
+    border: 1.5px solid var(--color-featured-ring);
+    border-radius: 10px;
+    padding: 2px 8px;
+    font-size: 11px;
+    font-weight: 700;
+    white-space: nowrap;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.18);
+    pointer-events: none;
+    line-height: 1.3;
+  }
+  /* Hover state — promote label to accent blue */
+  .featured-a:hover .label,
+  .featured-a.is-hovered .label {
+    background: var(--accent-blue);
+    color: #ffffff;
+    border-color: var(--accent-blue);
+  }
+  /* Hover popup with extra context */
+  .featured-a .popup {
+    position: absolute;
+    bottom: calc(100% + 10px);
+    left: 50%;
+    transform: translateX(-50%);
+    background: #1a202c;
+    color: #ffffff;
+    padding: 8px 12px;
+    border-radius: 8px;
+    font-size: 12px;
+    white-space: nowrap;
+    pointer-events: none;
+    opacity: 0;
+    transition: opacity 140ms ease;
+    z-index: 1001;
+    line-height: 1.4;
+    box-shadow: 0 6px 16px rgba(0, 0, 0, 0.3);
+  }
+  .featured-a .popup strong { font-weight: 700; }
+  .featured-a .popup small { display: block; opacity: 0.75; font-size: 11px; font-weight: 500; margin-top: 2px; }
+  .featured-a .popup::after {
+    content: '';
+    position: absolute;
+    top: 100%;
+    left: 50%;
+    transform: translateX(-50%);
+    border: 5px solid transparent;
+    border-top-color: #1a202c;
+  }
+  .featured-a:hover .popup,
+  .featured-a.is-hovered .popup { opacity: 1; }
+
+  /* ============================================================
+     OPTION B — Star badge + always-shown label chip
+     24×24 base + corner ★ + persistent "★ Name" chip below
+     Most consistent with the shipped favorite-school ★ pattern
+     ============================================================ */
+  .featured-b {
+    position: relative;
+    width: 24px;
+    height: 24px;
+  }
+  .featured-b .dot {
+    width: 24px;
+    height: 24px;
+    border-radius: 50%;
+    background: var(--color-poi-park);
+    border: 2px solid #ffffff;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 13px;
+    line-height: 1;
+    cursor: pointer;
+    transition: transform 120ms ease;
+  }
+  .featured-b .dot:hover,
+  .featured-b.is-hovered .dot { transform: scale(1.15); }
+  .featured-b .dot:focus-visible {
+    outline: 2px solid var(--accent-blue);
+    outline-offset: 2px;
+  }
+  /* Corner ★ badge — overlaps top-right */
+  .featured-b .star-badge {
+    position: absolute;
+    top: -6px;
+    right: -6px;
+    width: 14px;
+    height: 14px;
+    border-radius: 50%;
+    background: var(--color-featured-accent);
+    color: #ffffff;
+    font-size: 9px;
+    line-height: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border: 1.5px solid #ffffff;
+    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.3);
+    pointer-events: none;
+    font-weight: 700;
+  }
+  /* Always-shown chip below */
+  .featured-b .chip {
+    position: absolute;
+    top: calc(100% + 6px);
+    left: 50%;
+    transform: translateX(-50%);
+    background: #ffffff;
+    color: var(--text-primary);
+    border: 1.5px solid var(--color-featured-accent);
+    border-radius: 12px;
+    padding: 2px 8px 2px 6px;
+    font-size: 11px;
+    font-weight: 600;
+    white-space: nowrap;
+    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.18);
+    display: inline-flex;
+    align-items: center;
+    gap: 3px;
+    pointer-events: none;
+    line-height: 1.3;
+  }
+  .featured-b .chip .chip-star {
+    color: var(--color-featured-accent);
+    font-size: 10px;
+  }
+  /* Hover popup */
+  .featured-b .popup {
+    position: absolute;
+    bottom: calc(100% + 12px);
+    left: 50%;
+    transform: translateX(-50%);
+    background: #1a202c;
+    color: #ffffff;
+    padding: 8px 12px;
+    border-radius: 8px;
+    font-size: 12px;
+    white-space: nowrap;
+    pointer-events: none;
+    opacity: 0;
+    transition: opacity 140ms ease;
+    z-index: 1001;
+    line-height: 1.4;
+    box-shadow: 0 6px 16px rgba(0, 0, 0, 0.3);
+  }
+  .featured-b .popup strong { font-weight: 700; }
+  .featured-b .popup small { display: block; opacity: 0.75; font-size: 11px; font-weight: 500; margin-top: 2px; }
+  .featured-b .popup::after {
+    content: '';
+    position: absolute;
+    top: 100%;
+    left: 50%;
+    transform: translateX(-50%);
+    border: 5px solid transparent;
+    border-top-color: #1a202c;
+  }
+  .featured-b:hover .popup,
+  .featured-b.is-hovered .popup { opacity: 1; }
+
+  /* ============================================================
+     OPTION C — Teardrop pin marker (shape change)
+     Drops the circle entirely; uses a "marker on top of map" form
+     ============================================================ */
+  .featured-c {
+    position: relative;
+    /* total bounding box: 32 wide × 42 tall (pin + tip) */
+    width: 32px;
+    height: 42px;
+  }
+  /* Teardrop body — a circle with a triangular bottom point */
+  .featured-c .teardrop {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 32px;
+    height: 32px;
+    background: var(--color-poi-park);
+    border: 2.5px solid #ffffff;
+    border-radius: 50% 50% 50% 0;
+    transform: rotate(-45deg);
+    box-shadow:
+      0 4px 8px rgba(0, 0, 0, 0.3),
+      0 0 0 1px rgba(0, 0, 0, 0.08);
+    cursor: pointer;
+    transition: transform 120ms ease, box-shadow 120ms ease;
+    transform-origin: center;
+  }
+  .featured-c .teardrop:hover,
+  .featured-c.is-hovered .teardrop {
+    transform: rotate(-45deg) translateY(-2px);
+    box-shadow:
+      0 6px 12px rgba(0, 0, 0, 0.4),
+      0 0 0 1px rgba(0, 0, 0, 0.08);
+  }
+  .featured-c .teardrop:focus-visible {
+    outline: 2px solid var(--accent-blue);
+    outline-offset: 3px;
+  }
+  /* Glyph inside the teardrop — counter-rotated so it sits upright */
+  .featured-c .glyph {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    font-size: 16px;
+    line-height: 1;
+    pointer-events: none;
+  }
+  /* Always-shown label anchored below the tip */
+  .featured-c .label {
+    position: absolute;
+    top: calc(100% + 2px);
+    left: 50%;
+    transform: translateX(-50%);
+    background: var(--text-primary);
+    color: #ffffff;
+    border-radius: 4px;
+    padding: 2px 7px;
+    font-size: 11px;
+    font-weight: 700;
+    white-space: nowrap;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.25);
+    pointer-events: none;
+    line-height: 1.3;
+  }
+  /* Hover popup */
+  .featured-c .popup {
+    position: absolute;
+    bottom: calc(100% + 6px);
+    left: 50%;
+    transform: translateX(-50%);
+    background: #1a202c;
+    color: #ffffff;
+    padding: 8px 12px;
+    border-radius: 8px;
+    font-size: 12px;
+    white-space: nowrap;
+    pointer-events: none;
+    opacity: 0;
+    transition: opacity 140ms ease;
+    z-index: 1001;
+    line-height: 1.4;
+    box-shadow: 0 6px 16px rgba(0, 0, 0, 0.3);
+  }
+  .featured-c .popup strong { font-weight: 700; }
+  .featured-c .popup small { display: block; opacity: 0.75; font-size: 11px; font-weight: 500; margin-top: 2px; }
+  .featured-c .popup::after {
+    content: '';
+    position: absolute;
+    top: 100%;
+    left: 50%;
+    transform: translateX(-50%);
+    border: 5px solid transparent;
+    border-top-color: #1a202c;
+  }
+  .featured-c:hover .popup,
+  .featured-c.is-hovered .popup { opacity: 1; }
+
+  /* ---------- Hover annotation badge (calls out the hover state in screenshots) ---------- */
+  .annotation {
+    position: absolute;
+    background: var(--accent-blue);
+    color: #ffffff;
+    font-size: 11px;
+    font-weight: 600;
+    padding: 4px 9px;
+    border-radius: 12px;
+    z-index: 999;
+    pointer-events: none;
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.25);
+  }
+  .annotation::before {
+    content: '←';
+    margin-right: 4px;
+    font-weight: 700;
+  }
+  .annotation.right::before { content: ''; margin-right: 0; }
+  .annotation.right::after {
+    content: '→';
+    margin-left: 4px;
+    font-weight: 700;
+  }
+
+  /* ---------- Data model / recommendation footer ---------- */
+  .recommendation {
+    margin: 0 32px 32px;
+    padding: 20px 24px;
+    background: linear-gradient(135deg, rgba(37, 99, 235, 0.05), rgba(37, 99, 235, 0.02));
+    border: 1px solid rgba(37, 99, 235, 0.2);
+    border-radius: 12px;
+  }
+  .recommendation h2 {
+    margin: 0 0 8px;
+    font-size: 16px;
+    font-weight: 700;
+    color: var(--accent-blue);
+  }
+  .recommendation h3 {
+    margin: 16px 0 6px;
+    font-size: 13px;
+    font-weight: 700;
+    color: var(--text-primary);
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+  }
+  .recommendation p { margin: 0 0 10px; font-size: 14px; color: var(--text-secondary); }
+  .recommendation p:last-child { margin-bottom: 0; }
+  .recommendation strong { color: var(--text-primary); }
+  .recommendation code {
+    background: rgba(37, 99, 235, 0.08);
+    color: var(--accent-blue);
+    padding: 1px 5px;
+    border-radius: 4px;
+    font-size: 12px;
+    font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  }
+  .recommendation ol { margin: 0 0 10px 18px; padding: 0; color: var(--text-secondary); font-size: 14px; }
+  .recommendation ol li { margin-bottom: 6px; }
+
+  .data-model {
+    display: grid;
+    grid-template-columns: 1fr 1fr 1fr;
+    gap: 12px;
+    margin-top: 8px;
+  }
+  @media (max-width: 900px) { .data-model { grid-template-columns: 1fr; } }
+  .data-model .opt {
+    background: #ffffff;
+    border: 1px solid var(--border-card);
+    border-radius: 8px;
+    padding: 12px;
+    font-size: 12px;
+  }
+  .data-model .opt h4 {
+    margin: 0 0 6px;
+    font-size: 12px;
+    font-weight: 700;
+    color: var(--text-primary);
+  }
+  .data-model .opt.rec {
+    border-color: rgba(22, 163, 74, 0.5);
+    background: rgba(22, 163, 74, 0.04);
+  }
+  .data-model .opt.rec h4::after {
+    content: ' ★ recommended';
+    font-size: 10px;
+    color: #16a34a;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+  }
+  .data-model pre {
+    background: #f8f9fa;
+    border: 1px solid var(--border-card);
+    border-radius: 4px;
+    padding: 8px;
+    font-size: 11px;
+    margin: 6px 0;
+    overflow-x: auto;
+    line-height: 1.4;
+  }
+  .data-model .opt p { margin: 4px 0 0; color: var(--text-secondary); font-size: 12px; }
+
+  /* ---------- Comparison swatch row (shows the 3 treatments side by side at top) ---------- */
+  .swatch-row {
+    display: flex;
+    gap: 32px;
+    padding: 18px 24px;
+    background: #ffffff;
+    border-bottom: 1px solid var(--border-card);
+    align-items: flex-end;
+    overflow-x: auto;
+  }
+  .swatch-cell {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 8px;
+    min-width: 130px;
+  }
+  .swatch-cell .stage {
+    width: 130px;
+    height: 90px;
+    background: #f1f5f9;
+    border: 1px solid var(--border-card);
+    border-radius: 8px;
+    position: relative;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+  .swatch-cell .label-text {
+    font-size: 11px;
+    color: var(--text-muted);
+    font-weight: 600;
+    text-align: center;
+  }
+</style>
+</head>
+<body>
+
+<header class="page-header">
+  <h1>Featured POI Treatment — 3 Design Options</h1>
+  <p>
+    User wants to add <strong>Ortega Park</strong> (a Sunnyvale city park) to the map as a
+    <em>"featured"</em> point of interest — visually distinct from the regular green 🌳 park
+    POIs already in the system. Pattern must be extensible to future featured POIs (a featured
+    workplace, featured school, etc.) and coexist with the price-pill markers (price = primary
+    signal per Design Bible) and the favorite-school 🏫 green pins shipped 2026-06-03.
+  </p>
+  <div class="meta">
+    Map: Leaflet 1.9.4 · OpenStreetMap tiles · Default zoom 13 · Font: Inter ·
+    Sample context: 1× work 🏢, 2× park 🌳 (regular), 2× school 🏫 (1 favorite), 1× transit 🚉,
+    4× price pills · Tokens from <code>docs/design/design-bible.md</code>
+  </div>
+</header>
+
+<!-- Quick at-a-glance comparison of all three treatments at the same scale -->
+<div class="swatch-row" aria-label="Three featured POI treatments at actual map scale">
+  <div class="swatch-cell">
+    <div class="stage">
+      <div class="featured-a is-hovered" style="position: relative;">
+        <div class="pin" aria-hidden="true">🌳</div>
+        <div class="label">Ortega Park</div>
+      </div>
+    </div>
+    <div class="label-text">A · Ringed pin + label</div>
+  </div>
+  <div class="swatch-cell">
+    <div class="stage">
+      <div class="featured-b" style="position: relative;">
+        <div class="dot" aria-hidden="true">🌳</div>
+        <div class="star-badge" aria-hidden="true">★</div>
+        <div class="chip"><span class="chip-star">★</span>Ortega Park</div>
+      </div>
+    </div>
+    <div class="label-text">B · Star badge + chip</div>
+  </div>
+  <div class="swatch-cell">
+    <div class="stage">
+      <div class="featured-c" style="position: relative;">
+        <div class="teardrop" aria-hidden="true"></div>
+        <div class="glyph" aria-hidden="true">🌳</div>
+        <div class="label">Ortega Park</div>
+      </div>
+    </div>
+    <div class="label-text">C · Teardrop pin</div>
+  </div>
+  <div class="swatch-cell">
+    <div class="stage" style="background: #fff;">
+      <div class="poi-circle park" aria-hidden="true">🌳</div>
+    </div>
+    <div class="label-text">Regular park (baseline)</div>
+  </div>
+</div>
+
+<!-- ====================================================================
+     OPTION A — Larger ringed pin + always-shown label
+     ==================================================================== -->
+<section class="option">
+  <div class="option-header">
+    <h2>Option A — Larger ringed pin + always-shown label</h2>
+    <span class="tag rec">★ Recommended</span>
+    <span class="tag">Highest scannability</span>
+  </div>
+  <p class="rationale">
+    36×36px pin (1.5× the regular 24×24 POI) using the same category color & emoji
+    (green 🌳 for a featured park, indigo 🏢 for a featured workplace, etc.), wrapped in a
+    <strong>dark 3px ring</strong> with a white separator and a deeper drop shadow. A small
+    pill-shaped <strong>"Ortega Park" label is anchored below the pin</strong> at all times.
+    Three non-color signals: <em>size</em>, <em>ring</em>, and <em>persistent text</em> — works
+    for users who can't see the ring color at all. Hover/focus promotes the label to accent-blue
+    and reveals a richer popup ("Park · 12 acres · 0.4 mi from listings").
+  </p>
+
+  <div class="map-and-info">
+    <div class="map-card">
+      <div class="map-row">
+        <div class="submap">
+          <div class="submap-label">1 Featured POI · Ortega Park</div>
+          <div class="map-container compact" id="map-a-1">
+            <div class="annotation right" style="top: 138px; left: 290px;">hover state</div>
+          </div>
+        </div>
+        <div class="submap">
+          <div class="submap-label">2 Featured POIs · Ortega Park + PANW HQ</div>
+          <div class="map-container compact" id="map-a-2"></div>
+        </div>
+      </div>
+      <div class="map-caption">
+        <span>Note how the ringed pin reads as "this is a primary place" even when the rest of the page is busy</span>
+        <span>Zoom 13</span>
+      </div>
+    </div>
+
+    <aside class="info-panel" aria-label="Option A pros and cons">
+      <h3>Specs</h3>
+      <div class="spec-row"><span class="k">Pin size</span><span class="v">36 × 36 px</span></div>
+      <div class="spec-row"><span class="k">Ring</span><span class="v">3px #1a202c</span></div>
+      <div class="spec-row"><span class="k">Label</span><span class="v">always-shown</span></div>
+      <div class="spec-row"><span class="k">Label trigger</span><span class="v">none (persistent)</span></div>
+      <div class="spec-row"><span class="k">Hover behavior</span><span class="v">popup w/ context</span></div>
+
+      <h3 style="margin-top:14px;">Pros</h3>
+      <ul class="pros">
+        <li>First thing the eye finds — biggest, darkest outline on the map.</li>
+        <li>3 non-color signals (size + ring + text) — strongest accessibility story.</li>
+        <li>Name visible without interaction — no hover required to identify.</li>
+        <li>Pattern scales cleanly to any category (just swap the emoji + bg color).</li>
+      </ul>
+      <h3>Cons</h3>
+      <ul class="cons">
+        <li>Largest footprint — at zoom &lt;12 it can overlap nearby price pills (mitigated by z-index + few featured POIs).</li>
+        <li>Always-on label feels heavy if user later promotes 4+ POIs to featured.</li>
+      </ul>
+      <h3>Accessibility</h3>
+      <ul class="access">
+        <li>Ring contrast: 14.7:1 against any category color (WCAG AAA).</li>
+        <li>Label text on white: 16.1:1 (AAA).</li>
+        <li>Focus ring: 2px accent blue, 3px offset.</li>
+        <li>Color-independent — usable in grayscale.</li>
+      </ul>
+      <h3>Tradeoffs</h3>
+      <ul class="trade">
+        <li>Maximum prominence ↔ maximum footprint. Best if featured POIs stay rare (1–3 ever).</li>
+      </ul>
+    </aside>
+  </div>
+</section>
+
+<!-- ====================================================================
+     OPTION B — Star badge + always-shown label chip
+     ==================================================================== -->
+<section class="option">
+  <div class="option-header">
+    <h2>Option B — Star badge + always-shown label chip</h2>
+    <span class="tag">Consistent with shipped ★-favorite pattern</span>
+  </div>
+  <p class="rationale">
+    Standard 24×24 POI dot (same as any regular park) with a small <strong>★ badge overlaid in the
+    top-right corner</strong> in accent blue (<code>#2563eb</code>), plus an always-visible
+    <strong>"★ Ortega Park" chip anchored below</strong>. Re-uses the exact <em>"add a ★ to mean
+    favorite"</em> mental model that shipped yesterday for favorite schools — same glyph, same
+    semantic. The chip is the only thing that grows beyond the regular POI footprint, so the map
+    stays compact.
+  </p>
+
+  <div class="map-and-info">
+    <div class="map-card">
+      <div class="map-row">
+        <div class="submap">
+          <div class="submap-label">1 Featured POI · Ortega Park</div>
+          <div class="map-container compact" id="map-b-1">
+            <div class="annotation right" style="top: 140px; left: 290px;">hover state</div>
+          </div>
+        </div>
+        <div class="submap">
+          <div class="submap-label">2 Featured POIs · Ortega Park + PANW HQ</div>
+          <div class="map-container compact" id="map-b-2"></div>
+        </div>
+      </div>
+      <div class="map-caption">
+        <span>Star + chip reads as "this is bookmarked / curated" — same semantic as the ★ favorite-school pins</span>
+        <span>Zoom 13</span>
+      </div>
+    </div>
+
+    <aside class="info-panel" aria-label="Option B pros and cons">
+      <h3>Specs</h3>
+      <div class="spec-row"><span class="k">Dot size</span><span class="v">24 × 24 px</span></div>
+      <div class="spec-row"><span class="k">Star badge</span><span class="v">14px · top-right · #2563eb</span></div>
+      <div class="spec-row"><span class="k">Chip</span><span class="v">always-shown</span></div>
+      <div class="spec-row"><span class="k">Glyph reuse</span><span class="v">★ (matches fav-school)</span></div>
+      <div class="spec-row"><span class="k">Hover behavior</span><span class="v">popup w/ context</span></div>
+
+      <h3 style="margin-top:14px;">Pros</h3>
+      <ul class="pros">
+        <li>Reuses the ★ glyph already in production for favorite schools → consistent vocabulary.</li>
+        <li>Same footprint as a regular POI (only the chip adds height).</li>
+        <li>Two non-color signals (★ glyph + chip text) without changing pin size.</li>
+        <li>If the system later supports user-toggleable "featured" toggling, ★ is the natural affordance.</li>
+      </ul>
+      <h3>Cons</h3>
+      <ul class="cons">
+        <li>The 14px star badge is small — at default desktop zoom it competes with the emoji for visual space inside 24px.</li>
+        <li>"Featured" and "favorite" become the same glyph — could blur the distinction (workplace can't be "favorited", but it CAN be "featured").</li>
+        <li>Less prominent than Option A; eye may skip over it when scanning a busy map.</li>
+      </ul>
+      <h3>Accessibility</h3>
+      <ul class="access">
+        <li>★ badge contrast: 5.1:1 (white on accent blue) — AA.</li>
+        <li>Chip text on white: 16.1:1 (AAA).</li>
+        <li>Color-independent — works in grayscale via ★ glyph.</li>
+        <li>Caveat: ★ at 9px font size approaches the lower bound for users with low vision.</li>
+      </ul>
+      <h3>Tradeoffs</h3>
+      <ul class="trade">
+        <li>Vocabulary consistency ↔ semantic ambiguity. Best if the team is comfortable conflating "featured" and "favorite".</li>
+      </ul>
+    </aside>
+  </div>
+</section>
+
+<!-- ====================================================================
+     OPTION C — Teardrop pin marker
+     ==================================================================== -->
+<section class="option">
+  <div class="option-header">
+    <h2>Option C — Teardrop pin marker</h2>
+    <span class="tag">Strongest shape contrast</span>
+    <span class="tag warn">New shape vocabulary</span>
+  </div>
+  <p class="rationale">
+    Drops the divIcon circle entirely and uses a classic <strong>teardrop "map pin"</strong> shape
+    (32×42 bounding box) that points down at its target. Sits visually "on top of" the map rather
+    than embedded in it. Always-shown dark label sits beneath the pin tip. The shape itself is the
+    differentiator — even at a glance with no color, it reads as <em>different category of marker</em>
+    from the circular POIs and the rectangular price pills.
+  </p>
+
+  <div class="map-and-info">
+    <div class="map-card">
+      <div class="map-row">
+        <div class="submap">
+          <div class="submap-label">1 Featured POI · Ortega Park</div>
+          <div class="map-container compact" id="map-c-1">
+            <div class="annotation right" style="top: 132px; left: 290px;">hover state</div>
+          </div>
+        </div>
+        <div class="submap">
+          <div class="submap-label">2 Featured POIs · Ortega Park + PANW HQ</div>
+          <div class="map-container compact" id="map-c-2"></div>
+        </div>
+      </div>
+      <div class="map-caption">
+        <span>Pin tip points to the actual coordinate (unlike circles, which center on it) — slight precision win</span>
+        <span>Zoom 13</span>
+      </div>
+    </div>
+
+    <aside class="info-panel" aria-label="Option C pros and cons">
+      <h3>Specs</h3>
+      <div class="spec-row"><span class="k">Pin size</span><span class="v">32 × 42 px</span></div>
+      <div class="spec-row"><span class="k">Anchor</span><span class="v">bottom-center (tip)</span></div>
+      <div class="spec-row"><span class="k">Label</span><span class="v">always-shown</span></div>
+      <div class="spec-row"><span class="k">Border</span><span class="v">2.5px white</span></div>
+      <div class="spec-row"><span class="k">Hover behavior</span><span class="v">lift -2px + popup</span></div>
+
+      <h3 style="margin-top:14px;">Pros</h3>
+      <ul class="pros">
+        <li>Shape alone distinguishes it from circle POIs and rectangular price pills — color-independent.</li>
+        <li>Tip points to the exact coordinate (a precision wins over the centered-circle POIs).</li>
+        <li>Universally recognized as "this is a place marker" (Google Maps, Mapbox use this shape).</li>
+        <li>Tallest of the three — strong vertical presence.</li>
+      </ul>
+      <h3>Cons</h3>
+      <ul class="cons">
+        <li>Introduces a new shape vocabulary — every other POI on the map is a circle.</li>
+        <li>The dropped-pin shape feels heavier and more "marker on top of map" than the embedded-circle pattern; it can feel out of place against the flat-circle POI style.</li>
+        <li>CSS-rotated border-radius trick needs counter-rotation for the glyph — slightly more brittle than the circle implementation.</li>
+        <li>Risk: looks similar to Leaflet's default <code>L.marker</code> teardrop icon, which may confuse users into expecting default popup behavior.</li>
+      </ul>
+      <h3>Accessibility</h3>
+      <ul class="access">
+        <li>White 2.5px border ensures separation from any tile color.</li>
+        <li>Label (dark bg, white text): 16.1:1 (AAA).</li>
+        <li>Shape independence: passes a color-blind / grayscale test cleanly.</li>
+      </ul>
+      <h3>Tradeoffs</h3>
+      <ul class="trade">
+        <li>Strongest visual differentiation ↔ inconsistent with existing POI shape language.</li>
+      </ul>
+    </aside>
+  </div>
+</section>
+
+<!-- ====================================================================
+     Recommendation + data model
+     ==================================================================== -->
+<section class="recommendation">
+  <h2>Recommendation: Option A (Larger ringed pin + always-shown label)</h2>
+  <p>
+    <strong>Option A</strong> wins on the three criteria that matter most for this feature:
+    (1) <strong>at-a-glance scannability</strong> — the dark ring + size combo reads as "primary
+    place" before the eye registers the green color; (2) <strong>accessibility</strong> — three
+    independent signals (size, ring, label) means it works even in grayscale, even at low vision;
+    and (3) <strong>extensibility</strong> — the pattern is "category color/emoji + featured wrapper",
+    which means a featured workplace, featured school, etc. only requires swapping the inner color
+    & glyph, never touching the wrapper.
+  </p>
+  <p>
+    <strong>Option B</strong> is a strong second if vocabulary consistency with the favorite-school
+    ★ pattern is more important than maximum prominence. It's also the right choice if the team
+    expects featured POIs to grow to 4+ entries (its 24×24 footprint scales better than A's 36×36).
+  </p>
+  <p>
+    <strong>Option C</strong> is the most visually distinctive but introduces a new shape vocabulary
+    that competes with — rather than complements — the existing circular POI system. Not recommended
+    unless the team wants to lean fully into "Google Maps starred-place" semantics.
+  </p>
+  <p style="font-size: 13px; color: var(--text-muted); font-style: italic;">
+    <strong>Discarded direction — pulse/breathing animation.</strong> Considered (would have been
+    Option D). Rejected because: (1) violates user attention budget against the more important price
+    pills, (2) requires <code>prefers-reduced-motion</code> fallback that effectively reduces to
+    Option A or B anyway, (3) animated halos compete with marker-cluster expansion animation already
+    in production.
+  </p>
+
+  <h3>Recommended hover/click behavior</h3>
+  <p>
+    All three variants should use the <strong>same hover-popup pattern</strong> for behavioral
+    consistency:
+  </p>
+  <ol>
+    <li><strong>Always-shown label</strong> (name only) — eliminates the "what is this?" question.</li>
+    <li><strong>Hover</strong> reveals a richer popup: <code>Park · 12 acres · 0.4 mi from 3 listings</code> (acreage + distance to nearest listings; computed by Code mode).</li>
+    <li><strong>Click</strong> behavior — same as regular POIs today (no special handler); the popup-on-hover is enough. Leaves room for a future "filter to listings near this POI" affordance.</li>
+  </ol>
+
+  <h3>Data-model recommendation (UX call — Code mode to confirm)</h3>
+  <div class="data-model">
+    <div class="opt rec">
+      <h4>Per-entry boolean</h4>
+<pre>{
+  "id": "poi_ortega_park",
+  "category": "park",
+  "featured": true,
+  "name": "Ortega Park",
+  ...
+}</pre>
+      <p>Add a <code>featured: boolean</code> field on each POI entry in <code>interest-points.json</code>. Default false. UI checks the flag in <code>createPOIMarker()</code> and swaps the icon HTML.</p>
+      <p style="color: #16a34a; font-weight: 600;">Why: minimum schema change, mirrors the SCHOOLS <code>isFavorite</code> pattern, no separate list to keep in sync, user-managable from the POI panel later (a "★ Feature" toggle).</p>
+    </div>
+    <div class="opt">
+      <h4>Separate featured array</h4>
+<pre>{
+  "featured_pois": [
+    "poi_ortega_park"
+  ],
+  "points": [ ... ]
+}</pre>
+      <p>Top-level array of POI IDs that are "featured". <code>loadPOIs()</code> cross-references on render.</p>
+      <p style="color: #b45309; font-weight: 600;">Why not: introduces a second source of truth that has to stay in sync with <code>points</code>; orphan IDs become a silent bug class.</p>
+    </div>
+    <div class="opt">
+      <h4>Hardcoded constant</h4>
+<pre>// map.js
+var FEATURED_POIS = [
+  'poi_ortega_park'
+];</pre>
+      <p>Like the existing <code>SCHOOLS</code> + <code>FAVORITE_SCHOOLS</code> hardcoded list.</p>
+      <p style="color: #b45309; font-weight: 600;">Why not: user-added POIs live in JSON, so the "featured" flag should also live there. Hardcoded list means a code deploy is needed to feature a new POI.</p>
+    </div>
+  </div>
+
+  <h3>Open questions for the user</h3>
+  <ol>
+    <li><strong>Featured POI count.</strong> Realistically how many featured POIs do you expect — ever 1–3, or could it grow to 5–10? (A's 36×36 footprint starts to feel heavy past 3; if you want 5+, switch the rec to B.)</li>
+    <li><strong>Featured = user-togglable, or admin-only?</strong> If user-togglable from the POI panel, Option B's ★ glyph maps naturally to a "star this POI" button (matches favorite-school semantics). If admin-only (you edit the JSON directly), Option A's "this is a curated landmark" framing fits better.</li>
+    <li><strong>Should the featured pin show on top of price pills if they overlap?</strong> Current POIs render below price pills (<code>zIndexOffset: -100</code>). A featured pin "competing" for the same pixel as a price pill — which wins? Recommendation: featured pin wins (it's rare and the user explicitly cares about it), but confirm.</li>
+    <li><strong>Hover popup content.</strong> Is "<code>Park · 12 acres · 0.4 mi from 3 nearby listings</code>" the right hover content, or just name+category? (Code mode needs the distance-to-listings calc spec.)</li>
+    <li><strong>Featured POI panel treatment.</strong> Should featured POIs be visually distinguished in the left-side POI panel too (e.g., pinned to the top of the list with a ★)? Out of scope for this mockup but worth a follow-up.</li>
+  </ol>
+
+  <p style="margin-top: 14px; padding-top: 12px; border-top: 1px solid rgba(37, 99, 235, 0.2);">
+    <strong>Next step:</strong> Code mode to implement Option A in <code>map.js</code> (<code>createPOIMarker</code> branch on <code>poi.featured</code>) + add the <code>featured</code> field to <code>data/interest-points.json</code> + add Ortega Park entry. Acceptance: featured POI is the first marker the user notices on a fresh page load, label is readable without hover, hover popup shows distance to nearby listings.
+  </p>
+</section>
+
+<script>
+  /* ============================================================
+     Shared data
+     ============================================================ */
+
+  // Real Sunnyvale coordinates
+  const SUNNYVALE_CENTER = [37.371, -122.040];
+
+  // Approximate Sunnyvale boundary (visual approximation — production uses real GeoJSON)
+  const SUNNYVALE_BOUNDARY = [
+    [37.412, -122.055], [37.412, -121.985], [37.395, -121.975],
+    [37.350, -121.985], [37.340, -122.020], [37.340, -122.050],
+    [37.360, -122.065], [37.390, -122.065], [37.412, -122.055]
+  ];
+
+  // 6 sample context POIs (regular treatment) — work, parks, schools, transit
+  const CONTEXT_POIS = [
+    { name: 'PANW HQ (regular)',       category: 'work',    lat: 37.384,  lng: -121.984, glyph: '🏢' },
+    { name: 'Las Palmas Park',         category: 'park',    lat: 37.366,  lng: -122.026, glyph: '🌳' },
+    { name: 'Serra Park',              category: 'park',    lat: 37.354,  lng: -122.038, glyph: '🌳' },
+    { name: 'Cherry Chase Elementary', category: 'school',  lat: 37.367,  lng: -122.057, glyph: '🏫', favorite: true },
+    { name: 'Ellis Elementary',        category: 'school',  lat: 37.369,  lng: -122.024, glyph: '🏫' },
+    { name: 'Sunnyvale Caltrain',      category: 'transit', lat: 37.378,  lng: -122.031, glyph: '🚉' },
+  ];
+
+  // 4 sample price pills spread around Ortega Park
+  const LISTINGS = [
+    { price: '$3.5K', lat: 37.375, lng: -122.046 },
+    { price: '$5.2K', lat: 37.369, lng: -122.034 },
+    { price: '$4.1K', lat: 37.363, lng: -122.048 },
+    { price: '$2.9K', lat: 37.380, lng: -122.040 },
+  ];
+
+  // Featured POI: Ortega Park (real address: 636 Harrow Way, Sunnyvale)
+  const ORTEGA = {
+    name: 'Ortega Park',
+    address: '636 Harrow Way',
+    category: 'park',
+    glyph: '🌳',
+    lat: 37.3735,
+    lng: -122.0413,
+    meta: 'Park · 12 acres · 0.3 mi from 3 listings',
+  };
+
+  // Second featured POI (for the "two featured" map): PANW HQ promoted to featured
+  const PANW_FEATURED = {
+    name: 'PANW HQ',
+    address: '3000 Tannery Way',
+    category: 'work',
+    glyph: '🏢',
+    lat: 37.384,
+    lng: -121.984,
+    meta: 'Workplace · 2.1 mi from 4 listings',
+    color: '#6366f1',
+  };
+
+  // OSM tile config
+  const OSM_TILE = 'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png';
+  const OSM_ATTR = '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>';
+
+  function addBaseLayer(map) {
+    L.tileLayer(OSM_TILE, { attribution: OSM_ATTR, maxZoom: 19 }).addTo(map);
+    L.polygon(SUNNYVALE_BOUNDARY, {
+      color: '#2563eb', weight: 1.5, opacity: 0.5,
+      fillColor: '#2563eb', fillOpacity: 0.04, interactive: false,
+    }).addTo(map);
+  }
+
+  function addPriceMarkers(map) {
+    LISTINGS.forEach(l => {
+      const icon = L.divIcon({
+        className: '',
+        html: `<div class="price-pill">${l.price}</div>`,
+        iconSize: [50, 22],
+        iconAnchor: [25, 11],
+      });
+      L.marker([l.lat, l.lng], { icon, zIndexOffset: 50 }).addTo(map);
+    });
+  }
+
+  function addContextPOIs(map) {
+    CONTEXT_POIS.forEach(poi => {
+      const icon = L.divIcon({
+        className: '',
+        html: `
+          <div class="poi-circle ${poi.category}" tabindex="0" role="button"
+               aria-label="${poi.category}: ${poi.name}">
+            ${poi.glyph}
+            <span class="poi-tooltip-default">${poi.name}</span>
+          </div>`,
+        iconSize: [24, 24],
+        iconAnchor: [12, 12],
+      });
+      L.marker([poi.lat, poi.lng], { icon, zIndexOffset: 0 }).addTo(map);
+    });
+  }
+
+  /* ============================================================
+     OPTION A — render helper
+     ============================================================ */
+  function addFeaturedA(map, poi, opts = {}) {
+    const hover = opts.hover ? ' is-hovered' : '';
+    const bg = opts.color || '#16a34a';
+    const icon = L.divIcon({
+      className: '',
+      html: `
+        <div class="featured-a${hover}" tabindex="0" role="button"
+             aria-label="Featured ${poi.category}: ${poi.name}">
+          <div class="pin" style="background:${bg};">${poi.glyph}</div>
+          <div class="label">${poi.name}</div>
+          <div class="popup">
+            <strong>${poi.name}</strong>
+            <small>${poi.meta}</small>
+          </div>
+        </div>`,
+      // Wide iconSize so the always-shown label doesn't get clipped
+      iconSize: [140, 60],
+      iconAnchor: [70, 18], // anchor the pin center, not the label
+    });
+    L.marker([poi.lat, poi.lng], { icon, zIndexOffset: 1000 }).addTo(map);
+  }
+
+  /* ============================================================
+     OPTION B — render helper
+     ============================================================ */
+  function addFeaturedB(map, poi, opts = {}) {
+    const hover = opts.hover ? ' is-hovered' : '';
+    const bg = opts.color || '#16a34a';
+    const icon = L.divIcon({
+      className: '',
+      html: `
+        <div class="featured-b${hover}" tabindex="0" role="button"
+             aria-label="Featured ${poi.category}: ${poi.name}">
+          <div class="dot" style="background:${bg};">${poi.glyph}</div>
+          <div class="star-badge" aria-hidden="true">★</div>
+          <div class="chip"><span class="chip-star">★</span>${poi.name}</div>
+          <div class="popup">
+            <strong>★ ${poi.name}</strong>
+            <small>${poi.meta}</small>
+          </div>
+        </div>`,
+      iconSize: [140, 56],
+      iconAnchor: [70, 12],
+    });
+    L.marker([poi.lat, poi.lng], { icon, zIndexOffset: 1000 }).addTo(map);
+  }
+
+  /* ============================================================
+     OPTION C — render helper
+     ============================================================ */
+  function addFeaturedC(map, poi, opts = {}) {
+    const hover = opts.hover ? ' is-hovered' : '';
+    const bg = opts.color || '#16a34a';
+    const icon = L.divIcon({
+      className: '',
+      html: `
+        <div class="featured-c${hover}" tabindex="0" role="button"
+             aria-label="Featured ${poi.category}: ${poi.name}">
+          <div class="teardrop" style="background:${bg};"></div>
+          <div class="glyph">${poi.glyph}</div>
+          <div class="label">${poi.name}</div>
+          <div class="popup">
+            <strong>${poi.name}</strong>
+            <small>${poi.meta}</small>
+          </div>
+        </div>`,
+      iconSize: [140, 70],
+      iconAnchor: [70, 42], // anchor at the tip of the teardrop
+    });
+    L.marker([poi.lat, poi.lng], { icon, zIndexOffset: 1000 }).addTo(map);
+  }
+
+  /* ============================================================
+     Build all 6 maps (3 options × {1-featured, 2-featured})
+     ============================================================ */
+  function buildMap(id, center, zoom) {
+    const m = L.map(id, {
+      center, zoom,
+      scrollWheelZoom: false,
+      zoomControl: true,
+    });
+    addBaseLayer(m);
+    addPriceMarkers(m);
+    addContextPOIs(m);
+    return m;
+  }
+
+  // Center slightly south-west of Ortega so the hover annotation sits to the right
+  const FOCUS = [37.372, -122.040];
+
+  // ---- Option A ----
+  const mapA1 = buildMap('map-a-1', FOCUS, 14);
+  addFeaturedA(mapA1, ORTEGA, { hover: true });
+
+  const mapA2 = buildMap('map-a-2', [37.378, -122.012], 13);
+  addFeaturedA(mapA2, ORTEGA);
+  addFeaturedA(mapA2, PANW_FEATURED, { color: '#6366f1' });
+
+  // ---- Option B ----
+  const mapB1 = buildMap('map-b-1', FOCUS, 14);
+  addFeaturedB(mapB1, ORTEGA, { hover: true });
+
+  const mapB2 = buildMap('map-b-2', [37.378, -122.012], 13);
+  addFeaturedB(mapB2, ORTEGA);
+  addFeaturedB(mapB2, PANW_FEATURED, { color: '#6366f1' });
+
+  // ---- Option C ----
+  const mapC1 = buildMap('map-c-1', FOCUS, 14);
+  addFeaturedC(mapC1, ORTEGA, { hover: true });
+
+  const mapC2 = buildMap('map-c-2', [37.378, -122.012], 13);
+  addFeaturedC(mapC2, ORTEGA);
+  addFeaturedC(mapC2, PANW_FEATURED, { color: '#6366f1' });
+</script>
+
+</body>
+</html>

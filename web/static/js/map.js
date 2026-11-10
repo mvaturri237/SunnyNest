@@ -19,6 +19,56 @@ var POI_CATEGORIES = {
 };
 
 /**
+ * Public elementary schools serving Sunnyvale-area renters — hardcoded
+ * static layer.
+ *
+ * Coordinates geocoded 2026-06-03 via scripts/geocode_schools.py
+ * (one-shot, results cached by src/geocoder.py LRU). If addresses
+ * change, re-run the script and paste the output here.
+ *
+ * 15 schools across 3 districts (Sunnyvale SD, Cupertino USD, Santa
+ * Clara USD). Source addresses are in scripts/geocode_schools.py.
+ * Two schools (Montclaire, Laurelwood) sit outside Sunnyvale city
+ * limits — bbox was widened on 2026-06-03 to include Los Altos +
+ * Santa Clara.
+ *
+ * NOT in the database / NOT geocoded at runtime — these are static
+ * reference points, not listings. If the list ever grows or needs
+ * per-school metadata (or per-user favorites), move to
+ * `data/schools.json` and fetch via API (see P3-SCHOOL-FAVORITES-CFG).
+ *
+ * `isFavorite: true` flags 6 schools that get green styling instead
+ * of amber (favorite-school highlighting per UX request 2026-06-03).
+ *
+ * A few schools have `// manual` comments — those addresses returned
+ * null from Nominatim (or a city-centroid fallback that pinned the
+ * marker in the wrong neighborhood), so the coordinate is a hand-
+ * verified value from OSM `class:school` lookup. Re-running the
+ * script will NOT overwrite these unless Nominatim's coverage
+ * improves.
+ */
+var SCHOOLS = [
+    // Sunnyvale School District (SSD) — 8 schools
+    { name: 'Bishop Elementary',              lat: 37.386636, lng: -122.025308, isFavorite: false },
+    { name: 'Cherry Chase Elementary',        lat: 37.366974, lng: -122.057059, isFavorite: true  },
+    { name: 'Cumberland Elementary',          lat: 37.3505,   lng: -122.0411,   isFavorite: true  }, // manual — Nominatim returned null (city-centroid fallback)
+    { name: 'Ellis Elementary',               lat: 37.369171, lng: -122.023991, isFavorite: false },
+    { name: 'Fairwood Explorer Elementary',   lat: 37.396420, lng: -121.990366, isFavorite: false },
+    { name: 'Lakewood Elementary',            lat: 37.397357, lng: -122.003051, isFavorite: false },
+    { name: 'San Miguel Elementary',          lat: 37.391364, lng: -122.009173, isFavorite: false },
+    { name: 'Vargas Elementary',              lat: 37.3811,   lng: -122.0228,   isFavorite: false }, // manual — geocoder returned wrong-street match
+    // Cupertino Union School District (CUSD) — 4 schools
+    { name: 'Chester W. Nimitz Elementary',   lat: 37.346659, lng: -122.040050, isFavorite: false },
+    { name: 'Louis E. Stocklmeir Elementary', lat: 37.343979, lng: -122.027291, isFavorite: true  },
+    { name: 'West Valley Elementary',         lat: 37.341011, lng: -122.062276, isFavorite: true  },
+    { name: 'Montclaire Elementary',          lat: 37.342130, lng: -122.082409, isFavorite: true  }, // manual — Nominatim circuit-breaker open on 2026-06-03; verified via OSM class:school lookup (way 25401662, Loyola Corners, Los Altos 94024)
+    // Santa Clara Unified School District (SCUSD) — 3 schools
+    { name: 'Braly Elementary',               lat: 37.3490,   lng: -121.9923,   isFavorite: false }, // manual — geocoder pinned wrong neighborhood
+    { name: 'Ponderosa Elementary',           lat: 37.3520,   lng: -121.9897,   isFavorite: false }, // manual — geocoder pinned wrong neighborhood
+    { name: 'Laurelwood Elementary',          lat: 37.342693, lng: -122.001273, isFavorite: true  }  // manual — Nominatim circuit-breaker open on 2026-06-03; verified via OSM class:school lookup (way 241140306, Birdland, Santa Clara 95051)
+];
+
+/**
  * Escape a string for safe insertion into HTML.
  * Prevents XSS when building popup content from data attributes.
  */
@@ -98,6 +148,32 @@ document.addEventListener('DOMContentLoaded', function () {
     var poiLayerGroups = {};
     Object.keys(POI_CATEGORIES).forEach(function (cat) {
         poiLayerGroups[cat] = L.layerGroup().addTo(map);
+    });
+
+    // ----------------------------------------------------------------
+    // Public Elementary Schools layer (always on, hover-only tooltip)
+    // ----------------------------------------------------------------
+    var schoolsLayer = L.layerGroup().addTo(map);
+    SCHOOLS.forEach(function (s) {
+        // Favorites get an extra modifier class (green bg) + ⭐ tooltip
+        // prefix so the favorite state is conveyed via BOTH color and
+        // text (Design Bible accessibility rule: never use color alone).
+        var iconClass = s.isFavorite
+            ? 'school-poi-icon school-poi-icon--favorite'
+            : 'school-poi-icon';
+        var tooltipText = s.isFavorite ? '⭐ ' + s.name : s.name;
+        var icon = L.divIcon({
+            className: 'school-poi-marker',
+            html: '<div class="' + iconClass + '" aria-label="' + escapeHtml(tooltipText) + '">🏫</div>',
+            iconSize: [24, 24],
+            iconAnchor: [12, 12]
+        });
+        // Negative zIndexOffset keeps schools BELOW price-pill markers,
+        // so a listing pill always wins overlap (acceptance criterion #5).
+        var marker = L.marker([s.lat, s.lng], { icon: icon, zIndexOffset: -100, interactive: true });
+        marker.bindTooltip(escapeHtml(tooltipText), { direction: 'top', offset: [0, -14] });
+        // NO click handler — hover-only per spec.
+        schoolsLayer.addLayer(marker);
     });
 
     // ----------------------------------------------------------------
@@ -193,8 +269,18 @@ document.addEventListener('DOMContentLoaded', function () {
                 var rawPrice = priceText.replace(/[^0-9.]/g, '');
                 var label = formatPriceLabel(rawPrice);
 
+                // Favorite-school highlight (Option C, 2026-06-03):
+                // server-rendered data-fav-school flag (computed via
+                // web/dependencies.py is_favorite_school) drives the
+                // green pill variant. Single source of truth — JS does
+                // NOT duplicate the FAVORITE_SCHOOLS list.
+                var isFavSchool = card.dataset.favSchool === '1';
+                var markerClass = isFavSchool
+                    ? 'price-pill-marker is-fav-school'
+                    : 'price-pill-marker';
+
                 var icon = L.divIcon({
-                    className: 'price-pill-marker',
+                    className: markerClass,
                     html: '<span class="price-pill">' + label + '</span>',
                     iconSize: [50, 24],
                     iconAnchor: [25, 12]
@@ -292,20 +378,54 @@ document.addEventListener('DOMContentLoaded', function () {
 
     /**
      * Create a Leaflet marker for a single POI.
+     *
+     * Branches on `poi.featured` (boolean, missing = false):
+     *   - Featured: 36×36 ringed pin with a persistent label pill below
+     *     (Option A from docs/temp/mockups/featured-poi-map.html). Same
+     *     category color/emoji as a regular POI so categorical reading
+     *     stays consistent. zIndexOffset: -50 keeps it BELOW price pills
+     *     (default offset 0) per Design Bible (price stays dominant);
+     *     still ABOVE the schools layer (-100).
+     *   - Regular: existing 24×24 circle, unchanged.
+     *
+     * Tooltip is enriched to "Name · Category" for both variants — gives
+     * the featured POI the simple name+category hover affordance without
+     * introducing a new popup.
      */
     function createPOIMarker(poi) {
         var cfg = POI_CATEGORIES[poi.category] || POI_CATEGORIES.custom;
-        var icon = L.divIcon({
-            className: 'poi-marker',
-            html: '<div class="poi-circle" style="background:' + cfg.color + ';"'
-                + ' aria-label="' + escapeHtml(cfg.label + ': ' + poi.name) + '">'
-                + cfg.icon + '</div>',
-            iconSize: [24, 24],
-            iconAnchor: [12, 12]
-        });
+        var tooltipText = poi.name + ' · ' + cfg.label;
+        var ariaLabel = cfg.label + ': ' + poi.name;
+        var icon;
+        var markerOpts = { icon: null };
 
-        var marker = L.marker([poi.latitude, poi.longitude], { icon: icon });
-        marker.bindTooltip(escapeHtml(poi.name), { direction: 'top', offset: [0, -14] });
+        if (poi.featured === true) {
+            icon = L.divIcon({
+                className: 'poi-marker poi-marker--featured',
+                html: '<div class="poi-featured-pin" style="background:' + cfg.color + ';"'
+                    + ' aria-label="' + escapeHtml(ariaLabel) + '">'
+                    + cfg.icon + '</div>'
+                    + '<div class="poi-featured-label">' + escapeHtml(poi.name) + '</div>',
+                iconSize: [36, 36],
+                iconAnchor: [18, 18]
+            });
+            markerOpts.icon = icon;
+            // Featured sits ABOVE schools (-100) but BELOW price pills (0).
+            markerOpts.zIndexOffset = -50;
+        } else {
+            icon = L.divIcon({
+                className: 'poi-marker',
+                html: '<div class="poi-circle" style="background:' + cfg.color + ';"'
+                    + ' aria-label="' + escapeHtml(ariaLabel) + '">'
+                    + cfg.icon + '</div>',
+                iconSize: [24, 24],
+                iconAnchor: [12, 12]
+            });
+            markerOpts.icon = icon;
+        }
+
+        var marker = L.marker([poi.latitude, poi.longitude], markerOpts);
+        marker.bindTooltip(escapeHtml(tooltipText), { direction: 'top', offset: [0, -14] });
         return marker;
     }
 

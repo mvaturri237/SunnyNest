@@ -1,0 +1,90 @@
+# Search parameters
+search:
+  city: Sunnyvale
+  state: CA
+  zip_codes:
+    - "94085"
+    - "94086"
+    - "94087"
+    - "94089"
+
+# Default filters
+filters:
+  min_price: 5000
+  max_price: 6500
+  min_bedrooms: 3
+  max_bedrooms: 4
+  property_types:
+    - house
+
+# Scheduler — launchd-native (APScheduler removed from web servers)
+# Actual schedule is defined in launchd plists, not here.
+# These values are documentation only.
+schedule:
+  scrape_time: "06:00"                    # com.sunnynest.scraper.plist
+  notify_times: ["08:00", "20:00"]        # com.sunnynest.notify-{am,pm}.plist
+  timezone: "Asia/Jerusalem"
+
+# Email notifications
+email:
+  enabled: true
+  smtp_server: smtp.gmail.com
+  smtp_port: 587
+  sender_email: "maorvaturri@gmail.com"
+  sender_password: ""  # Set via SMTP_PASSWORD env var (use app-specific password for Gmail)
+  recipient_email: "maorvaturri@gmail.com"  # Set via NOTIFICATION_RECIPIENT env var
+  dashboard_url: "http://sunnynest:8000"
+
+# WhatsApp notifications (Meta Business Cloud API)
+# Disabled 2026-05-10 — Meta Test Number tokens expire every ~24 h and the
+# recipient allowlist silently drops messages to non-allowlisted numbers.
+# Telegram (below) replaces it as the primary push channel.  Re-enable by
+# flipping ``enabled: true`` if you migrate to a production WhatsApp number.
+whatsapp:
+  enabled: false
+  recipient_phone: ""  # Set via WHATSAPP_RECIPIENT_PHONE env var (format: country code + number, e.g. 972501234567)
+
+# Telegram notifications (Bot API)
+# Setup (one-time):
+#   1. DM @BotFather on Telegram → /newbot → pick a name + username
+#   2. Save the bot token to .env as TELEGRAM_BOT_TOKEN
+#   3. DM your new bot once (any message) to "open" the chat
+#   4. Visit https://api.telegram.org/bot<token>/getUpdates → copy
+#      result[0].message.chat.id → save as TELEGRAM_CHAT_ID in .env
+#   5. Flip ``enabled: true`` below
+# TELEGRAM_CHAT_ID lives in .env (not here) so it pairs atomically with the
+# bot token; see plans/telegram-channel.md §2 for rationale.
+telegram:
+  enabled: false
+  parse_mode: "HTML"  # "HTML" or "MarkdownV2" — HTML strongly preferred (escape rules are simpler)
+
+# Notification schedule (cron-based, used by ScrapeScheduler)
+notification_schedule:
+  hours: [8, 20]
+  timezone: "Asia/Jerusalem"
+
+# Scraper settings
+scraper:
+  request_delay_min: 3
+  request_delay_max: 8
+  max_pages: 3
+  scrape_detail_pages: true  # Visit each Craigslist listing page to extract street addresses (slower but more accurate)
+
+# Zillow API (RapidAPI — ZLLW Working API)
+# Sign up at https://rapidapi.com and subscribe to "ZLLW Working API" by ONEAPI
+# Free tier: 500 requests/month (more than enough for daily scraping)
+# Endpoint used: /search/byaddress
+zillow_api:
+  rapidapi_key: ""  # Set via RAPIDAPI_KEY env var
+  rapidapi_host: "zllw-working-api.p.rapidapi.com"
+
+# Realtor.com API (RapidAPI — Realtor Search by API_Jeeves)
+# Subscribe at https://rapidapi.com → "Realtor Search" by API_Jeeves
+# Free tier: 100 requests/month
+# Endpoint used: /properties/search-rent
+realtor_api:
+  rapidapi_key: ""  # Set via REALTOR_RAPIDAPI_KEY env var (or falls back to RAPIDAPI_KEY)
+  rapidapi_host: "realtor-search.p.rapidapi.com"
+  monthly_budget: 150       # API call limit per month
+  budget_threshold: 90      # 90% — stop scraping when reached
+  enabled: true             # Can disable without removing config

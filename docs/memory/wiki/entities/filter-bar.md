@@ -6,7 +6,7 @@
 **Owner files:** `web/static/js/filters.js`, `web/templates/dashboard.html`, `web/routes/__init__.py`  
 **Config:** `config.yaml` → `filters`  
 **Added:** 2026-03-31  
-**Last updated:** 2026-04-13
+**Last updated:** 2026-05-14
 
 ## Overview
 
@@ -31,7 +31,7 @@ The implementation was a complete redesign from the original Streamlit filter wi
 
 - **Working:** All 6 phases implemented and approved
 - **Filters available:**
-  - **Price:** Min/Max text inputs + 5 quick-range radios (Under $4K, $4K–$5K, $5K–$6.5K, $6.5K–$8K, $8K+)
+  - **Price:** Min/Max text inputs + 5 quick-range radios (Under $4K, $4K–$5K, $5K–$7.5K, $6.5K–$8K, $8K+)
   - **Beds & Baths:** Segmented button groups (Any/1+/2+/3+/4+ beds, Any/1+/2+/3+ baths) with `role="radiogroup"` and arrow key navigation
   - **Source:** Multi-select checkbox dropdown (3 sources, all selected by default)
   - **Days Listed:** Radio presets (Any/≤7d/≤14d/≤30d/≤60d) + custom numeric input, filters by `days_on_market` column
@@ -47,7 +47,7 @@ Default filter values come from `config.yaml` → `filters` and `_DROPDOWN_DEFAU
 | Key | Default | Description |
 |-----|---------|-------------|
 | `filters.min_price` | `5000` | Default minimum price |
-| `filters.max_price` | `6500` | Default maximum price |
+| `filters.max_price` | `7500` | Default maximum price |
 | `filters.min_bedrooms` | `3` | Default minimum bedrooms |
 | `filters.max_bedrooms` | `4` | Default maximum bedrooms |
 | `_DROPDOWN_DEFAULTS.filter_max_days` | `"30"` | Default max days on market (hardcoded in dashboard.py) |

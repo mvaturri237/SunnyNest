@@ -21,7 +21,7 @@ from playwright.async_api import async_playwright
 from src.database import log_api_call
 from src.scrapers.base import BaseScraper
 from src.school_districts import get_school_district
-from src.utils import load_config
+from src.utils import load_config, resolve_cities
 
 logger = logging.getLogger("rental_finder.scrapers.craigslist")
 
@@ -161,6 +161,7 @@ class CraigslistScraper(BaseScraper):
 
         scraper_cfg = config.get("scraper", {})
         filters_cfg = config.get("filters", {})
+        search_cfg = config.get("search", {})
 
         self.max_pages: int = scraper_cfg.get("max_pages", 5)
         self.delay_min: int = scraper_cfg.get("request_delay_min", 3)
@@ -169,14 +170,18 @@ class CraigslistScraper(BaseScraper):
             "scrape_detail_pages", True
         )
 
-        # Build default query parameters from config filters.
-        # NOTE: Price filters are intentionally NOT passed to the Craigslist
-        # query so that all listings are scraped and stored in the database.
-        # Price filtering is handled by the UI dashboard at query time,
-        # allowing users to dynamically adjust the price range via the slider.
-        self.query_params: dict[str, Any] = {"query": "sunnyvale"}
-        if "min_bedrooms" in filters_cfg:
-            self.query_params["min_bedrooms"] = filters_cfg["min_bedrooms"]
+        # Scrape territory: resolve the (possibly multi-city) list from config.
+        # Backward-compatible with the legacy scalar ``search.city``. The
+        # Craigslist SF Bay Peninsula search geographically covers all these
+        # cities; we run one text-filtered search pass per city (query term =
+        # the city name, lowercased) instead of the former hardcoded
+        # ``{"query": "sunnyvale"}``.
+        self.cities: list[str] = resolve_cities(search_cfg)
+
+        # Optional per-query filter. Price filters are intentionally NOT passed
+        # to the Craigslist query so that all listings are scraped and stored;
+        # price filtering happens in the UI at query time.
+        self.min_bedrooms: int | None = filters_cfg.get("min_bedrooms")
 
     # ----- BaseScraper interface ------------------------------------------
 
@@ -198,60 +203,97 @@ class CraigslistScraper(BaseScraper):
                 )
                 page = await context.new_page()
 
-                url = self._build_url()
-
-                for page_num in range(1, self.max_pages + 1):
+                # --- Outer loop: one search pass per configured city ---
+                # The query term is derived from the city name (lowercased),
+                # never hardcoded. Craigslist's Peninsula search geographically
+                # covers all configured cities; the ``query`` term text-filters
+                # each pass.
+                for city in self.cities:
+                    query_term = city.strip().lower()
+                    url = self._build_url(query_term)
                     logger.info(
-                        "Craigslist scrape page %d: %s", page_num, url
+                        "Craigslist scrape starting for city=%s (query=%r, "
+                        "%d configured cit%s)",
+                        city,
+                        query_term,
+                        len(self.cities),
+                        "y" if len(self.cities) == 1 else "ies",
                     )
 
-                    try:
-                        await page.goto(
-                            url,
-                            wait_until="networkidle",
-                            timeout=30_000,
-                        )
-                        # Wait for JS-rendered results to appear
-                        await page.wait_for_timeout(3000)
-                        log_api_call("craigslist", endpoint=url, status_code=200)
-                    except Exception:
-                        log_api_call("craigslist", endpoint=url, status_code=None)
-                        logger.warning(
-                            "Timeout or navigation error on page %d — stopping.",
-                            page_num,
-                        )
-                        break
-
-                    html = await page.content()
-                    listings, next_url = self._parse_page(html)
-
-                    if not listings:
+                    for page_num in range(1, self.max_pages + 1):
                         logger.info(
-                            "No listings found on page %d — stopping.",
+                            "Craigslist scrape page %d (city=%s): %s",
                             page_num,
+                            city,
+                            url,
                         )
-                        break
 
-                    all_listings.extend(listings)
-                    logger.info(
-                        "Extracted %d listings from page %d (total so far: %d)",
-                        len(listings),
-                        page_num,
-                        len(all_listings),
-                    )
+                        try:
+                            await page.goto(
+                                url,
+                                wait_until="networkidle",
+                                timeout=30_000,
+                            )
+                            # Wait for JS-rendered results to appear
+                            await page.wait_for_timeout(3000)
+                            log_api_call("craigslist", endpoint=url, status_code=200)
+                        except Exception:
+                            log_api_call("craigslist", endpoint=url, status_code=None)
+                            logger.warning(
+                                "Timeout or navigation error on page %d "
+                                "(city=%s) — next city.",
+                                page_num,
+                                city,
+                            )
+                            break
 
-                    # Check for next page
-                    if not next_url:
-                        logger.info("No more pages to fetch — stopping.")
-                        break
+                        html = await page.content()
+                        listings, next_url = self._parse_page(html)
 
-                    url = next_url
+                        # Thread the per-city loop context onto each raw
+                        # listing so normalize() can stamp the correct source
+                        # city (used downstream by the orchestrator's
+                        # geocode_address(city=...) call). Without this, every
+                        # listing would be stored as the hardcoded default,
+                        # mis-geocoding non-Sunnyvale cities to the Sunnyvale
+                        # centroid.
+                        for listing in listings:
+                            listing["_source_city"] = city
 
-                    # Random delay between pages
-                    if page_num < self.max_pages:
-                        delay = random.uniform(self.delay_min, self.delay_max)
-                        logger.debug("Sleeping %.1f s before next page", delay)
-                        await asyncio.sleep(delay)
+                        if not listings:
+                            logger.info(
+                                "No listings found on page %d (city=%s) — "
+                                "next city.",
+                                page_num,
+                                city,
+                            )
+                            break
+
+                        all_listings.extend(listings)
+                        logger.info(
+                            "Extracted %d listings from page %d (city=%s, "
+                            "total so far: %d)",
+                            len(listings),
+                            page_num,
+                            city,
+                            len(all_listings),
+                        )
+
+                        # Check for next page
+                        if not next_url:
+                            logger.info(
+                                "No more pages to fetch for city=%s — next city.",
+                                city,
+                            )
+                            break
+
+                        url = next_url
+
+                        # Random delay between pages
+                        if page_num < self.max_pages:
+                            delay = random.uniform(self.delay_min, self.delay_max)
+                            logger.debug("Sleeping %.1f s before next page", delay)
+                            await asyncio.sleep(delay)
 
                 # --- Second pass: visit detail pages for street addresses ---
                 if self.scrape_detail_pages and all_listings:
@@ -354,7 +396,11 @@ class CraigslistScraper(BaseScraper):
             "title": title,
             "address": address,
             "neighborhood": neighborhood or None,
-            "city": "Sunnyvale",
+            # Source city threaded from the per-city scrape loop; falls back to
+            # "Sunnyvale" for backward compatibility with untagged raw dicts
+            # (legacy single-city path). ZIP is still extracted from address
+            # text above; this is the source-of-truth for the city field.
+            "city": raw.get("_source_city") or "Sunnyvale",
             "zip_code": zip_code,
             "price": price,
             "bedrooms": bedrooms or 0,
@@ -450,9 +496,21 @@ class CraigslistScraper(BaseScraper):
         )
         return listings
 
-    def _build_url(self) -> str:
-        """Construct the initial Craigslist search URL with query params."""
-        return f"{_BASE_URL}?{urlencode(self.query_params)}"
+    def _build_url(self, query_term: str) -> str:
+        """Construct the initial Craigslist search URL for one city.
+
+        Args:
+            query_term: The Craigslist ``query`` text filter — the city name,
+                lowercased (e.g. ``"sunnyvale"``, ``"los altos"``). Derived
+                from config; never hardcoded.
+
+        Returns:
+            The fully-encoded search URL for the first results page.
+        """
+        query_params: dict[str, Any] = {"query": query_term}
+        if self.min_bedrooms is not None:
+            query_params["min_bedrooms"] = self.min_bedrooms
+        return f"{_BASE_URL}?{urlencode(query_params)}"
 
     @staticmethod
     def _parse_page(html: str) -> tuple[list[dict], str | None]:

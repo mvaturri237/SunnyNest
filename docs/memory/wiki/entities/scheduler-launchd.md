@@ -6,7 +6,7 @@
 **Owner files:** `com.sunnynest.scraper.plist`, `com.sunnynest.notify-am.plist`, `com.sunnynest.notify-pm.plist`, `scripts/run-scraper.py`, `scripts/run-notify.py`  
 **Config:** Schedule defined in plist files (not `config.yaml`)  
 **Added:** 2026-04-06  
-**Last updated:** 2026-04-13
+**Last updated:** 2026-06-03 (notify-am shifted 08:00→10:00)
 
 ## Overview
 
@@ -18,7 +18,7 @@ launchd is OS-native, survives reboots, and catches up on missed jobs when the M
 
 - **3 launchd plists:**
   - `com.sunnynest.scraper.plist` — daily scrape at 06:00
-  - `com.sunnynest.notify-am.plist` — morning notifications at 08:00
+  - `com.sunnynest.notify-am.plist` — morning notifications at **10:00** (was 08:00 — shifted 2026-06-03 to give VPN/network time to come up reliably)
   - `com.sunnynest.notify-pm.plist` — evening notifications at 20:00
 - **2 standalone scripts:**
   - `scripts/run-scraper.py` — imports and runs `ScraperOrchestrator.run_sync()` directly
@@ -44,8 +44,10 @@ Schedule is defined in plist files, not `config.yaml`. The `config.yaml` schedul
 | Plist | Schedule | Script |
 |-------|----------|--------|
 | `com.sunnynest.scraper` | Daily 06:00 | `scripts/run-scraper.py` |
-| `com.sunnynest.notify-am` | Daily 08:00 | `scripts/run-notify.py` |
+| `com.sunnynest.notify-am` | Daily **10:00** (was 08:00; shifted 2026-06-03) | `scripts/run-notify.py` |
 | `com.sunnynest.notify-pm` | Daily 20:00 | `scripts/run-notify.py` |
+
+> **Known limitation (closed-laptop):** `StartCalendarInterval` does NOT fire missed jobs when the Mac is asleep. If the laptop is closed at 10:00 / 20:00, the notification job is silently skipped; the next 10:00 trigger after wake will then catch up multiple days of new listings in a single batch. The 2026-06-03 silent-Telegram incident exposed this gap. **Mitigation queued:** [`plans/cloud-scheduler.md`](../../../../plans/cloud-scheduler.md) Option 1 (GitHub Actions + git-committed DB) — runs in the cloud regardless of laptop state.
 
 Additional launchd services:
 | Plist | Purpose |
@@ -69,6 +71,7 @@ Additional launchd services:
 
 ## History
 
+- [2026-06-03] **`com.sunnynest.notify-am` Hour 8 → 10** as part of the silent-notification-prevention bundle. `config.yaml notification_schedule.hours [8,20] → [10,20]` updated in sync per AGENTS.md §5 rule #3 (config-overrides-code). The 08:00 trigger was racing with VPN/network startup on the user's Mac — DNS failed inside the launchd-spawned process while resolving fine from interactive shells minutes later. 10:00 is far enough into the workday that VPN is reliably up. Reload via `launchctl unload && cp && load` confirmed Hour=10. **Caveat:** does NOT address the laptop-asleep-on-weekends gap — see "Known limitation" above and the queued cloud-scheduler plan.
 - [2026-04-13] TCC exit code 78 fix applied to ALL remaining plists (scraper, notify-am, notify-pm, backoffice, log-rotate). All `StandardOutPath`/`StandardErrorPath` moved from `~/Documents/zillow/logs/` to `/tmp/sunnynest/`. Notify AM/PM logs differentiated. Support scripts (`rotate-logs.sh`, `install-service.sh`, `uninstall-service.sh`) updated. Log-rotate stderr bug fixed (was pointing to stdout file). All 6 agents now exit code 0. Manual scraper trigger confirmed working (39 listings).
 - [2026-04-12] Dashboard plist migrated from Streamlit (port 8501) to FastAPI/uvicorn (port 8000). Log paths moved to `/tmp/sunnynest/` to fix TCC exit code 78. Install script messages updated.
 - [2026-04-06] Cloud scheduler evaluation complete — GitHub Actions + git-committed DB recommended for cloud

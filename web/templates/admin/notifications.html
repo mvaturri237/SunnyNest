@@ -8,6 +8,111 @@
     <p class="page-subtitle">Notification history and delivery statistics</p>
 </div>
 
+{# Most-urgent banner first: WhatsApp OAuth token expired/invalid. #}
+{% if whatsapp_failure and whatsapp_failure.error_category == 'token_expired' %}
+<div class="info-banner info-banner--error" role="alert">
+    <span class="info-icon">⚠️</span>
+    <div>
+        <strong>WhatsApp access token has expired or is invalid</strong>
+        <p style="margin: 4px 0 0;">
+            The most recent WhatsApp send failed with an OAuth error. Meta Test Number tokens expire roughly every 24 hours.
+            Regenerate the token at <a href="https://developers.facebook.com/" target="_blank" rel="noopener noreferrer">developers.facebook.com</a> → your App → <strong>WhatsApp → API Setup → Generate token</strong>, then update <code>WHATSAPP_API_TOKEN</code> in <code>.env</code> and restart the dashboard.
+        </p>
+        {% if whatsapp_failure.error_message %}
+        <p style="margin: 6px 0 0; font-size: 12px; opacity: 0.85;">
+            <strong>Last error:</strong> {{ whatsapp_failure.error_message }}
+        </p>
+        {% endif %}
+        {% if whatsapp_failure.sent_at %}
+        <p style="margin: 4px 0 0; font-size: 12px; opacity: 0.7;">
+            Detected at {{ whatsapp_failure.sent_at }} (recipient: {{ whatsapp_failure.recipient }})
+        </p>
+        {% endif %}
+    </div>
+</div>
+{% elif whatsapp_failure and whatsapp_failure.error_category not in ('disabled', 'no_listings', 'missing_credentials') %}
+<div class="info-banner info-banner--warning" role="alert">
+    <span class="info-icon">⚠️</span>
+    <div>
+        <strong>Last WhatsApp send failed</strong>
+        <p style="margin: 4px 0 0;">
+            The most recent WhatsApp notification did not succeed.
+            {% if whatsapp_failure.error_category %}
+            Category: <code>{{ whatsapp_failure.error_category }}</code>.
+            {% endif %}
+        </p>
+        {% if whatsapp_failure.error_message %}
+        <p style="margin: 6px 0 0; font-size: 12px; opacity: 0.85;">
+            <strong>Detail:</strong> {{ whatsapp_failure.error_message }}
+        </p>
+        {% endif %}
+    </div>
+</div>
+{% endif %}
+
+{# Telegram failure banners — auth (bad bot token) is most critical. #}
+{% if telegram_failure and telegram_failure.error_category == 'auth' %}
+<div class="info-banner info-banner--error" role="alert">
+    <span class="info-icon">⚠️</span>
+    <div>
+        <strong>Telegram bot token invalid</strong>
+        <p style="margin: 4px 0 0;">
+            The most recent Telegram send failed with an authentication error (HTTP 401).
+            Check <code>TELEGRAM_BOT_TOKEN</code> in <code>.env</code>, or regenerate it by DMing
+            <a href="https://t.me/BotFather" target="_blank" rel="noopener noreferrer">@BotFather</a>
+            → <code>/revoke</code> → <code>/token</code>, then restart the dashboard.
+        </p>
+        {% if telegram_failure.error_message %}
+        <p style="margin: 6px 0 0; font-size: 12px; opacity: 0.85;">
+            <strong>Last error:</strong> {{ telegram_failure.error_message }}
+        </p>
+        {% endif %}
+        {% if telegram_failure.sent_at %}
+        <p style="margin: 4px 0 0; font-size: 12px; opacity: 0.7;">
+            Detected at {{ telegram_failure.sent_at }} (recipient: {{ telegram_failure.recipient }})
+        </p>
+        {% endif %}
+    </div>
+</div>
+{% elif telegram_failure and telegram_failure.error_category not in ('disabled', 'no_listings', 'missing_credentials') %}
+<div class="info-banner info-banner--warning" role="alert">
+    <span class="info-icon">⚠️</span>
+    <div>
+        <strong>Last Telegram send failed</strong>
+        <p style="margin: 4px 0 0;">
+            The most recent Telegram notification did not succeed.
+            {% if telegram_failure.error_category %}
+            Category: <code>{{ telegram_failure.error_category }}</code>.
+            {% endif %}
+        </p>
+        {% if telegram_failure.error_message %}
+        <p style="margin: 6px 0 0; font-size: 12px; opacity: 0.85;">
+            <strong>Detail:</strong> {{ telegram_failure.error_message }}
+        </p>
+        {% endif %}
+    </div>
+</div>
+{% endif %}
+
+{% if email_failure and email_failure.error_category == 'auth' %}
+<div class="info-banner info-banner--error" role="alert">
+    <span class="info-icon">⚠️</span>
+    <div>
+        <strong>Email SMTP authentication failed</strong>
+        <p style="margin: 4px 0 0;">
+            The most recent email send failed with an authentication error.
+            Verify <code>SMTP_PASSWORD</code> in <code>.env</code> — for Gmail, you must use an
+            <a href="https://support.google.com/accounts/answer/185833" target="_blank" rel="noopener noreferrer">app-specific password</a>.
+        </p>
+        {% if email_failure.error_message %}
+        <p style="margin: 6px 0 0; font-size: 12px; opacity: 0.85;">
+            <strong>Last error:</strong> {{ email_failure.error_message }}
+        </p>
+        {% endif %}
+    </div>
+</div>
+{% endif %}
+
 {% if not smtp_configured %}
 <div class="info-banner info-banner--warning">
     <span class="info-icon">⚠️</span>
@@ -24,6 +129,16 @@
     <div>
         <strong>WhatsApp API token not configured</strong>
         <p style="margin: 4px 0 0;">WhatsApp notifications cannot be sent without API credentials. Set the <code>WHATSAPP_API_TOKEN</code> and <code>WHATSAPP_PHONE_NUMBER_ID</code> environment variables or add them to a <code>.env</code> file in the project root.</p>
+    </div>
+</div>
+{% endif %}
+
+{% if not telegram_configured %}
+<div class="info-banner info-banner--warning">
+    <span class="info-icon">⚠️</span>
+    <div>
+        <strong>Telegram bot credentials not configured</strong>
+        <p style="margin: 4px 0 0;">Telegram notifications cannot be sent without bot credentials. Set the <code>TELEGRAM_BOT_TOKEN</code> and <code>TELEGRAM_CHAT_ID</code> environment variables (see <code>.env.example</code> for the bot setup steps via <a href="https://t.me/BotFather" target="_blank" rel="noopener noreferrer">@BotFather</a>).</p>
     </div>
 </div>
 {% endif %}
@@ -100,7 +215,15 @@
                         {% if entry.success %}
                         <span class="status-badge status-green">✅ Success</span>
                         {% else %}
-                        <span class="status-badge status-red">❌ Failed</span>
+                            {% if entry.error_category == 'token_expired' %}
+                            <span class="status-badge status-red" title="{{ entry.error_message or '' }}">🔑 Token expired</span>
+                            {% elif entry.channel == 'telegram' %}
+                            <span class="status-badge status-red" title="{{ entry.error_message or '' }}">💬 Telegram failure{% if entry.error_category %} ({{ entry.error_category }}){% endif %}</span>
+                            {% elif entry.error_category %}
+                            <span class="status-badge status-red" title="{{ entry.error_message or '' }}">❌ {{ entry.error_category }}</span>
+                            {% else %}
+                            <span class="status-badge status-red">❌ Failed</span>
+                            {% endif %}
                         {% endif %}
                     </td>
                 </tr>

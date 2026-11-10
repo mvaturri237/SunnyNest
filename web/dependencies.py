@@ -72,8 +72,100 @@ def _abbreviate_school(name: str | None) -> str:
     return name.strip()
 
 
+# ---------------------------------------------------------------------------
+# Favorite-school highlighting
+# ---------------------------------------------------------------------------
+
+# Feature flag — DISABLED 2026-06-04.
+#
+# The DB-derived school assignments (column `listing.school_elementary`,
+# written by src/school_districts.py) are inaccurate: the GeoJSON polygons
+# at data/school-boundaries/elementary.geojson are simplified rectangles,
+# not official attendance boundaries. They produce visibly wrong tagging
+# (e.g. Mountain View listings tagged "Cherry Chase Elementary", a Sunnyvale
+# school). Until the planned NCES SABS attendance-boundary refresh lands
+# (separate Architect plan), the two user-facing surfaces that depend on
+# this column are hidden:
+#
+#   1. The "🏫 ..." schools row on listing cards
+#      (web/templates/partials/listing-card.html)
+#   2. The green ★ price-pill highlight on the map
+#      (driven by data-fav-school="1" on the card, consumed by
+#       web/static/js/map.js — when the attribute is absent, the
+#       JS condition `card.dataset.favSchool === '1'` is false,
+#       so no green class is applied; no JS change required.)
+#
+# What stays untouched (so re-enable is a one-line flip):
+#   - FAVORITE_SCHOOLS frozenset + is_favorite_school helper below
+#   - The 15-school SCHOOLS const in map.js (POI pins, hardcoded coords)
+#   - .school-pill-fav and .price-pill-marker.is-fav-school CSS rules
+#     (dormant, marked with DISABLED 2026-06-04 comments)
+#   - The DB column + the school_districts.py enrichment pipeline
+#
+# Re-enable: set SCHOOLS_UI_ENABLED = True (and bump the style.css cache
+# version in web/templates/base.html so users see the resurrected chip).
+SCHOOLS_UI_ENABLED: bool = False
+
+
+# Hardcoded v1 favorites — per-user upgrade tracked in P3-SCHOOL-FAVORITES-CFG.
+#
+# IMPORTANT — Cross-file drift warning:
+# Must match the `name` field of `isFavorite: true` entries in the SCHOOLS
+# array at web/static/js/map.js:50-69 byte-for-byte (case, spacing, the
+# word "Elementary" vs "Elem"). If you edit one, edit the other.
+#
+# Naming-convention note: the canonical form here omits the trailing
+# " School" word (e.g. "Cherry Chase Elementary"), matching map.js.
+# The DB column `listing.school_elementary` is populated by
+# src/school_districts.py from GeoJSON `school_name` properties, which
+# include the suffix (e.g. "Cherry Chase Elementary School"). The
+# `is_favorite_school()` helper normalizes that suffix before comparing,
+# so the same constant works for both inputs.
+FAVORITE_SCHOOLS: frozenset[str] = frozenset({
+    "Cherry Chase Elementary",
+    "Cumberland Elementary",
+    "Louis E. Stocklmeir Elementary",
+    "West Valley Elementary",
+    "Montclaire Elementary",
+    "Laurelwood Elementary",
+})
+
+
+def _normalize_school_name(name: str) -> str:
+    """Strip the trailing " School" word so DB names match map.js names.
+
+    DB form:    "Cherry Chase Elementary School"  →  "Cherry Chase Elementary"
+    map.js form:"Cherry Chase Elementary"         →  "Cherry Chase Elementary"
+    """
+    # Only strip the trailing " School" — never an interior occurrence.
+    for suffix in (" Elementary School", " Middle School", " High School"):
+        if name.endswith(suffix):
+            return name[: -len(" School")]
+    return name
+
+
+def is_favorite_school(name: str | None) -> bool:
+    """True if ``name`` is one of the user's 6 favorite elementary schools.
+
+    Case-sensitive on the full form. Tolerates the trailing " School" word
+    so it works against both the DB column (written by ``school_districts.py``)
+    and the canonical names used in ``map.js``.
+    """
+    if not name:
+        return False
+    return _normalize_school_name(name) in FAVORITE_SCHOOLS
+
+
 templates.env.filters["first_image"] = _parse_first_image
 templates.env.filters["abbreviate_school"] = _abbreviate_school
+# Registered as a `test` (used as `value is is_favorite_school` in Jinja)
+# so the syntax reads naturally. Also exposed as a filter for parity.
+templates.env.tests["is_favorite_school"] = is_favorite_school
+templates.env.filters["is_favorite_school"] = is_favorite_school
+
+# Expose the feature flag to every template (incl. partials rendered via
+# htmx swaps) without requiring per-route context wiring.
+templates.env.globals["SCHOOLS_UI_ENABLED"] = SCHOOLS_UI_ENABLED
 
 
 # ---------------------------------------------------------------------------

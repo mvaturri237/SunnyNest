@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import logging
 from contextlib import contextmanager
-from datetime import date, datetime, timedelta, timezone
+from datetime import date, datetime, time, timedelta, timezone
 from pathlib import Path
 from statistics import median
 from typing import Any, Generator
@@ -143,6 +143,52 @@ def _ensure_deactivated_at_column() -> None:
         pass  # Column already exists
 
 
+def _ensure_notification_error_columns() -> None:
+    """Add ``error_category`` and ``error_message`` columns to ``notification_log``.
+
+    Non-destructive ``ALTER TABLE ADD COLUMN`` migration.  Both columns
+    are nullable so existing rows keep their NULL defaults.
+    """
+    engine = get_engine()
+    for col, ddl in (
+        ("error_category", "ALTER TABLE notification_log ADD COLUMN error_category TEXT"),
+        ("error_message", "ALTER TABLE notification_log ADD COLUMN error_message TEXT"),
+    ):
+        try:
+            with engine.connect() as conn:
+                conn.execute(text(ddl))
+                conn.commit()
+            logger.info("Added %s column to notification_log table.", col)
+        except Exception:
+            pass  # Column already exists
+
+
+def _ensure_consecutive_misses_column() -> None:
+    """Add the ``consecutive_misses`` column to ``listings`` (Bug B, 2026-06-04).
+
+    Non-destructive ``ALTER TABLE ADD COLUMN`` with ``DEFAULT 0`` so all
+    pre-existing rows start the hysteresis counter at zero (which means
+    "seen this scrape" — equivalent to the previous always-on behavior
+    until the first scrape that doesn't return them).
+
+    See ``mark_inactive()`` for the consumer logic and
+    ``MARK_INACTIVE_MISS_THRESHOLD`` for the cutoff.
+    """
+    engine = get_engine()
+    try:
+        with engine.connect() as conn:
+            conn.execute(
+                text(
+                    "ALTER TABLE listings ADD COLUMN consecutive_misses "
+                    "INTEGER NOT NULL DEFAULT 0"
+                )
+            )
+            conn.commit()
+        logger.info("Added consecutive_misses column to listings table.")
+    except Exception:
+        pass  # Column already exists
+
+
 def init_db() -> None:
     """Create all tables defined in the ORM metadata.
 
@@ -155,6 +201,8 @@ def init_db() -> None:
     _migrate_to_listing_sources()
     _ensure_school_columns()
     _ensure_deactivated_at_column()
+    _ensure_notification_error_columns()
+    _ensure_consecutive_misses_column()
     logger.info("Database tables initialised.")
 
 
@@ -388,9 +436,10 @@ def upsert_listing(listing_data: dict[str, Any]) -> tuple[Listing, bool]:
         )
 
         if existing is not None:
-            # Update mutable fields (exclude user-managed flags that scrapers must not overwrite)
+            # Update mutable fields (exclude user-managed flags that scrapers must not overwrite,
+            # plus consecutive_misses which is owned exclusively by mark_inactive — Bug B)
             for key, value in listing_data.items():
-                if key not in ("id", "first_seen", "listed_date", "notified", "is_favorite", "is_disliked", "deactivated_at") and hasattr(existing, key):
+                if key not in ("id", "first_seen", "listed_date", "notified", "is_favorite", "is_disliked", "deactivated_at", "consecutive_misses") and hasattr(existing, key):
                     setattr(existing, key, value)
 
             # Protect listed_date: never overwrite with a later date.
@@ -446,9 +495,10 @@ def upsert_listing(listing_data: dict[str, Any]) -> tuple[Listing, bool]:
                 existing_source.last_seen = datetime.now(timezone.utc)
                 existing_source.is_active = True
                 # Update mutable fields on canonical listing (gap-fill only;
-                # exclude user-managed flags that scrapers must not overwrite)
+                # exclude user-managed flags that scrapers must not overwrite,
+                # plus consecutive_misses owned by mark_inactive — Bug B)
                 for key, value in listing_data.items():
-                    if key not in ("id", "first_seen", "source", "external_id", "url", "listed_date", "notified", "is_favorite", "is_disliked", "deactivated_at") and hasattr(canonical, key):
+                    if key not in ("id", "first_seen", "source", "external_id", "url", "listed_date", "notified", "is_favorite", "is_disliked", "deactivated_at", "consecutive_misses") and hasattr(canonical, key):
                         if getattr(canonical, key) is None and value is not None:
                             setattr(canonical, key, value)
 
@@ -764,47 +814,118 @@ def get_avg_price_by_period(
         return result
 
 
+# Number of consecutive scrapes a listing must be missing before
+# ``mark_inactive()`` flips ``is_active=False``. With the daily-scrape
+# launchd schedule, N=3 ≈ 3 days of consecutive misses — enough to
+# absorb the non-deterministic RapidAPI Zillow index (Bug B, 2026-06-04).
+MARK_INACTIVE_MISS_THRESHOLD = 3
+
+
 def mark_inactive(source: str, active_ids: list[str]) -> None:
-    """Mark listings from *source* as inactive if not in *active_ids*.
+    """Update lifecycle counters and deactivate stale listings (Bug B fix).
 
-    This is used after a scrape run to flag listings that were not found
-    in the latest results, indicating they may have been removed.
+    Previously this function flipped ``is_active=False`` on every listing
+    absent from *active_ids* the very first time it went missing. The
+    upstream RapidAPI Zillow provider's index is non-deterministic, so a
+    single missed scrape was a false signal — and any subsequent hit
+    re-activated the row via :func:`upsert_listing`, producing a
+    "ratchet" where stale rows could stay active forever (e.g. zpid
+    19615280 / 1525 Bittern Dr in 2026-06-04 incident).
 
-    Also updates the corresponding ``ListingSource`` records to
-    ``is_active=False``.
+    The new contract adds hysteresis via the ``consecutive_misses``
+    column on ``listings``:
+
+      - For each listing of *source* whose ``external_id`` is in
+        *active_ids* (currently active): reset ``consecutive_misses``
+        to 0. ``is_active`` is left as-is here — :func:`upsert_listing`
+        is responsible for re-activating and clearing
+        ``deactivated_at`` when the listing comes back.
+      - For each listing of *source* whose ``external_id`` is NOT in
+        *active_ids*: increment ``consecutive_misses`` by 1.
+      - Then, for every listing whose post-increment counter is
+        ``>= MARK_INACTIVE_MISS_THRESHOLD``: flip ``is_active=False``
+        and set ``deactivated_at=now``.
+
+    The same logic is mirrored onto ``listing_sources.is_active`` so
+    multi-source counts stay in sync.
 
     Args:
         source: The listing source (e.g. ``"zillow"``).
-        active_ids: List of ``external_id`` values that are still active.
+        active_ids: List of ``external_id`` values that were seen in
+            the latest scrape.
     """
+    now_utc = datetime.now(timezone.utc)
+
     with get_session() as session:
-        # Mark Listing records inactive (legacy field)
-        session.query(Listing).filter(
+        # --- Step 1: Reset counter on listings that ARE in this scrape ---
+        if active_ids:
+            session.query(Listing).filter(
+                Listing.source == source,
+                Listing.external_id.in_(active_ids),
+                Listing.consecutive_misses != 0,
+            ).update(
+                {Listing.consecutive_misses: 0},
+                synchronize_session="fetch",
+            )
+
+        # --- Step 2: Increment counter on listings that are MISSING ---
+        # Note: we increment the counter on ALL listings of this source
+        # that aren't in active_ids, regardless of current is_active —
+        # this preserves the counter for already-inactive listings (in
+        # case a future re-activation needs the audit trail) but the
+        # threshold check below only flips active→inactive, so already
+        # inactive rows are unaffected. Use a SQL-side increment so we
+        # don't have to load every row.
+        missed_q = session.query(Listing).filter(
             Listing.source == source,
-            Listing.is_active == True,  # noqa: E712 — SQLAlchemy requires ==
-            ~Listing.external_id.in_(active_ids),
-        ).update(
-            {
-                Listing.is_active: False,
-                Listing.deactivated_at: datetime.now(timezone.utc),
-            },
+            ~Listing.external_id.in_(active_ids) if active_ids else True,  # noqa: E712
+        )
+        missed_q.update(
+            {Listing.consecutive_misses: Listing.consecutive_misses + 1},
             synchronize_session="fetch",
         )
 
-        # Also mark the corresponding ListingSource records inactive
-        session.query(ListingSource).filter(
-            ListingSource.source == source,
-            ListingSource.is_active == True,  # noqa: E712
-            ~ListingSource.external_id.in_(active_ids),
-        ).update(
-            {ListingSource.is_active: False},
-            synchronize_session="fetch",
+        # --- Step 3: Deactivate listings that just crossed the threshold ---
+        # Only flip currently-active rows (no-op on rows already inactive).
+        # The threshold compare uses the post-increment value.
+        threshold_q = session.query(Listing).filter(
+            Listing.source == source,
+            Listing.is_active == True,  # noqa: E712
+            Listing.consecutive_misses >= MARK_INACTIVE_MISS_THRESHOLD,
         )
+        crossed_listings = threshold_q.all()
+        crossed_external_ids = [l.external_id for l in crossed_listings]
+        if crossed_listings:
+            threshold_q.update(
+                {
+                    Listing.is_active: False,
+                    Listing.deactivated_at: now_utc,
+                },
+                synchronize_session="fetch",
+            )
+
+        # --- Step 4: Mirror onto ListingSource.is_active ---
+        # Only the rows whose Listing just crossed the threshold should
+        # flip their ListingSource.is_active. We DO NOT touch
+        # ListingSource for sub-threshold misses (otherwise multi-source
+        # counts would briefly drop and bounce).
+        if crossed_external_ids:
+            session.query(ListingSource).filter(
+                ListingSource.source == source,
+                ListingSource.is_active == True,  # noqa: E712
+                ListingSource.external_id.in_(crossed_external_ids),
+            ).update(
+                {ListingSource.is_active: False},
+                synchronize_session="fetch",
+            )
 
         logger.info(
-            "Marked inactive listings for source=%s (active_ids count=%d)",
+            "mark_inactive(source=%s): seen=%d, deactivated_this_call=%d "
+            "(threshold=%d consecutive misses)",
             source,
             len(active_ids),
+            len(crossed_external_ids),
+            MARK_INACTIVE_MISS_THRESHOLD,
         )
 
 
@@ -1348,6 +1469,8 @@ def log_notification(
     listing_count: int,
     recipient: str,
     success: bool,
+    error_category: str | None = None,
+    error_message: str | None = None,
 ) -> None:
     """Insert a row into the ``notification_log`` table.
 
@@ -1356,7 +1479,19 @@ def log_notification(
         listing_count: Number of listings included in the notification.
         recipient: Recipient identifier (email address, phone, etc.).
         success: Whether the send succeeded.
+        error_category: Short machine-readable failure tag for failed
+            sends (e.g. ``"token_expired"``, ``"auth"``,
+            ``"missing_credentials"``).  Ignored when ``success`` is True.
+        error_message: Human-readable failure description for failed sends.
+            Truncated to 1000 chars to keep log rows compact.
     """
+    # Defensive: never persist error data on a successful row.
+    if success:
+        error_category = None
+        error_message = None
+    elif error_message and len(error_message) > 1000:
+        error_message = error_message[:997] + "..."
+
     with get_session() as session:
         session.add(
             NotificationLog(
@@ -1364,43 +1499,140 @@ def log_notification(
                 listing_count=listing_count,
                 recipient=recipient,
                 success=success,
+                error_category=error_category,
+                error_message=error_message,
             )
         )
     logger.info(
-        "Logged notification: channel=%s, count=%d, recipient=%s, success=%s",
+        "Logged notification: channel=%s, count=%d, recipient=%s, success=%s%s",
         channel,
         listing_count,
         recipient,
         success,
+        f", error={error_category}" if (not success and error_category) else "",
     )
 
 
-def get_today_notification_count() -> int:
-    """Return the number of notification attempts today (Asia/Jerusalem).
+def get_last_channel_failure(
+    channel: str,
+    within_hours: int = 48,
+) -> dict | None:
+    """Return the most recent failed notification for a given channel.
 
-    Counts **all** attempts (both successful and failed) so the anti-spam
-    guard triggers even when credentials are misconfigured and every send
-    fails.  This prevents unlimited failure spam from multiple scheduler
-    instances.
+    Used by the admin Notifications page to surface diagnostics (e.g.
+    token-expired warnings) when the latest send for a channel failed.
 
-    Uses timezone-aware date calculation (UTC+3) to match the notification
-    schedule timezone, preventing off-by-one miscounts near midnight.
+    Only returns a row if the **most recent** notification for that
+    channel within the lookback window was a failure — i.e. a later
+    successful send clears the warning automatically.
+
+    Args:
+        channel: Channel name (e.g. ``"whatsapp"``, ``"email"``).
+        within_hours: Lookback window in hours (default 48).
 
     Returns:
-        Count of all notification log entries whose ``sent_at``
+        A dict with keys ``sent_at``, ``recipient``, ``error_category``,
+        ``error_message`` if the most recent attempt failed; otherwise
+        ``None``.
+    """
+    cutoff = datetime.now(timezone.utc) - timedelta(hours=within_hours)
+    with get_session() as session:
+        latest = (
+            session.query(
+                NotificationLog.sent_at,
+                NotificationLog.recipient,
+                NotificationLog.success,
+                NotificationLog.error_category,
+                NotificationLog.error_message,
+            )
+            .filter(NotificationLog.channel == channel)
+            .filter(NotificationLog.sent_at >= cutoff)
+            .order_by(NotificationLog.sent_at.desc())
+            .first()
+        )
+        if latest is None or latest.success:
+            return None
+        return {
+            "sent_at": latest.sent_at,
+            "recipient": latest.recipient,
+            "error_category": latest.error_category,
+            "error_message": latest.error_message,
+        }
+
+
+def get_today_notification_count() -> int:
+    """Return the number of **successful** notification sends today (Asia/Jerusalem).
+
+    Counts only rows with ``success=True``.  Failed attempts (network
+    errors, expired tokens, refused recipients, etc.) are excluded so a
+    morning network blip cannot consume the daily cap and silently
+    suppress the evening send.
+
+    The original implementation counted *all* attempts to "prevent
+    unlimited failure spam" from misconfigured channels.  In practice
+    every documented failure mode short-circuits BEFORE any message is
+    actually delivered (network, auth, token_expired, recipient_refused,
+    missing_credentials, disabled) — so counting them only protects
+    against a hypothetical "send raised AFTER delivering" race that has
+    never occurred.  See [`silent-failure-pattern.md`](docs/memory/wiki/concepts/silent-failure-pattern.md)
+    for the 2026-06-03 incident that motivated this change (7-day
+    Telegram silence after two morning network failures consumed the cap).
+
+    Uses an IST-day window translated to UTC bounds for the SQL comparison.
+    ``NotificationLog.sent_at`` is stored as a **naive UTC** datetime on
+    SQLite (the column drops ``tzinfo`` on persist — see
+    [`src/models.py`](src/models.py)).  Comparing ``func.date(sent_at)``
+    directly against an IST date would therefore evaluate in UTC and
+    silently undercount near IST midnight (00:00–03:00 IST ≈ 21:00–00:00
+    UTC the previous day).  Translating today's IST window to a
+    ``[start_utc, end_utc)`` range and filtering on the raw datetime
+    closes that gap so the daily cap honours the operator's local day.
+
+    Returns:
+        Count of successful notification log entries whose ``sent_at``
         falls on today's date in the Asia/Jerusalem timezone.
     """
     _IST = timezone(timedelta(hours=3))
     today = datetime.now(_IST).date()
+    # Today expressed as an IST window → translate to UTC bounds because
+    # NotificationLog.sent_at is stored as naive UTC on SQLite.
+    ist_midnight = datetime.combine(today, time(0), tzinfo=_IST)
+    start_utc = ist_midnight.astimezone(timezone.utc).replace(tzinfo=None)
+    end_utc = (ist_midnight + timedelta(days=1)).astimezone(timezone.utc).replace(tzinfo=None)
     with get_session() as session:
         count = (
             session.query(func.count(NotificationLog.id))
             .filter(
-                func.date(NotificationLog.sent_at) == today,
+                NotificationLog.sent_at >= start_utc,
+                NotificationLog.sent_at < end_utc,
+                NotificationLog.success == True,  # noqa: E712
             )
             .scalar()
         ) or 0
         return count
+
+
+def get_last_successful_notification_at() -> datetime | None:
+    """Return the timestamp of the most recent successful notification.
+
+    Used by the dashboard silence-detector banner to determine whether
+    notifications have stopped working.  Considers ALL channels — only
+    one channel needs to succeed to count as "the system is working".
+
+    Returns:
+        The ``sent_at`` of the most recent ``success=True`` row in
+        ``notification_log``, or ``None`` if no successful send has ever
+        been recorded.  Timestamps are returned as naive ``datetime``
+        objects in UTC (matching the stored column).
+    """
+    with get_session() as session:
+        latest = (
+            session.query(NotificationLog.sent_at)
+            .filter(NotificationLog.success == True)  # noqa: E712
+            .order_by(NotificationLog.sent_at.desc())
+            .first()
+        )
+        return latest.sent_at if latest is not None else None
 
 
 # ---------------------------------------------------------------------------
@@ -1502,14 +1734,13 @@ def get_source_counts_with_inactive() -> dict[str, dict[str, int]]:
 def get_notification_history(limit: int = 100) -> list[dict]:
     """Return recent notification records as plain dicts.
 
-    Designed for easy display in Streamlit ``st.dataframe()``.
-
     Args:
         limit: Maximum number of records to return.
 
     Returns:
         A list of dicts with keys ``sent_at``, ``channel``, ``recipient``,
-        ``listing_count``, ``success``, ordered by most recent first.
+        ``listing_count``, ``success``, ``error_category``, ``error_message``,
+        ordered by most recent first.
     """
     with get_session() as session:
         rows = (
@@ -1519,6 +1750,8 @@ def get_notification_history(limit: int = 100) -> list[dict]:
                 NotificationLog.recipient,
                 NotificationLog.listing_count,
                 NotificationLog.success,
+                NotificationLog.error_category,
+                NotificationLog.error_message,
             )
             .order_by(NotificationLog.sent_at.desc())
             .limit(limit)
@@ -1531,6 +1764,8 @@ def get_notification_history(limit: int = 100) -> list[dict]:
                 "recipient": row.recipient,
                 "listing_count": row.listing_count,
                 "success": row.success,
+                "error_category": row.error_category,
+                "error_message": row.error_message,
             }
             for row in rows
         ]
@@ -1577,9 +1812,14 @@ def get_notification_stats() -> dict:
     Uses a single query with conditional aggregation instead of 3 separate
     COUNT queries for better performance.
 
-    ``today_count`` counts **all** attempts (success + failure) to stay
-    consistent with :func:`get_today_notification_count` and the anti-spam
-    guard.  ``success_rate`` is still based on successful sends only.
+    ``today_count`` deliberately counts **all** notification log rows for
+    today (success + failure) because this stat powers the admin dashboard
+    *Notifications Today* counter — operators want visibility into every
+    dispatch attempt, not just successes.  This is intentionally
+    **decoupled from** :func:`get_today_notification_count`, which counts
+    only successes because it gates the anti-spam ceiling (see that
+    function's docstring for the 2026-06-03 rationale).
+    ``success_rate`` is still based on successful sends only.
 
     Returns:
         A dict with keys ``total`` (int), ``success_rate`` (float, 0–100),

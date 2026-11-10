@@ -22,7 +22,7 @@ import httpx
 
 from src.database import log_api_call, get_api_call_count
 from src.scrapers.base import BaseScraper
-from src.utils import load_config
+from src.utils import load_config, resolve_cities
 
 logger = logging.getLogger("rental_finder.scrapers.realtor")
 
@@ -95,8 +95,10 @@ class RealtorScraper(BaseScraper):
         # Search params from shared config
         search_cfg = config.get("search", {})
         filters_cfg = config.get("filters", {})
-        self.city: str = search_cfg.get("city", "Sunnyvale")
         self.state: str = search_cfg.get("state", "CA")
+        # Scrape territory: resolve the (possibly multi-city) list from config.
+        # Backward-compatible with the legacy scalar ``search.city``.
+        self.cities: list[str] = resolve_cities(search_cfg)
         self.min_price: int = filters_cfg.get("min_price", 5000)
         self.max_price: int = filters_cfg.get("max_price", 6500)
         self.min_beds: int = filters_cfg.get("min_bedrooms", 3)
@@ -174,145 +176,182 @@ class RealtorScraper(BaseScraper):
                 timeout=30.0,
                 verify=ssl_ctx,
             ) as client:
-                total_pages_from_api: int | None = None
-
-                for page_num in range(1, effective_max_pages + 1):
-                    # Stop if we already know we've passed the last page
-                    if total_pages_from_api is not None and page_num > total_pages_from_api:
-                        logger.info(
-                            "Reached last page (%d) — stopping.", total_pages_from_api
-                        )
-                        break
-
-                    params: dict[str, Any] = {
-                        "location": f"city:{self.city}, {self.state}",
-                        "sortBy": "best_match",
-                        "propertyType": "single_family",
-                        "limit": 20,
-                        "page": page_num,
-                    }
-
+                # --- Outer loop: one page loop per configured city ---
+                for city in self.cities:
                     logger.info(
-                        "Realtor.com API request page %d: "
-                        "location=city:%s, %s",
-                        page_num,
-                        self.city,
-                        self.state,
+                        "Realtor.com scrape starting for city=%s (%d configured "
+                        "cit%s)",
+                        city,
+                        len(self.cities),
+                        "y" if len(self.cities) == 1 else "ies",
                     )
+                    total_pages_from_api: int | None = None
 
-                    try:
-                        response = await client.get(
-                            _SEARCH_URL, headers=headers, params=params
-                        )
-                        response.raise_for_status()
-                        # Log successful API call (after raise_for_status to avoid double-logging)
-                        log_api_call(
-                            "realtor",
-                            endpoint=_SEARCH_URL,
-                            status_code=response.status_code,
-                        )
-                    except httpx.HTTPStatusError as exc:
-                        log_api_call(
-                            "realtor",
-                            endpoint=_SEARCH_URL,
-                            status_code=exc.response.status_code,
-                        )
-                        logger.error(
-                            "Realtor.com API HTTP %d on page %d: %s",
-                            exc.response.status_code,
-                            page_num,
-                            exc,
-                        )
-                        if exc.response.status_code == 429:
-                            logger.warning("Rate limited — stopping pagination.")
-                        break
-                    except httpx.RequestError as exc:
-                        log_api_call(
-                            "realtor", endpoint=_SEARCH_URL, status_code=None
-                        )
-                        logger.error(
-                            "Realtor.com API request error on page %d: %s",
-                            page_num,
-                            exc,
-                        )
-                        break
+                    for page_num in range(1, effective_max_pages + 1):
+                        # Per-API-call budget guard: re-check the live monthly
+                        # count so a multi-city run halts pagination the moment
+                        # the threshold is hit, regardless of how many cities
+                        # remain. (ADR-002: reuse the existing guard per call.)
+                        current_count = get_api_call_count("realtor")
+                        if current_count >= self.budget_threshold:
+                            logger.warning(
+                                "⚠️ Realtor.com API budget guard tripped mid-run "
+                                "(%d/%d, threshold %d) at city=%s page %d "
+                                "— stopping all remaining requests.",
+                                current_count,
+                                self.monthly_budget,
+                                self.budget_threshold,
+                                city,
+                                page_num,
+                            )
+                            return all_listings
 
-                    try:
-                        data = response.json()
-                    except Exception:
-                        logger.error(
-                            "Failed to parse Realtor.com API JSON on page %d",
-                            page_num,
-                        )
-                        break
+                        # Stop if we already know we've passed the last page
+                        if total_pages_from_api is not None and page_num > total_pages_from_api:
+                            logger.info(
+                                "Reached last page (%d) for city=%s — next city.",
+                                total_pages_from_api,
+                                city,
+                            )
+                            break
 
-                    # Log raw response on first call for format verification
-                    if page_num == 1:
-                        logger.debug(
-                            "Realtor.com raw response keys: %s",
-                            list(data.keys()) if isinstance(data, dict) else type(data).__name__,
-                        )
+                        params: dict[str, Any] = {
+                            "location": f"city:{city}, {self.state}",
+                            "sortBy": "best_match",
+                            "propertyType": "single_family",
+                            "limit": 20,
+                            "page": page_num,
+                        }
 
-                    # Check for API-level errors — status is boolean True/False
-                    api_status = data.get("status")
-                    api_message = data.get("message", "")
-                    if api_status is not True:
-                        logger.error(
-                            "Realtor.com API returned non-success status: %s, message: %s",
-                            api_status,
-                            api_message,
-                        )
-                        break
-
-                    # Extract search results from data.results
-                    results_container = data.get("data", {})
-                    if isinstance(results_container, dict):
-                        search_results = results_container.get("results", [])
-                        total = results_container.get("total", 0)
-                    else:
-                        search_results = []
-                        total = 0
-
-                    # Extract pagination metadata from meta
-                    meta = data.get("meta", {})
-                    if isinstance(meta, dict):
-                        total_pages_from_api = meta.get("totalPage", 1)
-                    else:
-                        total_pages_from_api = 1
-
-                    if not search_results:
                         logger.info(
-                            "No more results on page %d — stopping.", page_num
+                            "Realtor.com API request page %d: "
+                            "location=city:%s, %s",
+                            page_num,
+                            city,
+                            self.state,
                         )
-                        break
 
-                    all_listings.extend(search_results)
-                    logger.info(
-                        "Realtor.com API page %d/%s: %d listings (total so far: %d, "
-                        "API reports %d total)",
-                        page_num,
-                        total_pages_from_api,
-                        len(search_results),
-                        len(all_listings),
-                        total,
-                    )
+                        try:
+                            response = await client.get(
+                                _SEARCH_URL, headers=headers, params=params
+                            )
+                            response.raise_for_status()
+                            # Log successful API call (after raise_for_status to avoid double-logging)
+                            log_api_call(
+                                "realtor",
+                                endpoint=_SEARCH_URL,
+                                status_code=response.status_code,
+                            )
+                        except httpx.HTTPStatusError as exc:
+                            log_api_call(
+                                "realtor",
+                                endpoint=_SEARCH_URL,
+                                status_code=exc.response.status_code,
+                            )
+                            logger.error(
+                                "Realtor.com API HTTP %d on page %d (city=%s): %s",
+                                exc.response.status_code,
+                                page_num,
+                                city,
+                                exc,
+                            )
+                            if exc.response.status_code == 429:
+                                logger.warning("Rate limited — stopping pagination.")
+                            break
+                        except httpx.RequestError as exc:
+                            log_api_call(
+                                "realtor", endpoint=_SEARCH_URL, status_code=None
+                            )
+                            logger.error(
+                                "Realtor.com API request error on page %d (city=%s): %s",
+                                page_num,
+                                city,
+                                exc,
+                            )
+                            break
 
-                    # Check if we've reached the last page
-                    if page_num >= total_pages_from_api:
+                        try:
+                            data = response.json()
+                        except Exception:
+                            logger.error(
+                                "Failed to parse Realtor.com API JSON on page %d "
+                                "(city=%s)",
+                                page_num,
+                                city,
+                            )
+                            break
+
+                        # Log raw response on first call for format verification
+                        if page_num == 1:
+                            logger.debug(
+                                "Realtor.com raw response keys: %s",
+                                list(data.keys()) if isinstance(data, dict) else type(data).__name__,
+                            )
+
+                        # Check for API-level errors — status is boolean True/False
+                        api_status = data.get("status")
+                        api_message = data.get("message", "")
+                        if api_status is not True:
+                            logger.error(
+                                "Realtor.com API returned non-success status: %s, message: %s",
+                                api_status,
+                                api_message,
+                            )
+                            break
+
+                        # Extract search results from data.results
+                        results_container = data.get("data", {})
+                        if isinstance(results_container, dict):
+                            search_results = results_container.get("results", [])
+                            total = results_container.get("total", 0)
+                        else:
+                            search_results = []
+                            total = 0
+
+                        # Extract pagination metadata from meta
+                        meta = data.get("meta", {})
+                        if isinstance(meta, dict):
+                            total_pages_from_api = meta.get("totalPage", 1)
+                        else:
+                            total_pages_from_api = 1
+
+                        if not search_results:
+                            logger.info(
+                                "No more results on page %d (city=%s) — next city.",
+                                page_num,
+                                city,
+                            )
+                            break
+
+                        all_listings.extend(search_results)
                         logger.info(
-                            "Reached last page (%d/%d). Done.",
+                            "Realtor.com API page %d/%s (city=%s): %d listings "
+                            "(total so far: %d, API reports %d total)",
                             page_num,
                             total_pages_from_api,
+                            city,
+                            len(search_results),
+                            len(all_listings),
+                            total,
                         )
-                        break
 
-                    # Random delay between API calls
-                    delay = random.uniform(self.delay_min, self.delay_max)
-                    logger.debug(
-                        "Sleeping %.1f s before next Realtor.com API page",
-                        delay,
-                    )
-                    await asyncio.sleep(delay)
+                        # Check if we've reached the last page
+                        if page_num >= total_pages_from_api:
+                            logger.info(
+                                "Reached last page (%d/%d) for city=%s. Next city.",
+                                page_num,
+                                total_pages_from_api,
+                                city,
+                            )
+                            break
+
+                        # Random delay between API calls
+                        delay = random.uniform(self.delay_min, self.delay_max)
+                        logger.debug(
+                            "Sleeping %.1f s before next Realtor.com API page",
+                            delay,
+                        )
+                        await asyncio.sleep(delay)
 
         except Exception:
             logger.exception("Fatal error during Realtor.com API scrape")

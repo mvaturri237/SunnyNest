@@ -1,7 +1,14 @@
 {# Single listing card — horizontal layout: image (left) + details (right) #}
 {% set first_img = listing.image_urls | first_image %}
+{# Favorite-school surfaces are gated by SCHOOLS_UI_ENABLED (web/dependencies.py).
+   DISABLED 2026-06-04 — see flag for full rationale (inaccurate boundary data).
+   When the flag is off: schools row is not rendered, the card root does NOT get
+   the .is-fav-school class, and the data-fav-school attribute is not emitted —
+   which causes map.js to skip the green pill variant (the JS reads
+   card.dataset.favSchool === '1', which is false when the attribute is absent). #}
+{% set fav_school = SCHOOLS_UI_ENABLED and (listing.school_elementary is is_favorite_school) %}
 
-<div class="listing-card" data-listing-id="{{ listing.id }}" data-id="{{ listing.id }}"
+<div class="listing-card{% if fav_school %} is-fav-school{% endif %}" data-listing-id="{{ listing.id }}" data-id="{{ listing.id }}"
      {% if listing.latitude and listing.longitude %}
      data-lat="{{ listing.latitude }}" data-lng="{{ listing.longitude }}"
      {% endif %}
@@ -13,7 +20,8 @@
      data-sqm="{{ listing.sqm|int if listing.sqm else '' }}"
      data-img="{{ first_img or '' }}"
      data-url="{{ listing.url or '' }}"
-     data-source="{{ listing.source or '' }}">
+     data-source="{{ listing.source or '' }}"
+     {% if SCHOOLS_UI_ENABLED %}data-fav-school="{{ '1' if fav_school else '0' }}"{% endif %}>
     <!-- Image -->
     <div class="card-image">
         {% if first_img %}
@@ -159,9 +167,19 @@
             <div class="card-location">{{ listing.neighborhood }}</div>
         {% endif %}
 
-        <!-- School assignment (elementary only) -->
-        {% if listing.school_elementary %}
-            <div class="card-schools">🏫 {{ listing.school_elementary | abbreviate_school }}</div>
+        {# School assignment (elementary only) — DISABLED 2026-06-04
+           Hidden via SCHOOLS_UI_ENABLED flag in web/dependencies.py because
+           the DB column is populated from approximate boundary polygons that
+           produce visibly wrong tagging. Re-enable when NCES SABS attendance-
+           boundary data lands (see plans/school-boundaries-nces.md TBD). #}
+        {% if SCHOOLS_UI_ENABLED and listing.school_elementary %}
+            <div class="card-schools">🏫
+                {%- if fav_school %}
+                    <span class="school-pill-fav" aria-label="Favorite school: {{ listing.school_elementary }}">★ {{ listing.school_elementary | abbreviate_school }}</span>
+                {%- else %}
+                    {{ listing.school_elementary | abbreviate_school }}
+                {%- endif %}
+            </div>
         {% endif %}
     </div>
 </div>

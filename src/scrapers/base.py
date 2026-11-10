@@ -79,7 +79,7 @@ class BaseScraper(ABC):
         pass
 
     @abstractmethod
-    def normalize(self, raw: dict) -> dict:
+    def normalize(self, raw: dict) -> dict | None:
         """Normalize a raw data dict to match Listing model fields.
 
         Args:
@@ -88,6 +88,10 @@ class BaseScraper(ABC):
 
         Returns:
             A dictionary whose keys correspond to
-            :class:`~src.models.Listing` column names.
+            :class:`~src.models.Listing` column names, OR ``None`` to
+            signal the orchestrator to skip this raw item entirely
+            (e.g. status validation failed — see Zillow Bug A,
+            2026-06-04). Callers MUST check for ``None`` before
+            dereferencing.
         """
         pass
